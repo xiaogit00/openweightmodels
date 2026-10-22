@@ -36,6 +36,7 @@ import {
   ANNOTATION_KIND_META,
   ANNOTATION_KINDS,
   EFFORT_LEVELS,
+  formatHandle,
   isPendingResponse,
   relativeTime,
   relativeTimeAgo,
@@ -1367,7 +1368,7 @@ export function ComparisonView(props: ComparisonPageData) {
             </span>
             <span>·</span>
             <Avatar handle={author.handle} size={14} />
-            <span className="text-neutral-200">@{author.handle}</span>
+            <span className="text-neutral-200">{formatHandle(author.handle)}</span>
             <span>· {ago(comparison.publishedAt ?? comparison.createdAt)}</span>
           </div>
 
@@ -1806,7 +1807,7 @@ export function ComparisonView(props: ComparisonPageData) {
                             <div className="flex items-center gap-1">
                               <span className="text-[11px] text-neutral-400">
                                 <span className="font-medium text-neutral-100">
-                                  @{message.author.handle}
+                                  {formatHandle(message.author.handle)}
                                 </span>{' '}
                                 · {ago(message.createdAt)}
                               </span>
@@ -2065,7 +2066,7 @@ export function ComparisonView(props: ComparisonPageData) {
                     <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                       <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-neutral-400">
                         <span className="font-medium text-neutral-100">
-                          @{comment.author.handle}
+                          {formatHandle(comment.author.handle)}
                         </span>
                         <span>{relativeTime(comment.createdAt)}</span>
                         {comment.aboutModel && (
@@ -2166,7 +2167,7 @@ export function ComparisonView(props: ComparisonPageData) {
                               <div className="flex items-center gap-1">
                                 <span className="text-[11px] text-neutral-400">
                                   <span className="font-medium text-neutral-100">
-                                    @{reply.author.handle}
+                                    {formatHandle(reply.author.handle)}
                                   </span>{' '}
                                   · {relativeTime(reply.createdAt)}
                                 </span>

@@ -9,6 +9,7 @@ export const HANDLE_MAX_LENGTH = 30;
 
 export const RESERVED_HANDLES = new Set([
   'about',
+  'account',
   'admin',
   'administrator',
   'api',
@@ -17,6 +18,7 @@ export const RESERVED_HANDLES = new Set([
   'compare',
   'comparisons',
   'contact',
+  'deleted',
   'help',
   'home',
   'job',

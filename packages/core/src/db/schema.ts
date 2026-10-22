@@ -56,6 +56,10 @@ export const users = pgTable(
       onDelete: 'set null',
     }),
     suspensionReason: text('suspension_reason'),
+    // Account deletion keeps the row so published Comparisons and the replies
+    // other people wrote under its comments do not disappear. Every personal
+    // field (email, handle, name, avatar) is cleared at the same time.
+    deletedAt: timestamp('deleted_at', { withTimezone: true, mode: 'date' }),
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
       .notNull()

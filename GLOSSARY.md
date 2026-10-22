@@ -76,6 +76,10 @@ _Avoid_: ban, deactivation, lockout
 A user's unique public identity, shown as `@handle`. Email addresses are never public.
 _Avoid_: username, login, display name
 
+**Deleted account**:
+An account whose owner deleted it. Email, handle and sessions are erased; published Comparisons stay attributed to `[deleted]`, and its comments and Annotations become tombstones so other people's replies remain.
+_Avoid_: deleted user, ghost user, anonymised account
+
 **Admin**:
 A user with the `admin` role, able to enable or disable Models, hide content, review Reports and suspend accounts.
 _Avoid_: moderator, staff

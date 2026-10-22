@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ChatCircle, Highlighter } from '@phosphor-icons/react/dist/ssr';
 import type { ComparisonCard as CardData } from '@owm/core/client';
-import { relativeTime } from '@owm/core/client';
+import { formatHandle, relativeTime } from '@owm/core/client';
 import { Avatar } from './avatar';
 import { cn } from '@/lib/utils';
 
@@ -115,7 +115,7 @@ export function ComparisonCardView({
 
       <div className="flex items-center gap-[6px] text-[11px] font-normal text-neutral-500">
         <Avatar handle={card.author.handle} size={14} />
-        <span className="text-neutral-300">@{card.author.handle}</span>
+        <span className="text-neutral-300">{formatHandle(card.author.handle)}</span>
         <span>·</span>
         <span>{relativeTime(card.publishedAt, now)}</span>
       </div>

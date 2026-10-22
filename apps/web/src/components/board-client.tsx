@@ -500,6 +500,52 @@ export function BoardClient({
           }
         }
 
+        // An account was deleted. Its comments and Annotations became
+        // tombstones, so drop their counts and ticker lines without a reload.
+        if (payload.type === 'account.deleted' && typeof activity.comparisonId === 'string') {
+          const comparisonId = activity.comparisonId;
+          const idsIn = (key: string) =>
+            Array.isArray(activity.payload?.[key])
+              ? (activity.payload[key] as unknown[]).filter(
+                  (value): value is string => typeof value === 'string',
+                )
+              : [];
+          const commentIds = idsIn('commentIds');
+          const annotationIds = idsIn('annotationIds');
+          const messageIds = idsIn('messageIds');
+          const numberIn = (key: string, fallback: number) =>
+            typeof activity.payload?.[key] === 'number'
+              ? (activity.payload[key] as number)
+              : fallback;
+          const commentDelta = numberIn('commentCount', commentIds.length);
+          const annotationDelta = numberIn('annotationCount', annotationIds.length);
+
+          if (commentDelta) {
+            setItems((current) =>
+              changeCount(current, comparisonId, 'commentCount', -commentDelta),
+            );
+          }
+          if (annotationDelta) {
+            setItems((current) =>
+              changeCount(
+                current,
+                comparisonId,
+                'annotationCount',
+                -annotationDelta,
+              ),
+            );
+          }
+          setEvents((current) => {
+            let next = current;
+            for (const id of commentIds) next = retractTickerEvents(next, 'commentId', id);
+            for (const id of annotationIds) {
+              next = retractTickerEvents(next, 'annotationId', id);
+            }
+            for (const id of messageIds) next = retractTickerEvents(next, 'messageId', id);
+            return next;
+          });
+        }
+
         // A Challenger added to a published Comparison settles into the live
         // card without a second publish. Replace the loaded card in place and
         // refresh the global sidebar counts.

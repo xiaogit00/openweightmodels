@@ -52,7 +52,7 @@ GLOSSARY.md, BACKEND.md
 
 ### Database
 
-Migration creates 16 tables: `users`, `models`, `comparisons`, `jobs`, `responses`, `annotations`, `annotation_messages`, `comments`, `votes`, `activity_events`, `job_events`, `notifications`, `admin_actions`, and Better Auth's `auth_sessions`, `auth_accounts`, `auth_verifications`. Migration `0002_modern_lucky_pierre.sql` adds the auth tables and makes `users.handle` nullable until onboarding; `0003_shallow_odin.sql` adds the takedown columns and the admin audit table.
+Migration creates 16 tables: `users`, `models`, `comparisons`, `jobs`, `responses`, `annotations`, `annotation_messages`, `comments`, `votes`, `activity_events`, `job_events`, `notifications`, `admin_actions`, and Better Auth's `auth_sessions`, `auth_accounts`, `auth_verifications`. Migration `0002_modern_lucky_pierre.sql` adds the auth tables and makes `users.handle` nullable until onboarding; `0003_shallow_odin.sql` adds the takedown columns and the admin audit table; `0005_stiff_mandroid.sql` adds `users.deleted_at` for account deletion.
 
 Seed (`pnpm db:seed`) inserts:
 
@@ -92,6 +92,8 @@ Implemented under `apps/web/src/app/api/`:
 - `/me`, `/dev/user` (POST identity switch, DELETE sign-out), `/dev/magic-link` (development outbox), `/models`
 - `/auth/[...all]` — Better Auth magic-link request, verification, session and sign-out endpoints
 - `/account/handle` — first-sign-in handle onboarding
+- `/account/export` — signed-in JSON download of the account's own data
+- `/account/delete` — typed-confirmation account deletion; expires session cookies
 - `/comparisons` (GET list, POST multipart create)
 - `/comparisons/:id` (GET/PATCH/DELETE)
 - `/comparisons/:id/publish`, `/unpublish`; `/comparisons/:id/responses` (POST add, GET author resync)
@@ -114,11 +116,13 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 - Shared components: logo, avatar, site header with an account menu and a notification bell (unread count, newest-first dropdown, per-item links, mark-all read, empty/error states), Comparison card, markdown renderer.
 - Tailwind theme and component classes in `globals.css` (2px radii, lime tokens, danger token, reduced-motion rules).
 - Auth pages: `app/sign-in` (email form, sent state and error copy), `app/onboarding` (handle claim with inline rules/errors), `app/auth/complete` (new-account vs returning routing). `lib/auth.ts` exposes the Better Auth instance plus `getCurrentUser()`/`requireUser()`; `lib/auth-client.ts` is the browser client. `lib/mail.ts` sends through SMTP and keeps the development outbox.
+- Account and legal pages: `app/account` (identity, JSON export download, typed-confirmation deletion), `app/terms` and `app/privacy` describe the data actually collected and retained, carry a visible draft-for-owner/legal-review banner and bracketed placeholders, and are linked from a shared footer in the root layout. Content whose author deleted their account renders `[deleted]` rather than a handle; the account menu links to `/account`.
 - Anonymous readers see **Sign in** in the header. The New Comparison page redirects to `/sign-in?next=/new`; annotation, Discussion reply and vote affordances link to sign-in on a Comparison; the account menu signs out.
 
 ### Verification
 
 - Ticket 12: `packages/core/test/providers.test.ts` covers the exact request shape (same Prompt and generation parameters for every Challenger), SSE content, provider usage tokens/cost, HTTP and in-stream errors, key redaction, the 120s timeout (injected short for the test), and provider selection with no silent mock fallback. A shared `test/fake-openai.ts` endpoint feeds `packages/core/test/provider-pipeline.test.ts`, which drives `processRun` end to end: content, completion tokens, latency and cost persisted; a 500 becomes Failed with a redacted useful message and an auto-skip timer; Retry then reaches Ready. A live-key OpenRouter call has **not** been made (no key in this checkout).
+- Ticket 15: `packages/core/test/account.test.ts` proves deletion keeps published Comparisons under `[deleted]`, erases unpublished work and personal fields, tombstones comments while preserving other people's replies, removes Annotations with their threads, keeps `comment_count`/`annotation_count` exact (including a reply under an Admin-hidden parent), removes sessions, pending magic links, notifications, votes and ticker rows, frees the handle and email, refuses an untyped confirmation and a second deletion, and that export contains only the account's own data. `e2e/account.spec.ts` drives sign-in → comment → export download → typed confirmation → signed-out Board → tombstone, and checks the footer links to both legal pages.
 - `pnpm typecheck` — **passes** (core, web, worker and the E2E suite).
 - `pnpm test` — **passes with local Postgres and Redis**: 184 core tests, 13 web mail/redirect/notification-link/discussion tests and 9 worker dispatch/consumption/concurrency tests. When either service is unavailable the integration files warn and skip, so the unit tests still run. Coverage includes UTF-16 annotation offsets (emoji, CJK, escapes, cross-formatting, fenced vs indented code), upload parsing and limits, keyset cursors (including a sort mismatch and a Top cursor without a score), Board filter/URL helpers, 48-item default pagination, global Category/Model facets, the create → generate → publish pipeline with the mock provider, add-Challenger visibility (author-only pending/failed, atomic publication, cap/duplicate/Base/disabled rules, dismissed-slot release), admin authorization and audit (Model enable/disable, queued Runs failing on a disabled Model, takedown hiding from Board/public routes and restore), comment and Annotation edit/delete rules (inline body limit, hard delete and votes, tombstone with live replies, retagging, message tombstone, counters, ticker retraction), author-only write permissions, handle format/reserved-name rules, case-insensitive handle uniqueness and the concurrent-onboarding race, SMTP delivery of the magic-link email through a local sink, and post-auth redirect safety.
 - `pnpm test:e2e` — **passes (15 tests)** (the run logged a Turbopack cache write warning after the suite; all tests still passed): an auth suite proves request → single-use link → handle onboarding → session reload → sign-out, reserved and taken handles, anonymous read with sign-in affordances, 401 on an anonymous write, replay rejection, expiry rejection after the verification row is expired, the development outbox, no bell for anonymous visitors, and a seeded author signing in with a link while their published Comparisons stay intact. An admin suite proves anonymous and member requests to `/admin` get 404, an admin can disable a Model (removing it from the API picker and `/new`) and re-enable it, a published Comparison can be taken down with a reason (disappearing from the public route and Board), the audit and hidden record show the actor and reason, and restore makes it public again. A real browser journey covers upload → schedule → live Job → publish → Board arrival → the author's unread notification and its persisted read state → annotate → thread → comment → vote across two identities (explicitly signing in through the development switcher), and asserts that a second reader sees an empty bell. A separate add-Challenger journey publishes a Comparison, adds a model from the menu (Base and existing models absent, ETA shown), proves the tab is author-only until it completes, and checks readers still have no Add control. An edit/delete journey proves inline comment editing, childless hard delete, parent tombstone with a surviving reply, live Board count and ticker retraction, inline message edit and tombstone, Annotation retagging and deletion, and that non-owners get no controls and a direct `PATCH` returns 403. A Board suite covers 48-item pages, the Load more fallback, the infinite-scroll sentinel, global sidebar counts, URL state across reload/back/forward, a single SSE subscription, loading/error/Retry and reduced motion. It seeds an isolated `openweightmodels_e2e` database (with enough published fixtures to paginate) and Redis DB `1`, then starts its own web and worker servers.
@@ -141,7 +145,8 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 - Production images and the AWS deployment (ticket 13). The current `Dockerfile` is a development target only.
 - AWS CDK stack, Dockerfiles, CI/CD, deployment.
 - One live-key OpenRouter smoke call. The adapter and pipeline are covered against a local OpenAI-compatible server; no `OPENROUTER_API_KEY` is configured in this checkout, so ticket 12's live-key sign-off remains manual.
-- Report queue, user suspension and the wider moderation console (ticket 14).
+- Owner/legal review of the Terms and Privacy copy, and the bracketed placeholders in them. The behaviour they describe is implemented and tested; the wording is not legal advice (`docs/PRIVACY.md`).
+- A scheduled retention/pruning job for expired sessions and verification rows. They are inert today and are removed when the account is deleted, but nothing prunes them on a timer yet.
 
 ---
 
@@ -160,13 +165,16 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 11. Better Auth's default magic-link rate limit is 5 requests per 60 seconds per IP; broader per-email/per-IP abuse controls remain ticket 16.
 12. Handle changes after onboarding are not implemented (open question 4).
 13. `PROVIDER_CONCURRENCY` is enforced per worker process. Running more than one worker replica multiplies the global provider cap; a cross-process concurrency limiter is not built.
+14. Account deletion publishes a summary-less `account.deleted` SSE event per affected Comparison. Older clients ignore it and repair counts on the next reload; current clients apply it.
+15. The footer is global, so it sits below the Board's full-height content and needs a scroll. Ticket 17 owns the visual pass.
+16. A deleted account's handle is released for reuse. Old content never shows the handle (it renders `[deleted]`), so a new owner of the same handle cannot inherit attribution; ticker lines that named the old handle are removed.
 
 ---
 
 ## 5. Suggested next order
 
-1. Accessibility and fidelity audit (ticket 17), including the admin surface.
-2. Moderation queue and user suspension (ticket 14), building on `admin_actions`.
+1. Accessibility and fidelity audit (ticket 17), including the admin surface and the new account/legal pages.
+2. The live-key sign-off for ticket 12, then AWS staging (ticket 13) and the abuse/spend controls that depend on it (ticket 16).
 
 ---
 
@@ -194,6 +202,9 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 | Magic-link mail | `apps/web/src/lib/mail.ts` |
 | Handle validation | `packages/core/src/domain/handle.ts` |
 | Handle onboarding service | `packages/core/src/services/identity.ts` |
+| Account deletion and export | `packages/core/src/services/account.ts`, `apps/web/src/app/api/account/` |
+| Account settings page | `apps/web/src/app/account/page.tsx`, `apps/web/src/components/account-settings.tsx` |
+| Legal pages and footer | `apps/web/src/app/terms`, `apps/web/src/app/privacy`, `apps/web/src/components/legal.tsx`, `site-footer.tsx`, `docs/PRIVACY.md` |
 | Contract | `BACKEND.md` |
 | Decisions | `docs/DECISIONS.md` |
 | ADRs | `docs/adr/0001`–`0006` |

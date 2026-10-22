@@ -58,6 +58,11 @@ export const handleSchema = z.object({
   handle: z.string().min(1).max(HANDLE_MAX_LENGTH),
 });
 
+export const deleteAccountSchema = z.object({
+  // The service checks the word; the limit just bounds the body.
+  confirmation: z.string().max(40),
+});
+
 export const adminModelPatchSchema = z.object({
   enabled: z.boolean(),
 });

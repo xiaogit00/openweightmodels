@@ -25,8 +25,18 @@ describe('handle validation', () => {
     }
   });
 
-  it('reserves route and platform names', () => {
-    for (const handle of ['admin', 'api', 'auth', 'sign-in', 'onboarding', 'openweightmodels', 'me']) {
+  it('reserves route, platform and anonymous-attribution names', () => {
+    for (const handle of [
+      'admin',
+      'api',
+      'auth',
+      'sign-in',
+      'onboarding',
+      'openweightmodels',
+      'me',
+      'account',
+      'deleted',
+    ]) {
       expect(checkHandle(handle)).toMatchObject({ ok: false });
     }
     expect(checkHandle('admin')).toMatchObject({ message: expect.stringContaining('reserved') });

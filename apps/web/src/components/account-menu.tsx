@@ -69,6 +69,14 @@ export function AccountMenu({ handle }: { handle: string | null }) {
             </span>
           </div>
           <div className="my-1 h-px bg-neutral-700" />
+          <Link
+            href="/account"
+            onClick={() => setOpen(false)}
+            className="flex h-7 items-center gap-1.5 rounded-[2px] px-2 text-[12px] text-neutral-200 outline-0 hover:bg-surface focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            <User size={13} />
+            Account
+          </Link>
           {isAdmin && (
             <Link
               href="/admin"

@@ -116,6 +116,7 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 | 52 | Takedown uses its own `takedown_at` / `takedown_by_id` / `takedown_reason` columns, separate from author `deleted_at` | A takedown is reversible and attributable; an Admin can review and restore the hidden record while the Author and public get 404. |
 | 53 | Every admin action appends to `admin_actions`; the public activity stream gets only a summary-less, actor-less takedown/restore event | The audit trail is attributable without telling anonymous readers which Admin acted. Historical ticker rows for the hidden Comparison are removed. |
 | 54 | Disabling a Model blocks new Runs and fails a Run that was queued but not yet claimed; completed Responses stay readable | Avoids silently generating on a disabled Model while keeping published Comparisons intact. |
+| 57 | **Account deletion keeps published work under `[deleted]`**; unpublished Comparisons, sessions, votes and personal fields are erased, and comments/Annotations are tombstoned so other people's replies survive | Other people's discussion must not disappear because one participant leaves, while private drafts and sign-in data must not be retained. The handle and email are released. |
 
 **Rejected**: GitHub OAuth; hosted auth; real auth before the slice; anonymous write; admin CRUD for models in M1; full moderation console in M1.
 
@@ -250,7 +251,7 @@ These are intentionally unresolved. Do not assume them.
 
 ### Auth and access
 5. Broader magic-link and write-abuse controls are unspecified. Better Auth now applies its default 5-requests-per-60-seconds-per-IP limit to the magic-link endpoints; per-email/per-IP write limits and spend caps remain ticket 16.
-6. Account deletion, data export and retention windows are not implemented.
+6. Resolved: account deletion, data export and the retention windows are implemented in ticket 15; see `docs/PRIVACY.md`.
 7. Report/flag, user suspension and admin audit logging are launch gates.
 8. Where does the admin UI live, and who can see deleted Comparisons?
 
@@ -295,9 +296,9 @@ These are intentionally unresolved. Do not assume them.
 
 Not M1 work, but required before public exposure:
 
-- Terms of Service and Privacy Policy.
+- Terms of Service and Privacy Policy. **Written but explicitly marked for owner/legal review** (ticket 15).
 - Report/flag queue, user suspension, admin audit log.
-- Account deletion and data export.
+- Account deletion and data export. **Implemented in ticket 15.**
 - SES production access and sender-domain verification.
 - CloudWatch alarms with a named owner; restore drill for RDS.
 - Magic-link abuse controls and per-IP rate limits.

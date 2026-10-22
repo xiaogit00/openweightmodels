@@ -29,7 +29,7 @@ import {
 import { decodeCursor, encodeCursor, CursorError } from './domain/cursor';
 import { BOARD_PAGE_SIZE, emptyBoardFacets } from './domain/filters';
 import { summariseMarkdown } from './domain/upload';
-import { runProgress } from './domain/types';
+import { DELETED_AUTHOR_HANDLE, runProgress } from './domain/types';
 import type {
   AnnotationThreadMessage,
   AnnotationView,
@@ -62,13 +62,21 @@ export type ListOptions = {
 
 export type ListResult = BoardPage;
 
+/**
+ * The public handle for a stored user. Deleted accounts render as `[deleted]`
+ * (never as `@deleted`); unonboarded/legacy rows get an id-based fallback that
+ * cannot collide with a claimable handle.
+ */
+function handleFor(user: UserRow | undefined) {
+  if (!user) return 'unknown';
+  if (user.deletedAt) return DELETED_AUTHOR_HANDLE;
+  return user.handle ?? `member-${user.id.slice(0, 8)}`;
+}
+
 function toPublicUser(user: UserRow): PublicUser {
   return {
     id: user.id,
-    // A user must choose a handle before authoring, so content authors always
-    // have one. The fallback only protects rendering of legacy/unonboarded rows,
-    // and the id suffix keeps it from colliding with a claimable handle.
-    handle: user.handle ?? `member-${user.id.slice(0, 8)}`,
+    handle: handleFor(user),
     avatarUrl: user.avatarUrl,
     image: user.image,
   };
@@ -112,7 +120,7 @@ function cardFromRows(
     commentCount: comparison.commentCount,
     annotationCount: comparison.annotationCount,
     author: {
-      handle: author?.handle ?? 'unknown',
+      handle: handleFor(author),
       avatarUrl: author?.avatarUrl ?? author?.image ?? null,
     },
     publishedAt: (comparison.publishedAt ?? comparison.createdAt).toISOString(),

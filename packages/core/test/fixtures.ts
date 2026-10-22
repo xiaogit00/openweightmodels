@@ -22,25 +22,37 @@ export type FixtureOptions = {
   provider?: string;
   /** Optional OpenAI-compatible endpoint used by integration tests. */
   apiBase?: string | null;
+  /**
+   * Attach this Comparison to an existing account instead of creating a
+   * throwaway author. The caller owns that account's cleanup.
+   */
+  authorId?: string;
+  authorHandle?: string;
 };
 
 /**
  * Creates a signed-in user that owns nothing, for permission and voting tests.
  */
 export async function createUserFixture(
-  options: { role?: 'user' | 'admin' } = {},
+  options: { role?: 'user' | 'admin'; email?: string | null; handle?: string | null } = {},
 ) {
   const db = getDb();
   const tag = uuidv7().replace(/-/g, '').slice(-10);
   const [user] = await db
     .insert(users)
-    .values({ id: uuidv7(), handle: `reader-${tag}`, role: options.role ?? 'user' })
+    .values({
+      id: uuidv7(),
+      handle: options.handle === undefined ? `reader-${tag}` : options.handle,
+      email: options.email ?? null,
+      role: options.role ?? 'user',
+    })
     .returning();
   if (!user) throw new Error('fixture user was not inserted');
 
   return {
     id: user.id,
     handle: user.handle,
+    email: user.email,
     async cleanup() {
       await db.delete(users).where(eq(users.id, user.id));
     },
@@ -84,12 +96,14 @@ export async function createJobFixture(options: FixtureOptions = {}) {
     .filter((row) => row.slug !== `fixture-base-${tag}`)
     .sort((a, b) => a.slug.localeCompare(b.slug));
   if (!baseModel) throw new Error('fixture base model was not inserted');
-  const userId = uuidv7();
+  const userId = options.authorId ?? uuidv7();
   const comparisonId = uuidv7();
   const jobId = uuidv7();
-  const handle = `fixture-${tag}`;
+  const handle = options.authorHandle ?? `fixture-${tag}`;
 
-  await db.insert(users).values({ id: userId, handle });
+  if (!options.authorId) {
+    await db.insert(users).values({ id: userId, handle });
+  }
   const status = options.comparisonStatus ?? 'generating';
   await db.insert(comparisons).values({
     id: comparisonId,
@@ -150,7 +164,13 @@ export async function createJobFixture(options: FixtureOptions = {}) {
     challengerSlugs: challengerModels.map((model) => model.slug),
     runIds: runRows.map((row) => row.id),
     async cleanup() {
-      await db.delete(users).where(eq(users.id, userId));
+      // A fixture-owned author takes every Comparison they created with them;
+      // a shared author cannot, so remove this Comparison by id first.
+      if (options.authorId) {
+        await db.delete(comparisons).where(eq(comparisons.id, comparisonId));
+      } else {
+        await db.delete(users).where(eq(users.id, userId));
+      }
       await db.delete(models).where(inArray(models.id, modelRows.map((row) => row.id)));
     },
   };

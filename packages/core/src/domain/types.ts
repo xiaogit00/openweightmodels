@@ -200,6 +200,17 @@ export type PublicUser = {
   image: string | null;
 };
 
+/**
+ * The public handle used for content whose author deleted their account. It is
+ * not a claimable handle and is rendered as `[deleted]`, never as `@deleted`.
+ */
+export const DELETED_AUTHOR_HANDLE = 'deleted';
+
+/** `@handle`, or the unlinked `[deleted]` marker once the account is gone. */
+export function formatHandle(handle: string): string {
+  return handle === DELETED_AUTHOR_HANDLE ? '[deleted]' : `@${handle}`;
+}
+
 export type AnnotationThreadMessage = {
   id: string;
   body: string;
