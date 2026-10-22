@@ -1,22 +1,29 @@
 import Link from 'next/link';
-import { ArrowLeft, Bell, Plus } from '@phosphor-icons/react/dist/ssr';
+import { ArrowLeft, Bell, Plus, SignIn } from '@phosphor-icons/react/dist/ssr';
 import type { ReactNode } from 'react';
-import { Avatar } from './avatar';
+import { AccountMenu } from './account-menu';
 import { Logo } from './logo';
 
 export function SiteHeader({
   handle,
+  signedIn,
   variant = 'board',
   search,
   showNew = true,
   onNewHref = '/new',
+  signInHref = '/sign-in',
 }: {
-  handle: string;
+  /** Null when the visitor is anonymous or has not chosen a handle yet. */
+  handle: string | null;
+  /** Overrides handle-based detection for sessions that still need onboarding. */
+  signedIn?: boolean;
   variant?: 'board' | 'page';
   search?: ReactNode;
   showNew?: boolean;
   onNewHref?: string;
+  signInHref?: string;
 }) {
+  const viewerSignedIn = signedIn ?? handle !== null;
   return (
     <header className="sticky top-0 z-20 flex items-center gap-4 border-b border-neutral-800 bg-bg px-5 py-[10px]">
       <Logo />
@@ -37,16 +44,25 @@ export function SiteHeader({
           New comparison
         </Link>
       )}
-      {variant === 'board' && (
-        <button
-          type="button"
-          aria-label="Notifications"
-          className="btn-ghost h-8 w-8 p-0"
-        >
-          <Bell size={17} />
-        </button>
+      {viewerSignedIn ? (
+        <>
+          {variant === 'board' && (
+            <button
+              type="button"
+              aria-label="Notifications"
+              className="btn-ghost h-8 w-8 p-0"
+            >
+              <Bell size={17} />
+            </button>
+          )}
+          <AccountMenu handle={handle} />
+        </>
+      ) : (
+        <Link href={signInHref} className="btn-secondary h-8">
+          <SignIn size={14} />
+          Sign in
+        </Link>
       )}
-      <Avatar handle={handle} />
     </header>
   );
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowBendUpLeft,
@@ -34,6 +35,7 @@ import { Avatar } from './avatar';
 import { SiteHeader } from './site-header';
 import { MarkdownView } from './markdown-view';
 import { cn } from '@/lib/utils';
+import { signInPath } from '@/lib/next-path';
 
 export type ComparisonResponseView = {
   id: string;
@@ -66,9 +68,10 @@ export type ComparisonPageData = {
   comments: CommentView[];
   models: Array<{ id: string; slug: string; name: string; monogram: string }>;
   currentUserId: string | null;
+  viewerSignedIn: boolean;
   initialModel: string | null;
   initialAnnOn: boolean;
-  handle: string;
+  handle: string | null;
 };
 
 const KIND_ICONS: Record<AnnotationKind, typeof Bug> = {
@@ -141,12 +144,20 @@ export function ComparisonView(props: ComparisonPageData) {
     comments: initialComments,
     models,
     currentUserId,
+    viewerSignedIn,
     initialModel,
     initialAnnOn,
     handle,
   } = props;
 
   const base = responses.find((response) => response.isBase);
+  const canWrite = currentUserId !== null;
+  const signInHref = signInPath(`/comparisons/${comparison.id}`);
+  const requireSignIn = () => {
+    if (canWrite) return false;
+    window.location.assign(signInHref);
+    return true;
+  };
   const challengers = responses.filter(
     (response) => !response.isBase && response.status === 'done',
   );
@@ -248,7 +259,7 @@ export function ComparisonView(props: ComparisonPageData) {
   };
 
   const onMouseUp = () => {
-    if (!annOn) return;
+    if (!annOn || !canWrite) return;
     setTimeout(() => {
       const browserSelection = window.getSelection();
       if (!browserSelection || browserSelection.isCollapsed || !browserSelection.rangeCount) {
@@ -387,6 +398,7 @@ export function ComparisonView(props: ComparisonPageData) {
   };
 
   const voteAnnotation = async (annotation: AnnotationView) => {
+    if (requireSignIn()) return;
     if (annotation.author.id === currentUserId) return;
     const response = await fetch('/api/votes', {
       method: 'POST',
@@ -405,6 +417,7 @@ export function ComparisonView(props: ComparisonPageData) {
   };
 
   const voteComment = async (comment: CommentView) => {
+    if (requireSignIn()) return;
     if (comment.author.id === currentUserId) return;
     const response = await fetch('/api/votes', {
       method: 'POST',
@@ -431,6 +444,7 @@ export function ComparisonView(props: ComparisonPageData) {
   };
 
   const postComment = async () => {
+    if (requireSignIn()) return;
     if (!draft.trim() || posting) return;
     setPosting(true);
     setCommentError(null);
@@ -474,6 +488,7 @@ export function ComparisonView(props: ComparisonPageData) {
   };
 
   const replyTo = (comment: CommentView) => {
+    if (requireSignIn()) return;
     setDraft(`@${comment.author.handle} `);
     setAbout(comment.aboutModel?.slug ?? null);
     setReplyParentId(comment.id);
@@ -504,7 +519,12 @@ export function ComparisonView(props: ComparisonPageData) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <SiteHeader handle={handle} variant="page" />
+      <SiteHeader
+        handle={handle}
+        signedIn={viewerSignedIn}
+        variant="page"
+        signInHref={signInHref}
+      />
 
       <main className="mx-auto flex w-full max-w-[1480px] flex-col gap-4 px-5 pb-12 pt-[18px]">
         <div className="flex max-w-[860px] flex-col gap-2">
@@ -591,9 +611,15 @@ export function ComparisonView(props: ComparisonPageData) {
                   </button>
                 ))}
               </div>
-              <span className="text-[12px] text-neutral-500">
-                Select any text to annotate it
-              </span>
+              {canWrite ? (
+                <span className="text-[12px] text-neutral-500">
+                  Select any text to annotate it
+                </span>
+              ) : (
+                <Link href={signInHref} className="text-[12px] font-medium text-accent-200">
+                  Sign in to annotate
+                </Link>
+              )}
             </>
           )}
 
@@ -777,22 +803,33 @@ export function ComparisonView(props: ComparisonPageData) {
                       <ArrowFatUp size={12} />
                       {activeAnnotation.votes}
                     </button>
-                    <input
-                      value={replyDraft}
-                      onChange={(event) => setReplyDraft(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') void sendReply();
-                      }}
-                      placeholder="Reply…"
-                      className="h-7 min-w-0 flex-1 rounded-[2px] border border-neutral-700 bg-bg px-2 text-[12px] text-text outline-0 focus:border-accent"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void sendReply()}
-                      className="grid h-7 w-7 place-items-center rounded-[2px] border border-accent text-accent-200"
-                    >
-                      <PaperPlaneRight size={13} />
-                    </button>
+                    {canWrite ? (
+                      <>
+                        <input
+                          value={replyDraft}
+                          onChange={(event) => setReplyDraft(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') void sendReply();
+                          }}
+                          placeholder="Reply…"
+                          className="h-7 min-w-0 flex-1 rounded-[2px] border border-neutral-700 bg-bg px-2 text-[12px] text-text outline-0 focus:border-accent"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void sendReply()}
+                          className="grid h-7 w-7 place-items-center rounded-[2px] border border-accent text-accent-200"
+                        >
+                          <PaperPlaneRight size={13} />
+                        </button>
+                      </>
+                    ) : (
+                      <Link
+                        href={signInHref}
+                        className="flex h-7 flex-1 items-center justify-center rounded-[2px] border border-neutral-700 text-[11px] font-medium text-neutral-300"
+                      >
+                        Sign in to reply
+                      </Link>
+                    )}
                   </div>
                 </>
               ) : popover.mode === 'new' ? (
@@ -885,47 +922,58 @@ export function ComparisonView(props: ComparisonPageData) {
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 rounded-[2px] bg-surface p-2.5">
-            <textarea
-              ref={composerRef}
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder="Share what you noticed across the outputs…"
-              rows={2}
-              className="resize-y border-0 bg-transparent px-0.5 py-1 text-[12px] leading-[1.5] text-text outline-0"
-            />
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[11px] text-neutral-500">About</span>
-              {[{ slug: null, name: 'General' }, ...commentModels].map((option) => {
-                const activeAbout = about === option.slug;
-                return (
-                  <button
-                    key={option.slug ?? 'general'}
-                    type="button"
-                    onClick={() => setAbout(option.slug)}
-                    className={cn(
-                      'h-[22px] whitespace-nowrap rounded-[2px] border px-2 text-[11px] font-medium',
-                      activeAbout
-                        ? 'border-accent text-accent-200'
-                        : 'border-neutral-700 text-neutral-300',
-                    )}
-                  >
-                    {option.name}
-                  </button>
-                );
-              })}
-              <div className="flex-1" />
-              {commentError && <ErrorLine message={commentError} />}
-              <button
-                type="button"
-                disabled={posting}
-                onClick={() => void postComment()}
-                className="btn-secondary"
-              >
-                Post
-              </button>
+          {canWrite ? (
+            <div className="flex flex-col gap-2 rounded-[2px] bg-surface p-2.5">
+              <textarea
+                ref={composerRef}
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                placeholder="Share what you noticed across the outputs…"
+                rows={2}
+                className="resize-y border-0 bg-transparent px-0.5 py-1 text-[12px] leading-[1.5] text-text outline-0"
+              />
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] text-neutral-500">About</span>
+                {[{ slug: null, name: 'General' }, ...commentModels].map((option) => {
+                  const activeAbout = about === option.slug;
+                  return (
+                    <button
+                      key={option.slug ?? 'general'}
+                      type="button"
+                      onClick={() => setAbout(option.slug)}
+                      className={cn(
+                        'h-[22px] whitespace-nowrap rounded-[2px] border px-2 text-[11px] font-medium',
+                        activeAbout
+                          ? 'border-accent text-accent-200'
+                          : 'border-neutral-700 text-neutral-300',
+                      )}
+                    >
+                      {option.name}
+                    </button>
+                  );
+                })}
+                <div className="flex-1" />
+                {commentError && <ErrorLine message={commentError} />}
+                <button
+                  type="button"
+                  disabled={posting}
+                  onClick={() => void postComment()}
+                  className="btn-secondary"
+                >
+                  Post
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2 rounded-[2px] border border-dashed border-neutral-700 bg-surface px-3 py-3">
+              <span className="text-[12px] text-neutral-300">
+                Sign in to join the discussion.
+              </span>
+              <Link href={signInHref} className="btn-secondary h-7">
+                Sign in
+              </Link>
+            </div>
+          )}
 
           <div className="flex flex-col">
             {filteredComments.length === 0 ? (

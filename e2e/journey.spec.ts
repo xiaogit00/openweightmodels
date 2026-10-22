@@ -26,6 +26,12 @@ test('upload → schedule → live Job → publish → Board → annotate → th
     ].join('\n'),
   );
 
+  // A real account is required to write. Use the development switcher.
+  const signedIn = await page.request.post('/api/dev/user', {
+    data: { handle: 'mira' },
+  });
+  expect(signedIn.ok()).toBeTruthy();
+
   // 1. Upload a Base output and schedule a Comparison.
   await page.goto('/new');
   await page.locator('input[type="file"]').setInputFiles(baseOutput);

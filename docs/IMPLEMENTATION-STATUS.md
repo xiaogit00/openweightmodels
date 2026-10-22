@@ -33,7 +33,7 @@ The Docker path is `docker compose up --build`; `migrate` runs `pnpm db:init`
 before web and worker start. `docker compose down` keeps named volumes, and
 `docker compose down --volumes` is the explicit data reset.
 
-The seeded dev identity defaults to `@mira` via `DEV_DEFAULT_USER`; `POST /api/dev/user { "handle": "kev" }` switches it in development.
+The seeded identity no longer signs in implicitly. Locally you can either use a magic link (Mailpit inbox at <http://localhost:8025>, or the link printed in the web log) or switch directly with `POST /api/dev/user { "handle": "kev" }`. Both the switcher and the development magic-link outbox are disabled in production.
 
 ---
 
@@ -52,7 +52,7 @@ GLOSSARY.md, BACKEND.md
 
 ### Database
 
-Migration creates 12 tables: `users`, `models`, `comparisons`, `jobs`, `responses`, `annotations`, `annotation_messages`, `comments`, `votes`, `activity_events`, `job_events`, `notifications`.
+Migration creates 15 tables: `users`, `models`, `comparisons`, `jobs`, `responses`, `annotations`, `annotation_messages`, `comments`, `votes`, `activity_events`, `job_events`, `notifications`, and Better Auth's `auth_sessions`, `auth_accounts`, `auth_verifications`. Migration `0002_modern_lucky_pierre.sql` adds the auth tables and makes `users.handle` nullable until onboarding.
 
 Seed (`pnpm db:seed`) inserts:
 
@@ -73,6 +73,8 @@ comments 4 · votes 15
 
 - `domain/types.ts` — categories, effort, statuses, annotation kinds, card/view types.
 - `domain/upload.ts` — 1 MB/UTF-8/NUL checks, restricted YAML front matter (`maxAliasCount: 0`), prompt/title limits, filename title fallback, snippet/token helpers.
+- `domain/handle.ts` — handle normalisation, format limits and the reserved-name list.
+- `services/identity.ts` — `setHandle`, including case-insensitive uniqueness, first-claim-only updates and the unique-index race.
 - `domain/markdown.ts` — remark/mdast parsing, annotatable run extraction, UTF-16 offset validation, quote derivation, in-render splitting support.
 - `domain/filters.ts` — client-side filter/sort/counts/relative time.
 - `domain/cursor.ts` — opaque base64url keyset cursor.
@@ -87,7 +89,9 @@ comments 4 · votes 15
 
 Implemented under `apps/web/src/app/api/`:
 
-- `/me`, `/dev/user`, `/models`
+- `/me`, `/dev/user` (POST identity switch, DELETE sign-out), `/dev/magic-link` (development outbox), `/models`
+- `/auth/[...all]` — Better Auth magic-link request, verification, session and sign-out endpoints
+- `/account/handle` — first-sign-in handle onboarding
 - `/comparisons` (GET list, POST multipart create)
 - `/comparisons/:id` (GET/PATCH/DELETE)
 - `/comparisons/:id/publish`, `/unpublish`, `/responses`
@@ -107,20 +111,21 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 - `app/comparisons/[id]/page.tsx` + `ComparisonView`: meta row, prompt disclosure, sticky toolbar, annotation toggle and kind filters, base pane, Challenger tabs, markdown rendering, selection → Annotate → new Annotation popover, thread popover with votes/replies, Discussion composer/filters/replies/votes, Copy link.
 - `app/new/page.tsx` + `NewComparisonClient`: drag/drop upload with inline validation, front-matter prompt/title/model auto-fill, Base select, up to four Challenger tiles, Category/Effort controls, live "ON THE BOARD" draft preview, multipart submit and redirect to the Job summary.
 - `app/comparisons/[id]/job/page.tsx` + `JobSummary`: author-only Job page. Subscribes to `/api/stream/jobs/:id`, applies `response.status` events in place, resyncs after a reconnect, shows Live/Connecting/Reconnecting, Retry/Skip on failed rows, the four-stage strip, per-Run progress and the ready banner with Publish/Review. Publishes atomically and navigates to the Comparison.
-- Shared components: logo, avatar, site header, Comparison card, markdown renderer.
+- Shared components: logo, avatar, site header with an account menu, Comparison card, markdown renderer.
 - Tailwind theme and component classes in `globals.css` (2px radii, lime tokens, danger token, reduced-motion rules).
-- Dev identity seam: `getCurrentUser()`; no real auth yet.
+- Auth pages: `app/sign-in` (email form, sent state and error copy), `app/onboarding` (handle claim with inline rules/errors), `app/auth/complete` (new-account vs returning routing). `lib/auth.ts` exposes the Better Auth instance plus `getCurrentUser()`/`requireUser()`; `lib/auth-client.ts` is the browser client. `lib/mail.ts` sends through SMTP and keeps the development outbox.
+- Anonymous readers see **Sign in** in the header. The New Comparison page redirects to `/sign-in?next=/new`; annotation, Discussion reply and vote affordances link to sign-in on a Comparison; the account menu signs out.
 
 ### Verification
 
 - `pnpm typecheck` — **passes** (core, web, worker and the E2E suite).
-- `pnpm test` — **passes with local Postgres and Redis**: 138 core tests and 6 worker dispatch/consumption tests. When either service is unavailable the integration files warn and skip, so the unit tests still run. Coverage includes UTF-16 annotation offsets (emoji, CJK, escapes, cross-formatting, fenced vs indented code), upload parsing and limits, keyset cursors (including a sort mismatch and a Top cursor without a score), Board filter/URL helpers, 48-item default pagination, global Category/Model facets, the create → generate → publish pipeline with the mock provider, and author-only write permissions.
-- `pnpm test:e2e` — **passes**: a real browser journey covering upload → schedule → live Job → publish → Board arrival → annotate → thread → comment → vote across two identities, plus a Board suite covering 48-item pages, the Load more fallback, the infinite-scroll sentinel, global sidebar counts, URL state across reload/back/forward, a single SSE subscription, loading/error/Retry and reduced motion. It seeds an isolated `openweightmodels_e2e` database (with enough published fixtures to paginate) and Redis DB `1`, then starts its own web and worker servers.
+- `pnpm test` — **passes with local Postgres and Redis**: 149 core tests, 4 web mail/redirect tests and 6 worker dispatch/consumption tests. When either service is unavailable the integration files warn and skip, so the unit tests still run. Coverage includes UTF-16 annotation offsets (emoji, CJK, escapes, cross-formatting, fenced vs indented code), upload parsing and limits, keyset cursors (including a sort mismatch and a Top cursor without a score), Board filter/URL helpers, 48-item default pagination, global Category/Model facets, the create → generate → publish pipeline with the mock provider, author-only write permissions, handle format/reserved-name rules, case-insensitive handle uniqueness and the concurrent-onboarding race, SMTP delivery of the magic-link email through a local sink, and post-auth redirect safety.
+- `pnpm test:e2e` — **passes (11 tests)**: an auth suite proves request → single-use link → handle onboarding → session reload → sign-out, reserved and taken handles, anonymous read with sign-in affordances, 401 on an anonymous write, replay rejection, expiry rejection after the verification row is expired, the development outbox, and a seeded author signing in with a link while their published Comparisons stay intact. A real browser journey covers upload → schedule → live Job → publish → Board arrival → annotate → thread → comment → vote across two identities (explicitly signing in through the development switcher), plus a Board suite covering 48-item pages, the Load more fallback, the infinite-scroll sentinel, global sidebar counts, URL state across reload/back/forward, a single SSE subscription, loading/error/Retry and reduced motion. It seeds an isolated `openweightmodels_e2e` database (with enough published fixtures to paginate) and Redis DB `1`, then starts its own web and worker servers.
 - Defects found and fixed: indented code blocks were incorrectly annotatable (they still render as code, but are no longer annotatable, matching `BACKEND.md` §7); Annotation, comment and reply vote controls gained accessible names.
-- `pnpm db:migrate` — `0001_fuzzy_tag.sql` applied; re-running is a no-op.
+- `pnpm db:migrate` — `0001_fuzzy_tag.sql` and `0002_modern_lucky_pierre.sql` applied; re-running is a no-op.
 - `pnpm db:seed` — **passes**; counts above.
 - `pnpm db:init` — applied against a scratch database twice: the first run migrated and seeded, the second applied nothing and skipped the seed. No rows were duplicated. `db:seed` truncates, then inserts in one transaction, so a failed seed leaves an empty database that the next `db:init` retries instead of wedging.
-- The documented Homebrew path was exercised end to end: `pnpm db:init` + `pnpm dev` with the seeded `@mira` identity, a two-Challenger Comparison reaching Ready, Publish, an anonymous Board and Comparison read, an Annotation with a thread reply, a Comment and a vote.
+- The documented Homebrew path was exercised end to end: `pnpm db:init` + `pnpm dev` with a real magic-link sign-in and handle onboarding, a two-Challenger Comparison reaching Ready, Publish, an anonymous Board and Comparison read, an Annotation with a thread reply, a Comment and a vote.
 - `pnpm dev:worker` — boots and logs `consuming owm-runs with concurrency 4`. With `WORKER_HEALTH_PORT` set it also serves a liveness `/healthz`, which compose uses as the container health check.
 - `packages/core/test/local-stack.test.ts` — parses `docker-compose.yml` and asserts the five services, shared image, startup ordering, health checks, named data volumes and documented `.env.example` variables. It does not need Docker.
 - A real queue round-trip is covered by the worker integration test: enqueue → done → Job ready → one notification.
@@ -134,7 +139,6 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 - Production images and the AWS deployment (ticket 13). The current `Dockerfile` is a development target only.
 - Admin UI (model enable/disable, takedown).
-- Better Auth magic-link integration + auth tables + handle onboarding.
 - Notification bell UI (API exists).
 - Add-model UI (API exists).
 - Annotation/message/comment edit/delete UI (APIs exist).
@@ -153,12 +157,16 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 6. A worker crash between `calling` and a terminal Run status leaves that Run stranded; re-enqueueing non-terminal Runs from Postgres (BACKEND.md §5) is not implemented yet.
 7. The `db:*` scripts, the worker and `next dev`/`next build` now load the repo-root `.env`.
 8. No `.DS_Store` cleanup; it is ignored but present under `apps/` and `docs/`.
+9. `BETTER_AUTH_SECRET` is required at runtime in production (Better Auth fails fast without it). `next build` uses a build-only placeholder when the secret is absent.
+10. Magic-link mail uses `SMTP_URL`/`EMAIL_FROM`. Without Mailpit, a local link is logged and kept in the development outbox; production surfaces the SMTP error instead of silently dropping mail.
+11. Better Auth's default magic-link rate limit is 5 requests per 60 seconds per IP; broader per-email/per-IP abuse controls remain ticket 16.
+12. Handle changes after onboarding are not implemented (open question 4).
 
 ---
 
 ## 5. Suggested next order
 
-1. M2 auth (ticket 07), then notifications, add-model UI, edit/delete UI and admin.
+1. M2 notifications (ticket 08), add-model UI (09), edit/delete UI (10) and admin (11).
 2. Accessibility and fidelity audit (ticket 17) once those affordances land.
 
 ---
@@ -168,7 +176,7 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 | Area | Path |
 |---|---|
 | Schema | `packages/core/src/db/schema.ts` |
-| Migration | `packages/core/drizzle/0000_marvelous_paladin.sql` |
+| Migration | `packages/core/drizzle/0000_marvelous_paladin.sql` … `0002_modern_lucky_pierre.sql` |
 | Seed | `packages/core/src/seed.ts` |
 | Queries/cards | `packages/core/src/queries.ts` |
 | Job processing | `packages/core/src/services/jobs.ts` |
@@ -180,7 +188,11 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 | Board UI | `apps/web/src/components/board-client.tsx` |
 | Comparison UI | `apps/web/src/components/comparison-view.tsx` |
 | Markdown/annotation render | `apps/web/src/components/markdown-view.tsx` |
-| Dev auth seam | `apps/web/src/lib/auth.ts` |
+| Auth server + identity seam | `apps/web/src/lib/auth.ts` |
+| Auth browser client | `apps/web/src/lib/auth-client.ts` |
+| Magic-link mail | `apps/web/src/lib/mail.ts` |
+| Handle validation | `packages/core/src/domain/handle.ts` |
+| Handle onboarding service | `packages/core/src/services/identity.ts` |
 | Contract | `BACKEND.md` |
 | Decisions | `docs/DECISIONS.md` |
 | ADRs | `docs/adr/0001`–`0006` |

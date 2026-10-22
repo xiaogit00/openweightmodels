@@ -77,10 +77,11 @@ export default async function ComparisonPage({
         name: model.displayName,
         monogram: model.monogram,
       }))}
-      currentUserId={user?.id ?? null}
+      currentUserId={user?.handle ? user.id : null}
+      viewerSignedIn={user !== null}
       initialModel={modelParam ?? null}
       initialAnnOn={annParam === '1' || annParam === 'true'}
-      handle={user?.handle ?? 'guest'}
+      handle={user?.handle ?? null}
     />
   );
 }

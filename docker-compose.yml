@@ -17,7 +17,7 @@ x-app-env: &app-env
   NEXT_PUBLIC_APP_URL: http://localhost:${WEB_PORT:-3000}
   EMAIL_FROM: OpenWeightModels <hello@openweightmodels.test>
   SMTP_URL: smtp://mailpit:1025
-  DEV_DEFAULT_USER: mira
+  BETTER_AUTH_SECRET: openweightmodels-development-secret-change-me
   ALLOW_DEV_USER_SWITCH: "true"
   PROVIDER: mock
   MOCK_DELAY_MS: "28"

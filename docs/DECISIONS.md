@@ -104,7 +104,7 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 
 | # | Decision | Rationale |
 |---|---|---|
-| 45 | Seeded dev user behind `getCurrentUser()`, with a dev-only switcher | M1 has no auth UI; the seam makes identity swappable. |
+| 45 | Real Better Auth sessions replace the implicit seeded identity; seeded users and a dev-only switcher remain behind `getCurrentUser()` | The seam kept identity swappable through M1, and the switcher keeps local content testing possible without email; production only accepts a verified session. |
 | 46 | Magic link via **Better Auth**; SES production, Mailpit local; unique handle on first sign-in; monogram avatars; private email | No passwords, no developer-account requirement, in-process auth. |
 | 47 | Drafts and Jobs return **404** to non-authors | Do not leak existence. |
 | 48 | Minimal admin: model enable/disable + Comparison takedown; `role` and soft-delete columns now | A disabled provider must not require a deploy. No report queue in v1. |
@@ -243,7 +243,7 @@ These are intentionally unresolved. Do not assume them.
 4. Should a user be able to change their handle later? Not designed.
 
 ### Auth and access
-5. Magic-link request rate limiting and per-IP abuse controls are unspecified.
+5. Broader magic-link and write-abuse controls are unspecified. Better Auth now applies its default 5-requests-per-60-seconds-per-IP limit to the magic-link endpoints; per-email/per-IP write limits and spend caps remain ticket 16.
 6. Account deletion, data export and retention windows are not implemented.
 7. Report/flag, user suspension and admin audit logging are launch gates.
 8. Where does the admin UI live, and who can see deleted Comparisons?

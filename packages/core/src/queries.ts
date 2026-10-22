@@ -64,7 +64,10 @@ export type ListResult = BoardPage;
 function toPublicUser(user: UserRow): PublicUser {
   return {
     id: user.id,
-    handle: user.handle,
+    // A user must choose a handle before authoring, so content authors always
+    // have one. The fallback only protects rendering of legacy/unonboarded rows,
+    // and the id suffix keeps it from colliding with a claimable handle.
+    handle: user.handle ?? `member-${user.id.slice(0, 8)}`,
     avatarUrl: user.avatarUrl,
     image: user.image,
   };

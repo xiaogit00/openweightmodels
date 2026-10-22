@@ -1,4 +1,4 @@
-import { ANNOTATION_KINDS, CATEGORIES } from '@owm/core';
+import { ANNOTATION_KINDS, CATEGORIES, HANDLE_MAX_LENGTH } from '@owm/core';
 import { z } from 'zod';
 
 export const annotationCreateSchema = z.object({
@@ -46,4 +46,8 @@ export const responseCreateSchema = z.object({
 export const notificationPatchSchema = z.object({
   id: z.string().min(1).optional(),
   all: z.boolean().optional(),
+});
+
+export const handleSchema = z.object({
+  handle: z.string().min(1).max(HANDLE_MAX_LENGTH),
 });

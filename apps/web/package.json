@@ -6,14 +6,18 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@better-auth/drizzle-adapter": "^1.7.12",
     "@owm/core": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
     "@radix-ui/react-popover": "^1.3.1",
+    "better-auth": "^1.7.12",
     "clsx": "^2.1.1",
     "next": "16.4.2",
+    "nodemailer": "^10.1.7",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "tailwind-merge": "^3.7.0",
@@ -23,9 +27,11 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^24.0.0",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "tailwindcss": "^4.3.3",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
   }
 }

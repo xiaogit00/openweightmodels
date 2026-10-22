@@ -4,7 +4,7 @@ A forum where people publish side-by-side comparisons of open-weight model outpu
 
 This repository is the production-intended implementation of the design handoff in `design_handoff_openweightmodels/`. The `v2` HTML files are the visual source of truth; `designs/styles.css` is only the prototype's base sheet and its tokens are overridden by every v2 screen.
 
-**Status: Milestone 1 feature-complete locally; M2 work has started with Board pagination.** The Board and Comparison screens, the New Comparison form, the live author-only Job page (SSE, Retry/Skip, Publish), the backend API and the generation worker exist, and the whole stack starts with one command. The Board now pages 48 at a time with an infinite-scroll sentinel and a Load more fallback, global sidebar counts, URL-backed filters and a single stable SSE subscription. See `docs/IMPLEMENTATION-STATUS.md` for an exact snapshot.
+**Status: Milestone 1 feature-complete locally; M2 has started with Board pagination and email magic-link accounts.** The Board and Comparison screens, the New Comparison form, the live author-only Job page (SSE, Retry/Skip, Publish), the backend API and the generation worker exist, and the whole stack starts with one command. The Board pages 48 at a time with an infinite-scroll sentinel and a Load more fallback, global sidebar counts, URL-backed filters and a single stable SSE subscription. Sign-in is a single-use email magic link with handle onboarding; public pages stay readable anonymously. See `docs/IMPLEMENTATION-STATUS.md` for an exact snapshot.
 
 ## Stack
 
@@ -59,11 +59,11 @@ host ports: `POSTGRES_PORT=5433 REDIS_PORT=6380 docker compose up`. Container
 networking is unaffected. After changing dependencies, rebuild the dependency
 layers with `docker compose up --build --renew-anon-volumes`.
 
-Mailpit is wired as `SMTP_URL=smtp://mailpit:1025` but nothing sends mail until
-magic-link auth lands (ticket 07).
-
-The development identity defaults to `@mira`; `POST /api/dev/user` with
-`{ "handle": "kev" }` switches it. The endpoint is disabled in production.
+Mailpit receives magic-link mail as `SMTP_URL=smtp://mailpit:1025`; open
+<http://localhost:8025> to read it. The development identity switcher also
+remains available: `POST /api/dev/user` with `{ "handle": "kev" }` signs in as a
+seeded account without email. Both the switcher and the development magic-link
+outbox are disabled in production.
 
 ### Homebrew fallback (no Docker)
 
@@ -82,10 +82,13 @@ pnpm dev:worker
 
 Homebrew Postgres has no `postgres` role by default, so set
 `DATABASE_URL=postgres://$(whoami)@localhost:5432/openweightmodels` in `.env`.
-Mailpit is optional until magic-link auth lands: `brew install mailpit` then run
-`mailpit` for SMTP on `1025` and the inbox on <http://localhost:8025>.
+Mailpit is optional: `brew install mailpit` then run `mailpit` for SMTP on
+`1025` and the inbox on <http://localhost:8025>. Without it, the magic link is
+printed in the web server log and stored in the development outbox.
 
-Open <http://localhost:3000>.
+Open <http://localhost:3000>, choose **Sign in**, and use a seeded address such
+as `mira@openweightmodels.test`; or switch identity directly with
+`POST /api/dev/user { "handle": "mira" }`.
 
 `pnpm db:init` is idempotent. Use `pnpm db:seed` to replace content with the
 deterministic dev fixtures, and `pnpm db:reset` to drop and recreate the public
@@ -153,6 +156,7 @@ design_handoff_openweightmodels/   Read-only design handoff
 ## Core rules
 
 - A Comparison is a user-authored post; duplicate Prompts are allowed.
+- Reading is public; creating, annotating, commenting, voting and publishing require a session and a claimed handle.
 - Prompt and Base output freeze after scheduling; title/categories/effort stay editable.
 - Publish requires at least one Done Challenger; drafts are author-only and return `404` to everyone else.
 - Annotations are stored as UTF-16 offsets into raw markdown and must fit within one annotatable text node or fenced code block.

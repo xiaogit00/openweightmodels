@@ -6,6 +6,7 @@ export * from './domain/cursor';
 export * from './domain/upload';
 export * from './domain/markdown';
 export * from './domain/new-comparison';
+export * from './domain/handle';
 
 export * from './db/client';
 export * from './db/schema';
@@ -21,3 +22,4 @@ export * from './services/annotations';
 export * from './services/comments';
 export * from './services/votes';
 export * from './services/jobs';
+export * from './services/identity';

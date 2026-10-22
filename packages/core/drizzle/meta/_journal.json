@@ -15,6 +15,13 @@
       "when": 1792658819456,
       "tag": "0001_fuzzy_tag",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792670085140,
+      "tag": "0002_modern_lucky_pierre",
+      "breakpoints": true
     }
   ]
 }

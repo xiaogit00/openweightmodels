@@ -63,7 +63,8 @@ export default async function BoardPage({
         summary: event.summary,
         createdAt: event.createdAt.toISOString(),
       }))}
-      handle={user?.handle ?? 'guest'}
+      handle={user?.handle ?? null}
+      signedIn={user !== null}
       initialFilters={initialFilters}
     />
   );

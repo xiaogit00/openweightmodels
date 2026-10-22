@@ -61,7 +61,8 @@ type Props = {
   initialFacets: BoardFacets;
   models: BoardModel[];
   events: TickerEvent[];
-  handle: string;
+  handle: string | null;
+  signedIn: boolean;
   initialFilters: BoardFilters;
 };
 
@@ -107,6 +108,7 @@ export function BoardClient({
   models,
   events: initialEvents,
   handle,
+  signedIn,
   initialFilters,
 }: Props) {
   const [filters, setFilters] = useState(initialFilters);
@@ -472,6 +474,7 @@ export function BoardClient({
     <div className="flex min-h-screen flex-col">
       <SiteHeader
         handle={handle}
+        signedIn={signedIn}
         search={
           <label className="flex h-8 flex-[0_1_420px] items-center gap-2 rounded-[2px] border border-transparent bg-surface px-[10px] focus-within:border-neutral-700">
             <MagnifyingGlass size={15} className="text-neutral-400" />

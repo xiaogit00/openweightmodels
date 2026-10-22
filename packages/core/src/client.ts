@@ -4,3 +4,4 @@ export * from './domain/filters';
 export * from './domain/upload';
 export * from './domain/markdown';
 export * from './domain/new-comparison';
+export * from './domain/handle';
