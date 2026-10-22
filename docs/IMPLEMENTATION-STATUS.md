@@ -110,9 +110,9 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 ### Verification
 
 - `pnpm typecheck` — **passes** (core, web, worker and the E2E suite).
-- `pnpm test` — **passes**: 111 core tests and 3 worker dispatch/consumption tests. Coverage includes UTF-16 annotation offsets (emoji, CJK, escapes, cross-formatting, fenced vs indented code), upload parsing and limits, keyset cursors, Board filters/Top ordering and SQL pagination, the create → generate → publish pipeline with the mock provider, and author-only write permissions.
+- `pnpm test` — **passes with local Postgres and Redis**: 111 core tests and 4 worker dispatch/consumption tests. When either service is unavailable the integration files warn and skip, so the unit tests still run. Coverage includes UTF-16 annotation offsets (emoji, CJK, escapes, cross-formatting, fenced vs indented code), upload parsing and limits, keyset cursors, Board filters/Top ordering and SQL pagination, the create → generate → publish pipeline with the mock provider, and author-only write permissions.
 - `pnpm test:e2e` — **passes**: a real browser journey covering upload → schedule → live Job → publish → Board arrival → annotate → thread → comment → vote across two identities. It seeds an isolated `openweightmodels_e2e` database and Redis DB `1`, then starts its own web and worker servers.
-- Defects found and fixed: indented code blocks were incorrectly annotatable (they now render as text, matching `BACKEND.md` §7); Annotation, comment and reply vote controls gained accessible names.
+- Defects found and fixed: indented code blocks were incorrectly annotatable (they still render as code, but are no longer annotatable, matching `BACKEND.md` §7); Annotation, comment and reply vote controls gained accessible names.
 - `pnpm db:migrate` — `0001_fuzzy_tag.sql` applied; re-running is a no-op.
 - `pnpm db:seed` — **passes**; counts above.
 - `pnpm dev:worker` — boots and logs `consuming owm-runs with concurrency 4`.

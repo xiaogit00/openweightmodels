@@ -52,8 +52,9 @@ pnpm test:e2e                # browser journey, with an isolated database and Re
 
 The browser suite seeds `openweightmodels_e2e` and Redis database `1`, then starts its own web and
 worker servers on port 3100. Install the browser once with `pnpm exec playwright install chromium`.
-Override the targets with `E2E_DATABASE_URL` and `E2E_REDIS_URL`; the suite refuses to seed the
-development database.
+It needs `psql` and `redis-cli` on `PATH` (Homebrew installs both). Override the targets with
+`E2E_DATABASE_URL` and `E2E_REDIS_URL`; the suite refuses to seed the development database or
+flush the development Redis DB index.
 
 ## Scripts
 

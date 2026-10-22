@@ -25,7 +25,7 @@ import {
   createJobFixture,
   createUserFixture,
   servicesAvailable,
-  type JobFixtureOptions,
+  type FixtureOptions,
 } from './index';
 
 const available = await servicesAvailable();
@@ -51,7 +51,7 @@ type Fixture = Awaited<ReturnType<typeof createJobFixture>>;
 type Stranger = Awaited<ReturnType<typeof createUserFixture>>;
 
 async function withFixture(
-  options: JobFixtureOptions,
+  options: FixtureOptions,
   run: (fixture: Fixture, stranger: Stranger) => Promise<void>,
 ) {
   const fixture = await createJobFixture(options);

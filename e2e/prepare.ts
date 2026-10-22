@@ -7,22 +7,46 @@
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { databaseUrl, redisUrl, serverEnv } from './config';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-const databaseUrl = process.env.E2E_DATABASE_URL ?? 'postgres://localhost:5432/openweightmodels_e2e';
-const redisUrl = process.env.E2E_REDIS_URL ?? 'redis://localhost:6379/1';
-
-if (process.env.DATABASE_URL && process.env.DATABASE_URL === databaseUrl) {
-  throw new Error(
-    'E2E refuses to seed the development database. Point E2E_DATABASE_URL at a dedicated database.',
-  );
+// Read the local defaults so the guards below can compare against them, while
+// E2E_* overrides (already in process.env) still win.
+try {
+  process.loadEnvFile(path.join(root, '.env'));
+} catch (error) {
+  if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
 }
 
 const parsed = new URL(databaseUrl);
 const databaseName = parsed.pathname.replace(/^\//, '');
 if (!/^[A-Za-z0-9_]+$/.test(databaseName)) {
   throw new Error(`Unsupported E2E database name: ${databaseName}`);
+}
+
+function sameDatabase(left: string, right: string) {
+  const a = new URL(left);
+  const b = new URL(right);
+  return a.hostname === b.hostname && a.port === b.port && a.pathname === b.pathname;
+}
+
+function sameRedisDatabase(left: string, right: string) {
+  const a = new URL(left);
+  const b = new URL(right);
+  const db = (url: URL) => url.pathname.replace(/^\//, '') || '0';
+  return a.hostname === b.hostname && a.port === b.port && db(a) === db(b);
+}
+
+if (process.env.DATABASE_URL && sameDatabase(process.env.DATABASE_URL, databaseUrl)) {
+  throw new Error(
+    'E2E refuses to seed the development database. Point E2E_DATABASE_URL at a dedicated database.',
+  );
+}
+if (process.env.REDIS_URL && sameRedisDatabase(process.env.REDIS_URL, redisUrl)) {
+  throw new Error(
+    'E2E refuses to flush the development Redis database. Point E2E_REDIS_URL at a dedicated DB index.',
+  );
 }
 
 const adminUrl = new URL(databaseUrl);
@@ -58,12 +82,7 @@ if (!databaseExists()) {
   run('psql', [adminUrl.toString(), '-v', 'ON_ERROR_STOP=1', '-c', `create database "${databaseName}"`]);
 }
 
-const env = {
-  ...process.env,
-  DATABASE_URL: databaseUrl,
-  REDIS_URL: redisUrl,
-  NODE_ENV: 'test',
-};
+const env = { ...process.env, ...serverEnv, NODE_ENV: 'test' };
 
 console.log('[e2e] flushing the E2E Redis database');
 run('redis-cli', ['-u', redisUrl, 'FLUSHDB'], env);

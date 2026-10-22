@@ -19,5 +19,6 @@
 - `board.test.ts` covers SQL pagination, cursor sort mismatch and filters.
 - `permissions.test.ts` covers author-only writes, draft visibility and self-votes.
 - `pipeline.test.ts` covers create → generate → publish using `createComparison`.
-- `e2e/journey.spec.ts` is the browser suite; `pnpm test:e2e` seeds an isolated database and Redis DB, then starts web and worker.
+- The worker suite adds a forced failure → Retry round trip over the real BullMQ queue.
+- `e2e/journey.spec.ts` is the browser suite; `pnpm test:e2e` seeds an isolated database and Redis DB, then starts web and worker. The test also clicks the live Board arrival through to the Comparison.
 - Fixed: indented code blocks were annotatable; `codeBlock` now requires a fenced block. Vote controls gained accessible names for the browser test.

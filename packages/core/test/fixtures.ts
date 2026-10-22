@@ -2,9 +2,9 @@ import { eq, inArray } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 import { getDb } from '../src/db/client';
 import { comparisons, jobs, models, responses, users } from '../src/db/schema';
-import type { ComparisonStatus, ResponseStatus } from '../src/domain/types';
+import type { Category, ComparisonStatus, ResponseStatus } from '../src/domain/types';
 
-export type JobFixtureOptions = {
+export type FixtureOptions = {
   /** Number of Challenger Runs. Defaults to 1. */
   challengers?: number;
   comparisonStatus?: ComparisonStatus;
@@ -16,8 +16,8 @@ export type JobFixtureOptions = {
   createdAt?: Date;
   commentCount?: number;
   annotationCount?: number;
-  categories?: string[];
-  effort?: number;
+  categories?: Category[];
+  effort?: 1 | 2 | 3;
 };
 
 /**
@@ -45,7 +45,7 @@ export async function createUserFixture() {
  * Creates one Comparison with one Job and its Challenger Runs, using Models
  * owned by the fixture so tests never depend on the dev seed.
  */
-export async function createJobFixture(options: JobFixtureOptions = {}) {
+export async function createJobFixture(options: FixtureOptions = {}) {
   const db = getDb();
   const challengers = options.challengers ?? 1;
   const tag = uuidv7().replace(/-/g, '').slice(-10);

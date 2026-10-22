@@ -8,7 +8,7 @@ import {
   listComparisons,
   softDeleteComparison,
 } from '../src/index';
-import { createJobFixture, servicesAvailable, type JobFixtureOptions } from './index';
+import { createJobFixture, servicesAvailable, type FixtureOptions } from './index';
 
 const available = await servicesAvailable();
 if (!available) {
@@ -24,7 +24,7 @@ type Fixture = Awaited<ReturnType<typeof createJobFixture>>;
 
 async function publishedFixture(
   prefix: string,
-  options: JobFixtureOptions = {},
+  options: FixtureOptions = {},
 ): Promise<Fixture> {
   return createJobFixture({
     titlePrefix: prefix,

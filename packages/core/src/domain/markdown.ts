@@ -176,22 +176,27 @@ function codeBlock(node: BlockNode, content: string): Block | null {
   let valueStart: number | null = null;
 
   const fenced = raw.startsWith('```') || raw.startsWith('~~~');
-  if (fenced) {
-    const firstNewline = raw.indexOf('\n');
-    if (firstNewline >= 0) valueStart = start + firstNewline + 1;
+  if (!fenced) {
+    // An indented block's raw slice starts with its indentation, so an offset
+    // into the decoded value would drift. Render it, but do not annotate it.
+    return {
+      type: 'code',
+      text: value,
+      start,
+      annotatable: false,
+      lang: node.lang ?? undefined,
+    };
   }
 
+  const firstNewline = raw.indexOf('\n');
+  if (firstNewline >= 0) valueStart = start + firstNewline + 1;
   if (valueStart === null || content.slice(valueStart, valueStart + value.length) !== value) {
     const index = raw.indexOf(value);
     valueStart = index >= 0 ? start + index : null;
   }
 
-  // Only fenced blocks are annotatable. An indented block's raw slice starts
-  // with its indentation, so an offset into the decoded value would drift.
   const annotatable =
-    fenced &&
-    valueStart !== null &&
-    content.slice(valueStart, valueStart + value.length) === value;
+    valueStart !== null && content.slice(valueStart, valueStart + value.length) === value;
 
   return {
     type: 'code',

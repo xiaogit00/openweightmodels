@@ -5,13 +5,13 @@ test('upload → schedule → live Job → publish → Board → annotate → th
   page,
 }) => {
   const title = `E2E rate limiter ${Date.now()}`;
-  const annotationBody = 'E2E: this line deserves a note.';
+  const annotationBody = 'E2E: this line deserves an annotation.';
   const replyBody = 'E2E: and a reply in the thread.';
   const commentBody = 'E2E: the trade-off is memory, not throughput.';
 
-  const upload = test.info().outputPath('e2e-base-output.md');
+  const baseOutput = test.info().outputPath('e2e-base-output.md');
   writeFileSync(
-    upload,
+    baseOutput,
     [
       '---',
       'prompt: Write a thread-safe sliding-window rate limiter in Go and explain the trade-off.',
@@ -28,7 +28,7 @@ test('upload → schedule → live Job → publish → Board → annotate → th
 
   // 1. Upload a Base output and schedule a Comparison.
   await page.goto('/new');
-  await page.locator('input[type="file"]').setInputFiles(upload);
+  await page.locator('input[type="file"]').setInputFiles(baseOutput);
 
   await expect(page.getByText('e2e-base-output.md')).toBeVisible();
   await expect(page.locator('select option:checked')).toHaveText('Llama 3.3 70B');
@@ -57,8 +57,10 @@ test('upload → schedule → live Job → publish → Board → annotate → th
   await expect(page).toHaveURL(comparisonUrl);
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
 
-  // The live Board receives the published card.
+  // The live Board receives the published card, and the card opens the Comparison.
   await expect(board.getByText(title)).toBeVisible({ timeout: 20_000 });
+  await board.getByText(title).click();
+  await expect(board.getByRole('heading', { name: title })).toBeVisible();
   await board.close();
 
   // 4. Annotate a run and reply in its thread.

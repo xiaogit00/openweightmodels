@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   closeDb,
   closeRedis,
@@ -24,9 +24,19 @@ afterAll(async () => {
   await closeDb();
 });
 
+const originalEnv = { ...process.env };
+
 beforeEach(() => {
   process.env.MOCK_DELAY_MS = '0';
   process.env.MOCK_FAIL_ONCE = 'false';
+});
+
+afterEach(() => {
+  for (const key of ['MOCK_DELAY_MS', 'MOCK_FAIL_ONCE']) {
+    const value = originalEnv[key];
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
 });
 
 async function removeQueuedRuns(responseIds: string[]) {

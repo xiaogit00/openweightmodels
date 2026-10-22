@@ -35,5 +35,15 @@ export async function servicesAvailable() {
     canConnect(process.env.DATABASE_URL, 5432),
     canConnect(process.env.REDIS_URL, 6379),
   ]);
-  return db && redis;
+  const available = db && redis;
+
+  // A local checkout may legitimately run only the unit tests, but CI must
+  // never report green while the integration suites have quietly skipped.
+  if (!available && process.env.CI && process.env.CI !== 'false') {
+    throw new Error(
+      '[tests] Postgres and Redis are required in CI; integration tests would otherwise skip silently.',
+    );
+  }
+
+  return available;
 }
