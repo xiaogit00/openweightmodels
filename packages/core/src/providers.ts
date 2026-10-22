@@ -19,6 +19,27 @@ export interface Provider {
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Remove a provider key from anything that may be logged or stored. */
+export function redactSecrets(value: string, secret: string) {
+  return secret ? value.split(secret).join('[redacted]') : value;
+}
+
+/** Pull the useful message out of an OpenAI-compatible error body. */
+function providerError(status: number, body: string) {
+  let detail = body;
+  try {
+    const parsed = JSON.parse(body) as {
+      error?: { message?: string } | string;
+      message?: string;
+    };
+    if (typeof parsed.error === 'string') detail = parsed.error;
+    else detail = parsed.error?.message ?? parsed.message ?? body;
+  } catch {
+    // A non-JSON body is still useful as-is.
+  }
+  return `provider returned ${status}: ${detail.slice(0, 300)}`;
+}
+
 function rateLimiterText(model: ModelRow) {
   switch (model.slug) {
     case 'qwen-2-5-72b':
@@ -162,22 +183,46 @@ export class MockProvider implements Provider {
     return {
       text,
       tokens: Math.max(1, Math.ceil(text.length / 4)),
-      costUsd: 0,
+      // Cost is provider-reported; the mock has no provider to report one.
+      costUsd: null,
     };
   }
 }
 
 export class OpenAICompatibleProvider implements Provider {
-  constructor(private readonly apiKey: string) {}
+  constructor(
+    private readonly apiKey: string,
+    /** One call may stream for this long before it fails as a timeout. */
+    private readonly timeoutMs = 120_000,
+  ) {}
+
+  private failure(error: unknown): Error {
+    if (error instanceof Error && error.name === 'AbortError') {
+      const timeout = new Error(`provider request timed out after ${this.timeoutMs}ms`);
+      timeout.name = 'AbortError';
+      return timeout;
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    return new Error(redactSecrets(message, this.apiKey).slice(0, 1000));
+  }
+
+  private endpoint(model: ModelRow) {
+    const configured =
+      model.apiBase?.trim() ||
+      (model.provider === 'openrouter'
+        ? process.env.OPENROUTER_BASE_URL?.trim() || 'https://openrouter.ai/api/v1'
+        : '');
+    if (!configured) {
+      throw new Error(`Model "${model.slug}" has no API base URL configured.`);
+    }
+    const base = configured.replace(/\/+$/, '');
+    return base.endsWith('/chat/completions') ? base : `${base}/chat/completions`;
+  }
 
   async generate({ model, prompt, onToken }: GenerateInput): Promise<GenerateResult> {
-    const base = (model.apiBase || process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1').replace(
-      /\/$/,
-      '',
-    );
-    const url = base.endsWith('/chat/completions') ? base : `${base}/chat/completions`;
+    const url = this.endpoint(model);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 120_000);
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
 
     try {
       const response = await fetch(url, {
@@ -199,12 +244,15 @@ export class OpenAICompatibleProvider implements Provider {
           temperature: 0.7,
           max_tokens: 4096,
           stream: true,
+          // OpenAI-compatible providers only include the usage block (tokens
+          // and, on aggregators such as OpenRouter, cost) when asked.
+          stream_options: { include_usage: true },
         }),
       });
 
       if (!response.ok || !response.body) {
         const body = await response.text().catch(() => '');
-        throw new Error(`provider returned ${response.status}: ${body.slice(0, 300)}`);
+        throw new Error(providerError(response.status, body));
       }
 
       const reader = response.body.getReader();
@@ -217,7 +265,7 @@ export class OpenAICompatibleProvider implements Provider {
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-        buffer += decoder.decode(value, { stream: true });
+        buffer = (buffer + decoder.decode(value, { stream: true })).replace(/\r\n/g, '\n');
         const frames = buffer.split('\n\n');
         buffer = frames.pop() ?? '';
 
@@ -230,11 +278,19 @@ export class OpenAICompatibleProvider implements Provider {
             let parsed: {
               choices?: Array<{ delta?: { content?: string } }>;
               usage?: { completion_tokens?: number; cost?: number };
+              error?: { message?: string } | string;
             };
             try {
               parsed = JSON.parse(data);
             } catch {
               continue;
+            }
+            if (parsed.error) {
+              const detail =
+                typeof parsed.error === 'string'
+                  ? parsed.error
+                  : (parsed.error.message ?? 'unknown error');
+              throw new Error(`provider stream error: ${detail}`);
             }
             const chunk = parsed.choices?.[0]?.delta?.content ?? '';
             if (chunk) {
@@ -254,22 +310,67 @@ export class OpenAICompatibleProvider implements Provider {
         tokens: tokens || Math.max(1, Math.ceil(text.length / 4)),
         costUsd,
       };
+    } catch (error) {
+      throw this.failure(error);
     } finally {
       clearTimeout(timeout);
     }
   }
 }
 
+/**
+ * `PROVIDER` is the environment switch: `mock` by default, or the slug of an
+ * OpenAI-compatible provider (OpenRouter first). There is no silent fallback:
+ * a real mode only calls Models registered under that same provider.
+ */
+export function getProviderMode(): string {
+  return (process.env.PROVIDER ?? 'mock').trim().toLowerCase() || 'mock';
+}
+
+/** Environment variable that holds a provider's key, e.g. `OPENROUTER_API_KEY`. */
+export function apiKeyEnvVar(provider: string) {
+  return `${provider.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_')}_API_KEY`;
+}
+
+export function providerApiKey(provider: string): string | undefined {
+  const value = process.env[apiKeyEnvVar(provider)]?.trim();
+  return value || undefined;
+}
+
+/**
+ * Fail the worker at boot rather than on every Run when a real provider has no
+ * key. Mock mode is the development and test default and needs no secret.
+ */
+export function assertProviderConfigured() {
+  const mode = getProviderMode();
+  if (mode === 'mock') return;
+  if (!providerApiKey(mode)) {
+    throw new Error(
+      `PROVIDER=${mode} requires ${apiKeyEnvVar(mode)}; refusing to start without a provider key.`,
+    );
+  }
+}
+
 export function getProvider(model: ModelRow): Provider {
-  const mode = process.env.PROVIDER ?? 'mock';
-  if (mode === 'mock' || model.provider === 'mock') return new MockProvider();
+  const mode = getProviderMode();
+  if (mode === 'mock') return new MockProvider();
 
-  const key =
-    process.env.OPENROUTER_API_KEY ??
-    process.env[`${model.provider.toUpperCase().replace(/-/g, '_')}_API_KEY`];
+  if (model.provider === 'mock') {
+    throw new Error(
+      `Model "${model.slug}" is registered with the mock provider while PROVIDER=${mode}; refusing to fall back to mock.`,
+    );
+  }
+  if (model.provider !== mode) {
+    throw new Error(
+      `Model "${model.slug}" is registered with provider "${model.provider}" but PROVIDER=${mode}.`,
+    );
+  }
 
+  const key = providerApiKey(model.provider);
   if (!key) {
-    throw new Error(`No API key configured for provider ${model.provider}`);
+    throw new Error(
+      `No API key configured for provider "${model.provider}": set ${apiKeyEnvVar(model.provider)}.`,
+    );
   }
   return new OpenAICompatibleProvider(key);
 }

@@ -81,6 +81,8 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 | 39 | Auto-skip jobs are **attempt-scoped**, and `queued → calling` is an atomic claim | A retry gets a fresh 24h window; a duplicate delivery cannot call the provider twice. |
 | 40 | `job.ready` is unique per Author per Job via a partial unique index | Concurrent finalisation must not create duplicate notifications. |
 | 39 | Duplicate model runs in one Comparison are rejected by a unique index | Prevents accidental double spend and ambiguous tabs. |
+| 55 | `PROVIDER=mock` (default) or a real provider slug (OpenRouter first); a real mode never falls back to mock, and a missing key fails worker startup naming the environment variable | Dev and tests stay deterministic and spend-free; a misconfigured production worker must not publish mock text as a real model's answer. |
+| 56 | Real streaming requests ask for usage; provider-reported completion tokens and cost are stored on the Response | Provider usage is the only non-estimated source of tokens and spend; the character estimate is a fallback only. |
 
 **Rejected**: Redis as source of truth; one BullMQ job per Comparison; Postgres-only `pg-boss` queue; serial IDs; slug-based Comparison URLs; offset pagination; integer vote columns as truth; one hard-coded provider; per-model generation params; billing/credits in v1; unlimited generations.
 

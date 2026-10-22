@@ -12,7 +12,7 @@ import {
   retryRun,
 } from '@owm/core';
 import { createJobFixture, servicesAvailable } from '@owm/core/testing';
-import { createRunWorker, handleQueueJob } from '../src/worker';
+import { createRunWorker, handleQueueJob, resolveConcurrency } from '../src/worker';
 
 const available = await servicesAvailable();
 if (!available) {
@@ -22,7 +22,7 @@ if (!available) {
 const originalEnv = { ...process.env };
 
 afterEach(() => {
-  for (const key of ['MOCK_DELAY_MS', 'MOCK_FAIL_ONCE']) {
+  for (const key of ['MOCK_DELAY_MS', 'MOCK_FAIL_ONCE', 'PROVIDER_CONCURRENCY']) {
     const value = originalEnv[key];
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
@@ -59,6 +59,23 @@ describe('job dispatch', () => {
     await expect(
       handleQueueJob({ name: 'not-a-job', data: { responseId: 'abc' } }),
     ).rejects.toThrow('Unknown job name');
+  });
+});
+
+describe('provider concurrency', () => {
+  it('reads the configured cap from PROVIDER_CONCURRENCY', () => {
+    expect(resolveConcurrency('3')).toBe(3);
+    expect(resolveConcurrency('1')).toBe(1);
+  });
+
+  it('defaults to four concurrent provider calls', () => {
+    delete process.env.PROVIDER_CONCURRENCY;
+    expect(resolveConcurrency()).toBe(4);
+  });
+  it('rejects a cap that is not a positive integer', () => {
+    expect(() => resolveConcurrency('0')).toThrow('PROVIDER_CONCURRENCY');
+    expect(() => resolveConcurrency('2.5')).toThrow('PROVIDER_CONCURRENCY');
+    expect(() => resolveConcurrency('many')).toThrow('PROVIDER_CONCURRENCY');
   });
 });
 

@@ -18,6 +18,10 @@ export type FixtureOptions = {
   annotationCount?: number;
   categories?: Category[];
   effort?: 1 | 2 | 3;
+  /** Provider registered on the fixture Models. Defaults to the mock provider. */
+  provider?: string;
+  /** Optional OpenAI-compatible endpoint used by integration tests. */
+  apiBase?: string | null;
 };
 
 /**
@@ -52,23 +56,26 @@ export async function createJobFixture(options: FixtureOptions = {}) {
   const challengers = options.challengers ?? 1;
   const tag = uuidv7().replace(/-/g, '').slice(-10);
 
+  const modelRow = (slug: string, displayName: string, monogram: string) => ({
+    id: uuidv7(),
+    slug,
+    displayName,
+    monogram,
+    provider: options.provider ?? 'mock',
+    apiBase: options.apiBase ?? null,
+  });
+
   const modelRows = await db
     .insert(models)
     .values([
-      {
-        id: uuidv7(),
-        slug: `fixture-base-${tag}`,
-        displayName: `Fixture Base ${tag}`,
-        monogram: 'FB',
-        provider: 'mock',
-      },
-      ...Array.from({ length: challengers }, (_, index) => ({
-        id: uuidv7(),
-        slug: `fixture-challenger-${index}-${tag}`,
-        displayName: `Fixture Challenger ${index + 1} ${tag}`,
-        monogram: 'FC',
-        provider: 'mock',
-      })),
+      modelRow(`fixture-base-${tag}`, `Fixture Base ${tag}`, 'FB'),
+      ...Array.from({ length: challengers }, (_, index) =>
+        modelRow(
+          `fixture-challenger-${index}-${tag}`,
+          `Fixture Challenger ${index + 1} ${tag}`,
+          'FC',
+        ),
+      ),
     ])
     .returning();
 

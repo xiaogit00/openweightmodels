@@ -64,8 +64,16 @@ describe('local stack compose file', () => {
       const environment = compose.services[name].environment;
       expect(environment.DATABASE_URL, name).toContain('@postgres:5432/openweightmodels');
       expect(environment.REDIS_URL, name).toContain('redis:6379');
-      expect(environment.PROVIDER, name).toBe('mock');
+      // Mock remains the default; a shell-exported PROVIDER/key switches the
+      // same stack to real generation without editing this file.
+      expect(environment.PROVIDER, name).toBe('${PROVIDER:-mock}');
     }
+
+    // Only the worker calls a provider, so only it receives the key.
+    expect(compose.services.worker.environment.OPENROUTER_API_KEY).toBe(
+      '${OPENROUTER_API_KEY:-}',
+    );
+    expect(compose.services.web.environment.OPENROUTER_API_KEY).toBeUndefined();
   });
 
   it('keeps database and queue data in named volumes', () => {

@@ -90,6 +90,26 @@ Open <http://localhost:3000>, choose **Sign in**, and use a seeded address such
 as `mira@openweightmodels.test`; or switch identity directly with
 `POST /api/dev/user { "handle": "mira" }`.
 
+### Real generation (OpenRouter)
+
+`PROVIDER=mock` is the default, including for tests. To run real generations:
+
+```bash
+# Homebrew path
+PROVIDER=openrouter OPENROUTER_API_KEY=sk-or-... pnpm dev
+
+# Docker path (compose passes the key through)
+PROVIDER=openrouter OPENROUTER_API_KEY=sk-or-... docker compose up --build
+```
+
+The worker validates this at startup: `PROVIDER=openrouter` without
+`OPENROUTER_API_KEY` fails with the missing variable named, and a real mode
+never falls back to mock. Each Challenger receives the same frozen Prompt,
+`temperature: 0.7`, `max_tokens: 4096`, streaming and a 120-second timeout;
+the final content, provider-reported completion tokens, latency and cost are
+stored on the Response. The key stays in the environment and is redacted from
+error messages stored on a failed Run.
+
 `pnpm db:init` is idempotent. Use `pnpm db:seed` to replace content with the
 deterministic dev fixtures, and `pnpm db:reset` to drop and recreate the public
 schema (it refuses to run in production).

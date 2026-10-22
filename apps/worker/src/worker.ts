@@ -27,11 +27,18 @@ export async function handleQueueJob(job: Pick<Job, 'name' | 'data'>): Promise<v
   }
 }
 
-export function createRunWorker(options: RunWorkerOptions = {}) {
-  const concurrency = options.concurrency ?? Number(process.env.PROVIDER_CONCURRENCY ?? 4);
+export function resolveConcurrency(
+  value: string | number | undefined = process.env.PROVIDER_CONCURRENCY,
+): number {
+  const concurrency = Number(value ?? 4);
   if (!Number.isInteger(concurrency) || concurrency < 1) {
     throw new Error('PROVIDER_CONCURRENCY must be a positive integer');
   }
+  return concurrency;
+}
+
+export function createRunWorker(options: RunWorkerOptions = {}) {
+  const concurrency = resolveConcurrency(options.concurrency ?? process.env.PROVIDER_CONCURRENCY);
 
   const worker = new Worker(RUN_QUEUE, handleQueueJob, {
     connection: createRedisConnection(),

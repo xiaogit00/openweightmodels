@@ -19,7 +19,9 @@ x-app-env: &app-env
   SMTP_URL: smtp://mailpit:1025
   BETTER_AUTH_SECRET: openweightmodels-development-secret-change-me
   ALLOW_DEV_USER_SWITCH: "true"
-  PROVIDER: mock
+  # Mock stays the local default; export PROVIDER=openrouter and
+  # OPENROUTER_API_KEY to run real generations through the same stack.
+  PROVIDER: ${PROVIDER:-mock}
   MOCK_DELAY_MS: "28"
   MOCK_FAIL_ONCE: "false"
   MAX_CHALLENGERS: "4"
@@ -142,6 +144,8 @@ services:
     command: ["node_modules/.bin/tsx", "watch", "apps/worker/src/index.ts"]
     environment:
       <<: *app-env
+      # Only the worker calls a provider, so only the worker receives the key.
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       WORKER_HEALTH_PORT: "3001"
     ports:
       - "${WORKER_HEALTH_PORT:-3001}:3001"
