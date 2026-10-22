@@ -268,7 +268,7 @@ These are intentionally unresolved. Do not assume them.
 ### Board and UI
 22. Resolved: infinite scroll with a Load more fallback pages the Board 48 at a time through an opaque cursor.
 23. Resolved: sidebar counts come from `GET /comparisons/facets`, so they stay global while pages load.
-24. The notification bell has no dropdown design.
+24. Resolved: the notification bell is a header popover with an unread count, newest-first links to the Job or Comparison, and mark-all read.
 25. The kebab menu for editing/deleting Discussion content is not designed.
 26. The New Comparison form and Job summary exist; the Job page's live SSE updates, Retry/Skip and Publish are not yet built (see implementation status).
 27. Anonymous "Sign in to annotate/comment/vote" affordances are specified but not designed.
@@ -335,7 +335,7 @@ Not M1 work, but required before public exposure:
 **Tests**: Vitest for offsets, cursor, filters and upload parsing; integration for job transitions with the mock provider; Playwright for create → publish → read and annotate → thread.
 
 **M2**
-Board pagination (infinite scroll/Load more, global counts, stable SSE effect) is done; remaining M2 work is add-model UI, magic-link auth with handle onboarding, the notification bell, minimal admin and edit/delete affordances for Discussion and annotations.
+Board pagination (infinite scroll/Load more, global counts, stable SSE effect), magic-link auth with handle onboarding and the job-ready notification bell are done; remaining M2 work is add-model UI, minimal admin and edit/delete affordances for Discussion and annotations.
 
 **M3**
 Real OpenRouter execution, accessibility audit, AWS deployment, operational hardening.

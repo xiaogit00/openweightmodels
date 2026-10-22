@@ -38,6 +38,7 @@ import type {
   CardModel,
   CommentView,
   ComparisonCard,
+  ComparisonStatus,
   JobRunState,
   PublicUser,
   Sort,
@@ -739,19 +740,64 @@ export async function getUnreadNotificationCount(userId: string) {
   return Number(row?.total ?? 0);
 }
 
-export async function getNotifications(userId: string, limit = 20) {
-  return getDb()
+export type NotificationWithComparison = typeof notifications.$inferSelect & {
+  /**
+   * Resolved at read time. Rows store IDs only, so a draft title is never
+   * copied into a notification; callers must scope the read to its owner.
+   */
+  comparison: { id: string; title: string; status: ComparisonStatus } | null;
+};
+
+export async function getNotifications(
+  userId: string,
+  limit = 20,
+): Promise<NotificationWithComparison[]> {
+  const db = getDb();
+  const rows = await db
     .select()
     .from(notifications)
     .where(eq(notifications.userId, userId))
     .orderBy(desc(notifications.createdAt))
     .limit(limit);
+
+  const comparisonIds = [
+    ...new Set(
+      rows
+        .map((row) => row.payload.comparisonId)
+        .filter((id): id is string => typeof id === 'string'),
+    ),
+  ];
+  if (comparisonIds.length === 0) {
+    return rows.map((row) => ({ ...row, comparison: null }));
+  }
+
+  const related = await db
+    .select({ id: comparisons.id, title: comparisons.title, status: comparisons.status })
+    .from(comparisons)
+    .where(inArray(comparisons.id, comparisonIds));
+  const byId = new Map(related.map((comparison) => [comparison.id, comparison]));
+
+  return rows.map((row) => {
+    const comparisonId = row.payload.comparisonId;
+    return {
+      ...row,
+      comparison:
+        typeof comparisonId === 'string' ? (byId.get(comparisonId) ?? null) : null,
+    };
+  });
 }
 
-export async function markNotificationsRead(userId: string, id?: string) {
-  const db = getDb();
-  const condition = id
-    ? and(eq(notifications.userId, userId), eq(notifications.id, id))
-    : and(eq(notifications.userId, userId), isNull(notifications.readAt));
-  await db.update(notifications).set({ readAt: new Date() }).where(condition);
+export async function markNotificationsRead(
+  userId: string,
+  target: { id: string } | { all: true },
+) {
+  const condition =
+    'id' in target
+      ? and(
+          eq(notifications.userId, userId),
+          eq(notifications.id, target.id),
+          isNull(notifications.readAt),
+        )
+      : and(eq(notifications.userId, userId), isNull(notifications.readAt));
+  await getDb().update(notifications).set({ readAt: new Date() }).where(condition);
 }

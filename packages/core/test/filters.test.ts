@@ -12,6 +12,7 @@ import {
   modelCounts,
   parseBoardFilters,
   relativeTime,
+  relativeTimeAgo,
   sortCards,
   topScore,
 } from '../src/domain/filters';
@@ -325,5 +326,10 @@ describe('relativeTime', () => {
     expect(relativeTime('2026-10-22T11:30:00.000Z', now)).toBe('30m');
     expect(relativeTime('2026-10-22T09:00:00.000Z', now)).toBe('3h');
     expect(relativeTime('2026-10-19T12:00:00.000Z', now)).toBe('3d');
+  });
+
+  it('adds the ago suffix except for just now', () => {
+    expect(relativeTimeAgo('2026-10-22T11:59:30.000Z', now)).toBe('just now');
+    expect(relativeTimeAgo('2026-10-22T11:30:00.000Z', now)).toBe('30m ago');
   });
 });

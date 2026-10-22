@@ -1,8 +1,9 @@
 import Link from 'next/link';
-import { ArrowLeft, Bell, Plus, SignIn } from '@phosphor-icons/react/dist/ssr';
+import { ArrowLeft, Plus, SignIn } from '@phosphor-icons/react/dist/ssr';
 import type { ReactNode } from 'react';
 import { AccountMenu } from './account-menu';
 import { Logo } from './logo';
+import { NotificationBell } from './notification-bell';
 
 export function SiteHeader({
   handle,
@@ -46,15 +47,7 @@ export function SiteHeader({
       )}
       {viewerSignedIn ? (
         <>
-          {variant === 'board' && (
-            <button
-              type="button"
-              aria-label="Notifications"
-              className="btn-ghost h-8 w-8 p-0"
-            >
-              <Bell size={17} />
-            </button>
-          )}
+          <NotificationBell />
           <AccountMenu handle={handle} />
         </>
       ) : (

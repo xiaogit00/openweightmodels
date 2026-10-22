@@ -43,10 +43,10 @@ export const responseCreateSchema = z.object({
   modelId: z.string().min(1),
 });
 
-export const notificationPatchSchema = z.object({
-  id: z.string().min(1).optional(),
-  all: z.boolean().optional(),
-});
+export const notificationPatchSchema = z.union([
+  z.object({ id: z.string().min(1) }),
+  z.object({ all: z.literal(true) }),
+]);
 
 export const handleSchema = z.object({
   handle: z.string().min(1).max(HANDLE_MAX_LENGTH),

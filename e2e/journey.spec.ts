@@ -63,6 +63,28 @@ test('upload → schedule → live Job → publish → Board → annotate → th
   await expect(page).toHaveURL(comparisonUrl);
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
 
+  // The finished Job left exactly one unread notification for its author.
+  const bell = page.getByRole('button', { name: /Notifications/ });
+  await expect(bell).toHaveAccessibleName(/1 unread/);
+  await bell.click();
+  const notificationPanel = page.locator('[data-notification-panel]');
+  await expect(notificationPanel.getByText('Your comparison is ready')).toBeVisible();
+  await expect(notificationPanel.getByText(title)).toBeVisible();
+
+  // Opening it marks it read, and the read state survives a reload.
+  await notificationPanel.locator('[data-notification-item]').click();
+  await expect(page).toHaveURL(comparisonUrl);
+  await expect(bell).toHaveAccessibleName('Notifications');
+  await page.reload();
+  await bell.click();
+  await expect(notificationPanel.locator('[data-notification-item]')).toHaveAttribute(
+    'data-unread',
+    'false',
+  );
+  await expect(notificationPanel.getByRole('button', { name: 'Mark all read' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(bell).toHaveAccessibleName('Notifications');
+
   // The live Board receives the published card, and the card opens the Comparison.
   await expect(board.getByText(title)).toBeVisible({ timeout: 20_000 });
   await board.getByText(title).click();
@@ -134,4 +156,10 @@ test('upload → schedule → live Job → publish → Board → annotate → th
   await expect(
     persisted.getByRole('button', { name: 'Remove annotation vote' }),
   ).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  // 7. Another reader sees an empty bell, never the author's notification.
+  await page.getByRole('button', { name: 'Notifications' }).click();
+  await expect(page.getByText(/caught up/)).toBeVisible();
+  await expect(page.getByText('Your comparison is ready')).toHaveCount(0);
 });

@@ -30,6 +30,7 @@ import {
   ANNOTATION_KINDS,
   EFFORT_LEVELS,
   relativeTime,
+  relativeTimeAgo,
 } from '@owm/core/client';
 import { Avatar } from './avatar';
 import { SiteHeader } from './site-header';
@@ -512,10 +513,7 @@ export function ComparisonView(props: ComparisonPageData) {
     window.history.replaceState(null, '', `${url.pathname}${url.search}`);
   };
 
-  const ago = (value: string) => {
-    const label = relativeTime(value);
-    return label === 'just now' ? label : `${label} ago`;
-  };
+  const ago = (value: string) => relativeTimeAgo(value);
 
   return (
     <div className="flex min-h-screen flex-col">

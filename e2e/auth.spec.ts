@@ -59,6 +59,8 @@ test('sign in with a single-use link, choose a handle, persist and sign out', as
   await page.getByRole('button', { name: `Account menu for @${handle}` }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
+  // No bell state implies an account to an anonymous visitor.
+  await expect(page.getByRole('button', { name: /Notifications/ })).toHaveCount(0);
 
   // Anonymous readers see the published Comparison but no writing controls.
   const comparisonId = await firstPublishedComparisonId(page);

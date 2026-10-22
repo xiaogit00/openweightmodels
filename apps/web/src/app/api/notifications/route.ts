@@ -27,7 +27,7 @@ export async function PATCH(request: Request) {
   try {
     const user = await requireSession();
     const body = notificationPatchSchema.parse(await readJson(request));
-    await markNotificationsRead(user.id, body.id);
+    await markNotificationsRead(user.id, body);
     return json({ ok: true });
   } catch (error) {
     return apiError(error);

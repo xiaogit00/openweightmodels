@@ -184,3 +184,9 @@ export function relativeTime(value: string | Date, now = Date.now()) {
   if (hours < 24) return `${hours}h`;
   return `${Math.floor(hours / 24)}d`;
 }
+
+/** The same label with the suffix the UI shows: "just now", "2m ago". */
+export function relativeTimeAgo(value: string | Date, now = Date.now()) {
+  const label = relativeTime(value, now);
+  return label === 'just now' ? label : `${label} ago`;
+}
