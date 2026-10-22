@@ -1,0 +1,24 @@
+# Build context for the local stack. Source is bind-mounted at runtime, so
+# exclude anything that is generated, secret or only documentation.
+
+node_modules
+**/node_modules
+.next
+**/.next
+.pnpm-store
+coverage
+dist
+playwright-report
+test-results
+
+.git
+.github
+.DS_Store
+
+# Never bake local secrets into an image. `.env.example` is documentation.
+.env
+.env.local
+.env.*.local
+
+# Not needed at runtime.
+design_handoff_openweightmodels

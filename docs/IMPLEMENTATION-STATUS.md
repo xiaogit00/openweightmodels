@@ -7,7 +7,8 @@ Snapshot for resuming work after a context clear. `BACKEND.md` is the contract; 
 ## 1. Environment
 
 - macOS (`darwin`), Node **23.7.0**, pnpm **12.14.0**.
-- **No Docker CLI on this machine.** Local services were installed with Homebrew:
+- `docker-compose.yml`, `Dockerfile` and `pnpm stack:*` scripts exist (ticket 05), but **no Docker CLI is installed on this machine**, so the Docker path is syntax-checked and covered by a config test, not executed.
+- Local services were installed with Homebrew:
   - PostgreSQL **17.11** (`brew services start postgresql@17`)
   - Redis **8.10** (`brew services start redis`)
 - Database `openweightmodels` exists; migrations `0000_marvelous_paladin.sql` and `0001_fuzzy_tag.sql` are applied.
@@ -23,11 +24,14 @@ Snapshot for resuming work after a context clear. `BACKEND.md` is the contract; 
 ```bash
 brew services start postgresql@17
 brew services start redis
-pnpm db:migrate
-pnpm db:seed
+pnpm db:init          # migrate; seed only when the database is empty
 pnpm dev              # web on :3000 and the generation worker
 # or separately: pnpm dev:web / pnpm dev:worker
 ```
+
+The Docker path is `docker compose up --build`; `migrate` runs `pnpm db:init`
+before web and worker start. `docker compose down` keeps named volumes, and
+`docker compose down --volumes` is the explicit data reset.
 
 The seeded dev identity defaults to `@mira` via `DEV_DEFAULT_USER`; `POST /api/dev/user { "handle": "kev" }` switches it in development.
 
@@ -115,7 +119,10 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 - Defects found and fixed: indented code blocks were incorrectly annotatable (they still render as code, but are no longer annotatable, matching `BACKEND.md` §7); Annotation, comment and reply vote controls gained accessible names.
 - `pnpm db:migrate` — `0001_fuzzy_tag.sql` applied; re-running is a no-op.
 - `pnpm db:seed` — **passes**; counts above.
-- `pnpm dev:worker` — boots and logs `consuming owm-runs with concurrency 4`.
+- `pnpm db:init` — applied against a scratch database twice: the first run migrated and seeded, the second applied nothing and skipped the seed. No rows were duplicated. `db:seed` truncates, then inserts in one transaction, so a failed seed leaves an empty database that the next `db:init` retries instead of wedging.
+- The documented Homebrew path was exercised end to end: `pnpm db:init` + `pnpm dev` with the seeded `@mira` identity, a two-Challenger Comparison reaching Ready, Publish, an anonymous Board and Comparison read, an Annotation with a thread reply, a Comment and a vote.
+- `pnpm dev:worker` — boots and logs `consuming owm-runs with concurrency 4`. With `WORKER_HEALTH_PORT` set it also serves a liveness `/healthz`, which compose uses as the container health check.
+- `packages/core/test/local-stack.test.ts` — parses `docker-compose.yml` and asserts the five services, shared image, startup ordering, health checks, named data volumes and documented `.env.example` variables. It does not need Docker.
 - A real queue round-trip is covered by the worker integration test: enqueue → done → Job ready → one notification.
 - `pnpm build` — **passes**; `/new` and `/comparisons/[id]/job` are in the route manifest. The Job page is now a client component that renders `SiteHeader`, so the earlier `@phosphor-icons/react/dist/ssr` risk is verified by the build; `next.config.ts`'s `experimental.serverActions` also compiles on Next 16.4.2.
 
@@ -125,7 +132,7 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 ### Other missing pieces
 
-- Docker Compose + Dockerfiles (`web`, `worker`, Postgres, Redis, Mailpit) — package scripts assume it.
+- Production images and the AWS deployment (ticket 13). The current `Dockerfile` is a development target only.
 - Admin UI (model enable/disable, takedown).
 - Better Auth magic-link integration + auth tables + handle onboarding.
 - Notification bell UI (API exists).

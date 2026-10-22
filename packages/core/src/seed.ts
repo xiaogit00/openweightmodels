@@ -1,5 +1,6 @@
 import { uuidv7 } from 'uuidv7';
-import { closeDb, getDb, getSql } from './db/client';
+import { getDb, getSql } from './db/client';
+import { runAsScript } from './db/run-script';
 import { loadEnv } from './load-env';
 import {
   activityEvents,
@@ -334,7 +335,11 @@ func (l *Limiter) Allow() bool {
 
 Reslicing keeps the backing array alive; copy periodically if the limiter is long-lived.`;
 
-async function main() {
+/**
+ * Replaces all content with the deterministic development fixture set. Callers
+ * that only want a usable database (see `db/init.ts`) should seed when empty.
+ */
+export async function seedDatabase() {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('refusing to seed a production database');
   }
@@ -347,6 +352,10 @@ async function main() {
     notifications, responses, jobs, comparisons, models, users
     restart identity cascade`);
 
+  // One transaction so a failed seed rolls back to an empty database, which
+  // `db:init` recognises and retries. The body keeps flat indentation so the
+  // template literals that hold sample output stay byte-identical.
+  await db.transaction(async (db) => {
   const userRows = await db
     .insert(users)
     .values(
@@ -699,11 +708,7 @@ async function main() {
   ]);
 
   console.log(`seeded ${comparisonIds.length} comparisons, ${userRows.length} users, ${modelRows.length} models`);
-  await closeDb();
+  });
 }
 
-main().catch(async (error) => {
-  console.error(error);
-  await closeDb();
-  process.exit(1);
-});
+runAsScript(import.meta.url, seedDatabase);

@@ -476,17 +476,20 @@ Annotatable runs are leaf text nodes and fenced code blocks for which the raw ma
 ## 10. Local development
 
 ```bash
-# With Docker (when available)
+# One command: web, worker, Postgres, Redis and Mailpit
 docker compose up --build
 
-# Homebrew fallback (this machine has no Docker CLI)
+# Homebrew fallback (no Docker)
 brew services start postgresql@17
 brew services start redis
 createdb openweightmodels
-pnpm db:migrate
-pnpm db:seed
+pnpm db:init          # migrate, then seed only when the database is empty
 pnpm dev:web
 pnpm dev:worker
 ```
+
+`pnpm db:seed` still replaces content with the deterministic fixtures, and
+`pnpm db:reset` drops the public schema. Data survives `docker compose down`;
+only `docker compose down --volumes` (or `pnpm stack:reset`) deletes it.
 
 Setup and migration commands are documented in `README.md` and `docs/IMPLEMENTATION-STATUS.md`.

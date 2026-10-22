@@ -18,6 +18,7 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
+    "db:init": "tsx src/db/init.ts",
     "db:seed": "tsx src/seed.ts",
     "db:reset": "tsx src/db/reset.ts"
   },

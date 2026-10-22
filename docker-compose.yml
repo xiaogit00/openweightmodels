@@ -1,0 +1,171 @@
+# One-command local stack: web, worker, Postgres, Redis and Mailpit.
+#
+#   docker compose up --build      # http://localhost:3000
+#
+# `docker compose down` keeps data in named volumes. Deleting data is explicit:
+# `docker compose down --volumes` (or `pnpm stack:reset`).
+#
+# Host ports can be overridden when something local already owns them, for
+# example `POSTGRES_PORT=5433 REDIS_PORT=6380 docker compose up`.
+
+name: openweightmodels
+
+x-app-env: &app-env
+  NODE_ENV: development
+  DATABASE_URL: postgres://postgres:postgres@postgres:5432/openweightmodels
+  REDIS_URL: redis://redis:6379
+  NEXT_PUBLIC_APP_URL: http://localhost:${WEB_PORT:-3000}
+  EMAIL_FROM: OpenWeightModels <hello@openweightmodels.test>
+  SMTP_URL: smtp://mailpit:1025
+  DEV_DEFAULT_USER: mira
+  ALLOW_DEV_USER_SWITCH: "true"
+  PROVIDER: mock
+  MOCK_DELAY_MS: "28"
+  MOCK_FAIL_ONCE: "false"
+  MAX_CHALLENGERS: "4"
+  JOBS_PER_HOUR: "10"
+  RUNS_PER_DAY: "50"
+  PROVIDER_CONCURRENCY: "4"
+
+x-app-build: &app-build
+  context: .
+  dockerfile: Dockerfile
+  target: dev
+
+# Bind-mounted source, with the image's dependency layers kept in anonymous
+# volumes so the host's macOS node_modules never leak in.
+x-app-volumes: &app-volumes
+  - .:/app
+  - /app/node_modules
+  - /app/apps/web/node_modules
+  - /app/apps/web/.next
+  - /app/apps/worker/node_modules
+  - /app/packages/core/node_modules
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: openweightmodels
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # Force TCP so initdb's temporary socket-only server is not mistaken for ready.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d openweightmodels"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:v1.29
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # Runs migrations, then seeds only when there is no content. Safe to run on
+  # every start; `pnpm db:seed` is the explicit reseed.
+  migrate:
+    build: *app-build
+    command: ["node_modules/.bin/tsx", "packages/core/src/db/init.ts"]
+    environment: *app-env
+    volumes: *app-volumes
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    build: *app-build
+    command:
+      [
+        "apps/web/node_modules/.bin/next",
+        "dev",
+        "apps/web",
+        "-H",
+        "0.0.0.0",
+        "-p",
+        "3000",
+      ]
+    environment: *app-env
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    volumes: *app-volumes
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/models').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 120s
+    init: true
+    restart: unless-stopped
+
+  worker:
+    build: *app-build
+    command: ["node_modules/.bin/tsx", "watch", "apps/worker/src/index.ts"]
+    environment:
+      <<: *app-env
+      WORKER_HEALTH_PORT: "3001"
+    ports:
+      - "${WORKER_HEALTH_PORT:-3001}:3001"
+    volumes: *app-volumes
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/healthz').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    init: true
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:

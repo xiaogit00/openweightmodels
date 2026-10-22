@@ -1,23 +1,19 @@
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { closeDb, getDb } from './client';
 import { loadEnv } from '../load-env';
+import { getDb } from './client';
+import { runAsScript } from './run-script';
 
 loadEnv();
 
 const here = dirname(fileURLToPath(import.meta.url));
 const migrationsFolder = resolve(here, '../../drizzle');
 
-async function main() {
+export async function runMigrations() {
   const db = getDb();
   await migrate(db, { migrationsFolder });
   console.log('migrations applied');
-  await closeDb();
 }
 
-main().catch(async (error) => {
-  console.error(error);
-  await closeDb();
-  process.exit(1);
-});
+runAsScript(import.meta.url, runMigrations);
