@@ -16,7 +16,7 @@ Snapshot for resuming work after a context clear. `BACKEND.md` is the contract; 
   - `REDIS_URL=redis://localhost:6379`
   - mock provider defaults
 - `pnpm install` completed. `pnpm approve-builds --all` was run for esbuild/msgpackr.
-- The directory is **not a git repository yet**. No commit exists.
+- Git is initialised. The snapshot commit is `647aef9` — "Milestone 1 foundation: schema, domain, API, board and comparison UI". `.env` is ignored.
 
 ### Run locally (current state)
 
@@ -165,21 +165,19 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 8. `postComment` now supports one-level replies; verify the server re-parenting when replying to a reply (the UI only exposes Reply on top-level comments).
 9. Front-matter `model:` is parsed but ignored; the form's `base_model_id` wins. Tracked as an open question.
 10. `getJobForAuthor`/job routes exist, but no UI consumes them yet.
-11. No git history yet. `git init` and an initial commit are recommended before the next large change.
-12. No `.DS_Store` cleanup; it is ignored but present under `apps/` and `docs/`.
+11. No `.DS_Store` cleanup; it is ignored but present under `apps/` and `docs/`.
 
 ---
 
 ## 5. Suggested next order
 
-1. `git init` + initial commit (do not commit `.env`).
-2. Worker entrypoint; run one mock Job end-to-end.
-3. New Comparison page + Job page.
-4. Full smoke test, then `pnpm build`.
-5. Docker Compose + README.
-6. Vitest offset/upload/cursor tests.
-7. Playwright happy path.
-8. M2: auth, admin, add-model UI, edit/delete UI, notifications, pagination.
+1. Worker entrypoint; run one mock Job end-to-end.
+2. New Comparison page + Job page.
+3. Full smoke test, then `pnpm build`.
+4. Docker Compose.
+5. Vitest offset/upload/cursor tests.
+6. Playwright happy path.
+7. M2: auth, admin, add-model UI, edit/delete UI, notifications, pagination.
 
 ---
 

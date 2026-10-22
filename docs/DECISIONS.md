@@ -48,7 +48,7 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 | 15 | Publish requires **at least one Done Challenger** | A base-only Comparison defeats the product. |
 | 16 | Authors can **unpublish** (back to `ready`) and **soft-delete** | Production content needs an author-controlled exit. |
 | 17 | Adding a Challenger to a published Comparison **auto-publishes on completion** | The author already reviewed the Comparison; a second review per model is friction. |
-| 18 | Max **4 Challengers per Comparison** | Matches creation UX and bounds spend. Add-model cannot exceed it. |
+| 18 | Max **4 Challengers per Comparison**; at 4 selected every tile is disabled and the counter reads “4 of 4” | Matches creation UX and bounds spend. Add-model cannot exceed it. |
 | 19 | Pending and failed added-model tabs are **author-only** | The public must never see a shimmer or a failed provider call. |
 | 20 | A failed Run blocks `ready` until retried, skipped, or auto-skipped after **24h** | Prevents permanent orphan drafts without discarding successful Runs. |
 | 21 | **One-level Discussion replies**; reply-to-reply re-parents to the top-level comment; `about_model_id` is inherited | Matches the design; avoids unbounded trees. |
@@ -207,7 +207,7 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 16. **Raw HTML** is shown as literal text, never executed.
 17. **Annotation creation without a message** is rejected.
 18. **Deleting an Annotation** hides its highlight and thread; votes remain but are not read.
-19. **Deleting a thread message** tombstones it if it has replies; otherwise it is removed.
+19. **Deleting a thread message** always tombstones it in v1; hard deletion of childless messages is not implemented.
 20. **Reply-to-reply** attaches to the top-level parent and inherits `about_model_id`.
 21. **Deleting a comment with replies** tombstones it; a childless comment is hard-deleted and its votes removed.
 22. **Self-vote** is rejected; the UI disables the control on your own content.
@@ -295,6 +295,23 @@ Not M1 work, but required before public exposure:
 - Final accessibility audit, including keyboard-only annotation and popover focus return.
 
 ---
+
+## 13a. Explicit non-goals for v1
+
+- No canonical Prompt pages or shared per-Prompt Discussion.
+- No nested Discussion replies beyond one level.
+- No cross-node Annotations; no Annotations on tables, images or raw HTML.
+- No raw HTML execution, image embedding or GFM tables.
+- No profile pages, avatar uploads or image uploads; monogram avatars only.
+- No email notifications; in-app job-ready notification only.
+- No billing, credits or payments.
+- No report/flag UI, user suspension or account export.
+- No WebSockets.
+- No real provider execution in M1 (mock default; OpenRouter adapter is M3).
+- No model-registry CRUD UI in M1; SQL/migration only.
+- No infinite scroll/Load more implementation yet (specified for M2).
+- No CloudFront in front of SSE initially.
+- No WAF or edge rate limiting yet.
 
 ## 14. Milestones
 
