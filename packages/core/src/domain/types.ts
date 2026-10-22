@@ -66,8 +66,53 @@ export const ADMIN_ACTION_KINDS = [
   'model.disabled',
   'comparison.takedown',
   'comparison.restored',
+  'comment.hidden',
+  'comment.restored',
+  'annotation.hidden',
+  'annotation.restored',
+  'user.suspended',
+  'user.reinstated',
+  'report.resolved',
+  'report.dismissed',
 ] as const;
 export type AdminActionKind = (typeof ADMIN_ACTION_KINDS)[number];
+
+/** What an audit row points at. Report and content targets share this column. */
+export const ADMIN_TARGET_TYPES = [
+  'model',
+  'comparison',
+  'comment',
+  'annotation',
+  'user',
+  'report',
+] as const;
+export type AdminTargetType = (typeof ADMIN_TARGET_TYPES)[number];
+
+/** Why a reader asked an Admin to look at content. */
+export const REPORT_REASONS = [
+  'spam',
+  'harassment',
+  'hate',
+  'sexual',
+  'misinformation',
+  'other',
+] as const;
+export type ReportReason = (typeof REPORT_REASONS)[number];
+
+export const REPORT_REASON_META: Record<ReportReason, string> = {
+  spam: 'Spam or advertising',
+  harassment: 'Harassment or bullying',
+  hate: 'Hate speech',
+  sexual: 'Sexual content',
+  misinformation: 'Misinformation',
+  other: 'Something else',
+};
+
+export const REPORT_TARGETS = ['comparison', 'comment', 'annotation'] as const;
+export type ReportTarget = (typeof REPORT_TARGETS)[number];
+
+export const REPORT_STATUSES = ['open', 'resolved', 'dismissed'] as const;
+export type ReportStatus = (typeof REPORT_STATUSES)[number];
 
 export type VoteTarget = 'comment' | 'annotation';
 

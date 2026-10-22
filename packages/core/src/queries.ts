@@ -417,7 +417,13 @@ export async function getAnnotationViews(
   const annotationRows = await db
     .select()
     .from(annotations)
-    .where(and(inArray(annotations.responseId, responseIds), isNull(annotations.deletedAt)))
+    .where(
+      and(
+        inArray(annotations.responseId, responseIds),
+        isNull(annotations.deletedAt),
+        isNull(annotations.hiddenAt),
+      ),
+    )
     .orderBy(annotations.createdAt);
   const annotationIds = annotationRows.map((row) => row.id);
   if (!annotationIds.length) return [];
@@ -505,7 +511,7 @@ export async function getCommentViews(
   const rows = await db
     .select()
     .from(comments)
-    .where(eq(comments.comparisonId, comparisonId))
+    .where(and(eq(comments.comparisonId, comparisonId), isNull(comments.hiddenAt)))
     .orderBy(comments.createdAt);
   if (!rows.length) return [];
 

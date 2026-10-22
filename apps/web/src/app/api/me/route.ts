@@ -12,6 +12,7 @@ export async function GET() {
       handle: user.handle,
       role: user.role,
       avatarUrl: user.avatarUrl ?? user.image,
+      suspendedAt: user.suspendedAt?.toISOString() ?? null,
     },
   });
 }

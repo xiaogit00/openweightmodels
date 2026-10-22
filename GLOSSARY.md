@@ -57,15 +57,27 @@ Return a published Comparison to the Author-only state without deleting it.
 _Avoid_: retract, hide, unpublish post
 
 **Takedown**:
-An Admin action that removes content from public view.
+An Admin action that removes a Comparison from public view.
 _Avoid_: ban, delete (when the content is only hidden)
+
+**Hidden content**:
+A comment or Annotation an Admin removed from public view without the Author deleting it.
+_Avoid_: deleted, banned, takedown (for comments or Annotations)
+
+**Report**:
+A reader's request for an Admin to review a Comparison, comment or Annotation.
+_Avoid_: flag, complaint
+
+**Suspension**:
+An Admin action that blocks a user's writes while leaving their reads and existing content in place until each item is hidden separately.
+_Avoid_: ban, deactivation, lockout
 
 **Handle**:
 A user's unique public identity, shown as `@handle`. Email addresses are never public.
 _Avoid_: username, login, display name
 
 **Admin**:
-A user with the `admin` role, able to enable or disable Models and take content down.
+A user with the `admin` role, able to enable or disable Models, hide content, review Reports and suspend accounts.
 _Avoid_: moderator, staff
 
 ## Generation

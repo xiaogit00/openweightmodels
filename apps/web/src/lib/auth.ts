@@ -138,6 +138,13 @@ export async function requireSession() {
 export async function requireUser() {
   const user = await getCurrentUser();
   if (!user) throw unauthorized();
+  if (user.suspendedAt) {
+    throw new DomainError(
+      'account_suspended',
+      'Your account is suspended, so you cannot post or change content. Contact an Admin if you think this is a mistake.',
+      403,
+    );
+  }
   if (!user.handle) {
     throw new DomainError(
       'handle_required',

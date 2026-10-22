@@ -16,6 +16,7 @@ import {
 import { validateAnnotationRange, AnnotationRangeError } from '../domain/markdown';
 import { logActivity, retractActivity } from '../events';
 import { conflict, forbidden, notFound } from './errors';
+import { assertCanWrite } from './identity';
 
 async function responseContext(responseId: string) {
   const db = getDb();
@@ -76,6 +77,7 @@ export type CreateAnnotationInput = {
 };
 
 export async function createAnnotation(input: CreateAnnotationInput) {
+  await assertCanWrite(input.userId);
   const db = getDb();
   const { response, comparison, model } = await responseContext(input.responseId);
   assertCanView(comparison, input.userId);
@@ -191,7 +193,13 @@ async function ownedAnnotation(id: string, userId: string) {
   const [annotation] = await db
     .select()
     .from(annotations)
-    .where(and(eq(annotations.id, id), isNull(annotations.deletedAt)))
+    .where(
+      and(
+        eq(annotations.id, id),
+        isNull(annotations.deletedAt),
+        isNull(annotations.hiddenAt),
+      ),
+    )
     .limit(1);
   if (!annotation) throw notFound('Annotation not found.');
   if (annotation.authorId !== userId) throw forbidden('That annotation is not yours.');
@@ -203,6 +211,7 @@ export async function updateAnnotation(
   userId: string,
   kind: string,
 ) {
+  await assertCanWrite(userId);
   const db = getDb();
   await ownedAnnotation(id, userId);
   await db
@@ -212,6 +221,7 @@ export async function updateAnnotation(
 }
 
 export async function deleteAnnotation(id: string, userId: string) {
+  await assertCanWrite(userId);
   const db = getDb();
   const annotation = await ownedAnnotation(id, userId);
   const [response] = await db
@@ -248,11 +258,18 @@ export async function addAnnotationMessage(
   userId: string,
   body: string,
 ) {
+  await assertCanWrite(userId);
   const db = getDb();
   const [annotation] = await db
     .select()
     .from(annotations)
-    .where(and(eq(annotations.id, annotationId), isNull(annotations.deletedAt)))
+    .where(
+      and(
+        eq(annotations.id, annotationId),
+        isNull(annotations.deletedAt),
+        isNull(annotations.hiddenAt),
+      ),
+    )
     .limit(1);
   if (!annotation) throw notFound('Annotation not found.');
 
@@ -299,20 +316,22 @@ export async function addAnnotationMessage(
 
 async function ownedMessage(annotationId: string, messageId: string, userId: string) {
   const db = getDb();
-  const [message] = await db
-    .select()
+  const [row] = await db
+    .select({ message: annotationMessages })
     .from(annotationMessages)
+    .innerJoin(annotations, eq(annotations.id, annotationMessages.annotationId))
     .where(
       and(
         eq(annotationMessages.id, messageId),
         eq(annotationMessages.annotationId, annotationId),
         isNull(annotationMessages.deletedAt),
+        isNull(annotations.hiddenAt),
       ),
     )
     .limit(1);
-  if (!message) throw notFound('Message not found.');
-  if (message.authorId !== userId) throw forbidden('That message is not yours.');
-  return message;
+  if (!row) throw notFound('Message not found.');
+  if (row.message.authorId !== userId) throw forbidden('That message is not yours.');
+  return row.message;
 }
 
 export async function updateAnnotationMessage(
@@ -321,6 +340,7 @@ export async function updateAnnotationMessage(
   userId: string,
   body: string,
 ) {
+  await assertCanWrite(userId);
   const db = getDb();
   await ownedMessage(annotationId, messageId, userId);
   await db
@@ -334,6 +354,7 @@ export async function deleteAnnotationMessage(
   messageId: string,
   userId: string,
 ) {
+  await assertCanWrite(userId);
   const db = getDb();
   await ownedMessage(annotationId, messageId, userId);
   await db

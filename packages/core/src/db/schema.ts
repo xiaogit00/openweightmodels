@@ -17,9 +17,13 @@ import {
 import { uuidv7 } from 'uuidv7';
 import type {
   AdminActionKind,
+  AdminTargetType,
   AnnotationKind,
   ComparisonStatus,
   JobStatus,
+  ReportReason,
+  ReportStatus,
+  ReportTarget,
   ResponseStatus,
   VoteTarget,
 } from '../domain/types';
@@ -45,6 +49,13 @@ export const users = pgTable(
     image: text('image'),
     avatarUrl: text('avatar_url'),
     role: text('role').$type<'user' | 'admin'>().notNull().default('user'),
+    // Suspension blocks writes but not reads. Existing content stays public
+    // unless an Admin hides it separately, so every removal is attributable.
+    suspendedAt: timestamp('suspended_at', { withTimezone: true, mode: 'date' }),
+    suspendedById: uuid('suspended_by_id').references((): AnyPgColumn => users.id, {
+      onDelete: 'set null',
+    }),
+    suspensionReason: text('suspension_reason'),
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
       .notNull()
@@ -172,8 +183,17 @@ export const annotations = pgTable(
     quote: text('quote').notNull(),
     createdAt: createdAt(),
     deletedAt: timestamp('deleted_at', { withTimezone: true, mode: 'date' }),
+    // Set by moderation; unlike `deleted_at` the Author did not remove it.
+    hiddenAt: timestamp('hidden_at', { withTimezone: true, mode: 'date' }),
+    hiddenById: uuid('hidden_by_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    hiddenReason: text('hidden_reason'),
   },
-  (t) => [index('annotations_response_idx').on(t.responseId)],
+  (t) => [
+    index('annotations_response_idx').on(t.responseId),
+    index('annotations_hidden_idx').on(t.hiddenAt),
+  ],
 );
 
 export const annotationMessages = pgTable(
@@ -212,10 +232,17 @@ export const comments = pgTable(
     body: text('body').notNull(),
     createdAt: createdAt(),
     deletedAt: timestamp('deleted_at', { withTimezone: true, mode: 'date' }),
+    // Set by moderation; unlike `deleted_at` the Author did not remove it.
+    hiddenAt: timestamp('hidden_at', { withTimezone: true, mode: 'date' }),
+    hiddenById: uuid('hidden_by_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    hiddenReason: text('hidden_reason'),
   },
   (t) => [
     index('comments_comparison_idx').on(t.comparisonId),
     index('comments_parent_idx').on(t.parentId),
+    index('comments_hidden_idx').on(t.hiddenAt),
   ],
 );
 
@@ -262,7 +289,7 @@ export const adminActions = pgTable(
     id: id(),
     actorId: uuid('actor_id').references(() => users.id, { onDelete: 'set null' }),
     action: text('action').$type<AdminActionKind>().notNull(),
-    targetType: text('target_type').$type<'model' | 'comparison'>().notNull(),
+    targetType: text('target_type').$type<AdminTargetType>().notNull(),
     targetId: uuid('target_id').notNull(),
     reason: text('reason'),
     createdAt: createdAt(),
@@ -270,6 +297,41 @@ export const adminActions = pgTable(
   (t) => [
     index('admin_actions_created_idx').on(t.createdAt),
     index('admin_actions_target_idx').on(t.targetType, t.targetId),
+  ],
+);
+
+/**
+ * A reader's request for an Admin to review content. One row per reporter per
+ * target: repeating a report is idempotent instead of piling up duplicates.
+ * Reports are never published to the Board.
+ */
+export const reports = pgTable(
+  'reports',
+  {
+    id: id(),
+    reporterId: uuid('reporter_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    targetType: text('target_type').$type<ReportTarget>().notNull(),
+    targetId: uuid('target_id').notNull(),
+    reason: text('reason').$type<ReportReason>().notNull(),
+    detail: text('detail'),
+    status: text('status').$type<ReportStatus>().notNull().default('open'),
+    resolvedById: uuid('resolved_by_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    resolution: text('resolution'),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true, mode: 'date' }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('reports_reporter_target_unique').on(
+      t.reporterId,
+      t.targetType,
+      t.targetId,
+    ),
+    index('reports_status_idx').on(t.status, t.createdAt),
+    index('reports_target_idx').on(t.targetType, t.targetId),
   ],
 );
 
@@ -396,6 +458,7 @@ export const schema = {
   votes,
   activityEvents,
   adminActions,
+  reports,
   jobEvents,
   notifications,
   authSessions,

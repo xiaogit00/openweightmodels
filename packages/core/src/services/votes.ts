@@ -3,6 +3,8 @@ import { getDb } from '../db/client';
 import { annotationMessages, annotations, comments, votes } from '../db/schema';
 import type { VoteTarget } from '../domain/types';
 import { conflict, notFound } from './errors';
+import { commentIsUnderHiddenParent } from './comments';
+import { assertCanWrite } from './identity';
 
 async function targetOwner(targetType: VoteTarget, targetId: string) {
   const db = getDb();
@@ -10,7 +12,7 @@ async function targetOwner(targetType: VoteTarget, targetId: string) {
     const [row] = await db
       .select({ authorId: annotations.authorId })
       .from(annotations)
-      .where(and(eq(annotations.id, targetId), isNull(annotations.deletedAt)))
+      .where(and(eq(annotations.id, targetId), isNull(annotations.deletedAt), isNull(annotations.hiddenAt)))
       .limit(1);
     if (!row) throw notFound('Annotation not found.');
     return row.authorId;
@@ -18,11 +20,12 @@ async function targetOwner(targetType: VoteTarget, targetId: string) {
 
   if (targetType === 'comment') {
     const [row] = await db
-      .select({ authorId: comments.authorId })
+      .select({ authorId: comments.authorId, parentId: comments.parentId, hiddenAt: comments.hiddenAt })
       .from(comments)
       .where(and(eq(comments.id, targetId), isNull(comments.deletedAt)))
       .limit(1);
     if (!row) throw notFound('Comment not found.');
+    if (await commentIsUnderHiddenParent(row)) throw notFound('Comment not found.');
     return row.authorId;
   }
 
@@ -34,6 +37,7 @@ export async function toggleVote(
   targetType: VoteTarget,
   targetId: string,
 ) {
+  await assertCanWrite(userId);
   const db = getDb();
   const ownerId = await targetOwner(targetType, targetId);
   if (ownerId === userId) {

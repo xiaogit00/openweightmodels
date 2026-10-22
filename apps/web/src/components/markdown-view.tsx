@@ -61,6 +61,7 @@ function RunText({
     parts.push(
       <span
         key={annotation.id}
+        id={`annotation-${annotation.id}`}
         data-annotation-span="1"
         data-annotation-id={annotation.id}
         onClick={(event) => onOpen(annotation.id, event)}

@@ -98,7 +98,7 @@ function changeCount(
   cards: ComparisonCard[],
   id: string,
   field: CountField,
-  delta: 1 | -1,
+  delta: number,
 ) {
   let changed = false;
   const next = cards.map((card) => {
@@ -412,7 +412,7 @@ export function BoardClient({
         }
 
         if (
-          payload.type === 'annotation.deleted' &&
+          (payload.type === 'annotation.deleted' || payload.type === 'annotation.hidden') &&
           typeof activity.comparisonId === 'string'
         ) {
           setItems((current) =>
@@ -425,6 +425,15 @@ export function BoardClient({
         }
 
         if (
+          payload.type === 'annotation.restored' &&
+          typeof activity.comparisonId === 'string'
+        ) {
+          setItems((current) =>
+            changeCount(current, activity.comparisonId as string, 'annotationCount', 1),
+          );
+        }
+
+        if (
           (payload.type === 'comment.created' || payload.type === 'comment.replied') &&
           typeof activity.comparisonId === 'string'
         ) {
@@ -434,16 +443,54 @@ export function BoardClient({
         }
 
         if (
-          payload.type === 'comment.deleted' &&
+          (payload.type === 'comment.deleted' || payload.type === 'comment.hidden') &&
           typeof activity.comparisonId === 'string'
         ) {
+          const amount =
+            payload.type === 'comment.hidden' &&
+            typeof activity.payload?.hiddenCount === 'number'
+              ? activity.payload.hiddenCount
+              : 1;
           setItems((current) =>
-            changeCount(current, activity.comparisonId as string, 'commentCount', -1),
+            changeCount(
+              current,
+              activity.comparisonId as string,
+              'commentCount',
+              -amount,
+            ),
           );
           const commentId = activity.payload?.commentId;
           if (typeof commentId === 'string') {
-            setEvents((current) => retractTickerEvents(current, 'commentId', commentId));
+            const hiddenIds = Array.isArray(activity.payload?.hiddenCommentIds)
+              ? activity.payload.hiddenCommentIds.filter(
+                  (value): value is string => typeof value === 'string',
+                )
+              : [commentId];
+            setEvents((current) =>
+              hiddenIds.reduce(
+                (events, id) => retractTickerEvents(events, 'commentId', id),
+                current,
+              ),
+            );
           }
+        }
+
+        if (
+          payload.type === 'comment.restored' &&
+          typeof activity.comparisonId === 'string'
+        ) {
+          const amount =
+            typeof activity.payload?.restoredCount === 'number'
+              ? activity.payload.restoredCount
+              : 1;
+          setItems((current) =>
+            changeCount(
+              current,
+              activity.comparisonId as string,
+              'commentCount',
+              amount,
+            ),
+          );
         }
 
         if (payload.type === 'annotation.message.deleted') {

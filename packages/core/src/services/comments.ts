@@ -10,6 +10,7 @@ import {
 } from '../db/schema';
 import { logActivity, retractActivity } from '../events';
 import { conflict, forbidden, notFound } from './errors';
+import { assertCanWrite } from './identity';
 
 function assertBody(body: string) {
   const trimmed = body.trim();
@@ -27,6 +28,7 @@ export type CreateCommentInput = {
 };
 
 export async function createComment(input: CreateCommentInput) {
+  await assertCanWrite(input.userId);
   const db = getDb();
   const [comparison] = await db
     .select()
@@ -50,6 +52,7 @@ export async function createComment(input: CreateCommentInput) {
           eq(comments.id, input.parentId),
           eq(comments.comparisonId, input.comparisonId),
           isNull(comments.deletedAt),
+          isNull(comments.hiddenAt),
         ),
       )
       .limit(1);
@@ -122,19 +125,36 @@ export async function createComment(input: CreateCommentInput) {
   };
 }
 
+export async function commentIsUnderHiddenParent(comment: {
+  parentId: string | null;
+  hiddenAt: Date | null;
+}) {
+  if (comment.hiddenAt) return true;
+  if (!comment.parentId) return false;
+  const [parent] = await getDb()
+    .select({ hiddenAt: comments.hiddenAt })
+    .from(comments)
+    .where(eq(comments.id, comment.parentId))
+    .limit(1);
+  return Boolean(parent?.hiddenAt);
+}
+
 async function ownedComment(id: string, userId: string) {
   const db = getDb();
   const [comment] = await db
     .select()
     .from(comments)
-    .where(and(eq(comments.id, id), isNull(comments.deletedAt)))
+    .where(and(eq(comments.id, id), isNull(comments.deletedAt), isNull(comments.hiddenAt)))
     .limit(1);
   if (!comment) throw notFound('Comment not found.');
+  // A reply follows its parent: an Admin hiding the root hides the thread.
+  if (await commentIsUnderHiddenParent(comment)) throw notFound('Comment not found.');
   if (comment.authorId !== userId) throw forbidden('That comment is not yours.');
   return comment;
 }
 
 export async function updateComment(id: string, userId: string, body: string) {
+  await assertCanWrite(userId);
   const db = getDb();
   await ownedComment(id, userId);
   await db
@@ -144,6 +164,7 @@ export async function updateComment(id: string, userId: string, body: string) {
 }
 
 export async function deleteComment(id: string, userId: string) {
+  await assertCanWrite(userId);
   const db = getDb();
   const comment = await ownedComment(id, userId);
   const [replyRow] = await db

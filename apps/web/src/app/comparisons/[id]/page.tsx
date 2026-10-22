@@ -72,6 +72,7 @@ export default async function ComparisonPage({
       maxChallengers={resolveMaxChallengers(process.env.MAX_CHALLENGERS)}
       currentUserId={user?.handle ? user.id : null}
       viewerSignedIn={user !== null}
+      viewerSuspended={Boolean(user?.suspendedAt)}
       initialModel={modelParam ?? null}
       initialAnnOn={annParam === '1' || annParam === 'true'}
       handle={user?.handle ?? null}

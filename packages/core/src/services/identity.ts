@@ -14,6 +14,26 @@ function isUniqueViolation(error: unknown) {
 }
 
 /**
+ * Every user-generated write passes through here. Suspension is a read-only
+ * state: the account keeps its sessions and can still browse.
+ */
+export async function assertCanWrite(userId: string) {
+  const [user] = await getDb()
+    .select({ suspendedAt: users.suspendedAt })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!user) throw notFound('Account not found.');
+  if (user.suspendedAt) {
+    throw new DomainError(
+      'account_suspended',
+      'Your account is suspended, so you cannot post or change content. Contact an Admin if you think this is a mistake.',
+      403,
+    );
+  }
+}
+
+/**
  * Sets the public handle for a signed-in user. Used by first-time onboarding;
  * a user without a handle can read but not write.
  *
@@ -22,6 +42,7 @@ function isUniqueViolation(error: unknown) {
  * each other after the route's initial check.
  */
 export async function setHandle(userId: string, input: string) {
+  await assertCanWrite(userId);
   const checked = checkHandle(input);
   if (!checked.ok) throw new DomainError('invalid_handle', checked.message, 400);
 

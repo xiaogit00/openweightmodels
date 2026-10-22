@@ -349,7 +349,7 @@ export async function seedDatabase() {
 
   await sql.unsafe(`truncate table
     votes, annotation_messages, annotations, comments, job_events, activity_events,
-    notifications, responses, jobs, comparisons, models, users
+    notifications, responses, jobs, comparisons, models, reports, users
     restart identity cascade`);
 
   // One transaction so a failed seed rolls back to an empty database, which

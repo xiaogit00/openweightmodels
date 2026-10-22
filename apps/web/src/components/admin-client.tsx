@@ -1,17 +1,21 @@
 'use client';
 
 import {
+  ArrowCounterClockwise,
   ArrowSquareOut,
   CheckCircle,
   CircleNotch,
   Eye,
   EyeSlash,
+  Flag,
   MagnifyingGlass,
+  UserCheck,
+  UserMinus,
   WarningCircle,
 } from '@phosphor-icons/react';
 import Link from 'next/link';
 import { useCallback, useState } from 'react';
-import type { AdminActionKind } from '@owm/core/client';
+import type { AdminActionKind, AdminTargetType, ReportStatus, ReportTarget } from '@owm/core/client';
 import { SiteHeader } from './site-header';
 
 type AdminModel = {
@@ -40,11 +44,39 @@ type AdminActionView = {
   id: string;
   action: AdminActionKind;
   actorHandle: string | null;
-  targetType: 'model' | 'comparison';
+  targetType: AdminTargetType;
   targetId: string;
   targetLabel: string;
   reason: string | null;
   createdAt: string;
+};
+
+type Report = {
+  id: string;
+  targetType: ReportTarget;
+  targetId: string;
+  comparisonId: string | null;
+  targetLabel: string;
+  targetAuthorHandle: string;
+  targetAuthorId: string | null;
+  targetHidden: boolean;
+  reporterHandle: string | null;
+  reason: string;
+  reasonLabel: string;
+  detail: string | null;
+  status: ReportStatus;
+  createdAt: string;
+  resolvedByHandle: string | null;
+  resolvedAt: string | null;
+  resolution: string | null;
+};
+
+type SuspendedUser = {
+  id: string;
+  handle: string;
+  suspendedAt: string;
+  suspensionReason: string;
+  suspendedByHandle: string | null;
 };
 
 type PublishedComparison = {
@@ -58,6 +90,8 @@ type Overview = {
   models: AdminModel[];
   publishedComparisons: PublishedComparison[];
   hiddenComparisons: HiddenComparison[];
+  reports: Report[];
+  suspendedUsers: SuspendedUser[];
   recentActions: AdminActionView[];
 };
 
@@ -71,7 +105,30 @@ const ACTION_LABELS: Record<AdminActionKind, string> = {
   'model.disabled': 'Disabled model',
   'comparison.takedown': 'Took down comparison',
   'comparison.restored': 'Restored comparison',
+  'comment.hidden': 'Hid comment',
+  'comment.restored': 'Restored comment',
+  'annotation.hidden': 'Hid annotation',
+  'annotation.restored': 'Restored annotation',
+  'user.suspended': 'Suspended member',
+  'user.reinstated': 'Reinstated member',
+  'report.resolved': 'Resolved report',
+  'report.dismissed': 'Dismissed report',
 };
+
+const REPORT_TABS: Array<{ value: ReportStatus; label: string }> = [
+  { value: 'open', label: 'Open' },
+  { value: 'resolved', label: 'Resolved' },
+  { value: 'dismissed', label: 'Dismissed' },
+];
+
+function targetHref(report: Report) {
+  if (!report.comparisonId) return null;
+  if (report.targetType === 'comparison') return `/comparisons/${report.comparisonId}`;
+  if (report.targetType === 'comment') {
+    return `/comparisons/${report.comparisonId}#comment-${report.targetId}`;
+  }
+  return `/comparisons/${report.comparisonId}?annotations=1#annotation-${report.targetId}`;
+}
 
 function formatUtc(value: string | null) {
   if (!value) return '—';
@@ -94,6 +151,12 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<{ id: string; title: string } | null>(null);
   const [reason, setReason] = useState('');
+  const [reportTab, setReportTab] = useState<ReportStatus>('open');
+  const [reportAction, setReportAction] = useState<{
+    id: string;
+    mode: 'hide' | 'suspend';
+    reason: string;
+  } | null>(null);
 
   const load = useCallback(async () => {
     const response = await fetch('/api/admin/overview');
@@ -154,6 +217,76 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
       fetch(`/api/admin/comparisons/${comparison.id}/restore`, { method: 'POST' }),
     );
 
+  const hideReported = (report: Report) => {
+    const reasonText = reportAction?.id === report.id ? reportAction.reason.trim() : '';
+    if (!reasonText) {
+      setError('Say why the reported content is being hidden.');
+      return;
+    }
+    void run(`hide:${report.id}`, () =>
+      fetch(`/api/admin/reports/${report.id}/hide`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ reason: reasonText }),
+      }),
+    ).then((ok) => {
+      if (ok) setReportAction(null);
+    });
+  };
+
+  const dismiss = (report: Report) =>
+    void run(`dismiss:${report.id}`, () =>
+      fetch(`/api/admin/reports/${report.id}/dismiss`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ note: null }),
+      }),
+    );
+
+  const restoreReported = (report: Report) =>
+    void run(`restore-report:${report.id}`, () =>
+      report.targetType === 'comparison'
+        ? fetch(`/api/admin/comparisons/${report.targetId}/restore`, { method: 'POST' })
+        : fetch('/api/admin/moderation/restore', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              targetType: report.targetType,
+              targetId: report.targetId,
+            }),
+          }),
+    );
+
+  const suspend = (report: Report) => {
+    if (!report.targetAuthorId) return;
+    const reasonText = reportAction?.id === report.id ? reportAction.reason.trim() : '';
+    if (!reasonText) {
+      setError('Say why this member is being suspended.');
+      return;
+    }
+    void run(`suspend:${report.targetAuthorId}`, () =>
+      fetch(`/api/admin/users/${report.targetAuthorId}/suspend`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ reason: reasonText }),
+      }),
+    ).then((ok) => {
+      if (ok) setReportAction(null);
+    });
+  };
+
+  const reinstate = (user: SuspendedUser) =>
+    void run(`reinstate:${user.id}`, () =>
+      fetch(`/api/admin/users/${user.id}/reinstate`, { method: 'POST' }),
+    );
+
+  const visibleReports = overview.reports.filter((report) => report.status === reportTab);
+  const reportCounts = {
+    open: overview.reports.filter((report) => report.status === 'open').length,
+    resolved: overview.reports.filter((report) => report.status === 'resolved').length,
+    dismissed: overview.reports.filter((report) => report.status === 'dismissed').length,
+  };
+
   const needle = query.trim().toLowerCase();
   const visiblePublished = needle
     ? overview.publishedComparisons.filter(
@@ -174,8 +307,8 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
             Admin
           </h1>
           <p className="m-0 max-w-[640px] text-[12px] leading-[1.55] text-neutral-400">
-            Enable or disable Models in the registry, and hide or restore published
-            Comparisons without a deploy. Every action is recorded against your handle.
+            Review reports, hide or restore reported content, suspend members, and enable or
+            disable Models in the registry. Every action is recorded against your handle.
           </p>
         </div>
 
@@ -185,6 +318,275 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
             {error}
           </p>
         )}
+
+        <section className="flex flex-col gap-3" aria-labelledby="admin-reports">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="admin-reports" className="m-0 font-heading text-[14px] font-medium">
+              Reports
+            </h2>
+            <p className="m-0 max-w-[520px] text-[11px] leading-[1.5] text-neutral-500">
+              Hiding content settles every open report on that target. Suspension stops
+              new writes but leaves existing content public until it is hidden here.
+            </p>
+          </div>
+
+          <div
+            role="tablist"
+            aria-label="Report status"
+            className="flex w-fit gap-[2px] rounded-[2px] bg-surface p-[2px]"
+          >
+            {REPORT_TABS.map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                role="tab"
+                aria-selected={reportTab === tab.value}
+                onClick={() => {
+                  setReportTab(tab.value);
+                  setReportAction(null);
+                }}
+                className={`flex h-7 items-center gap-1.5 rounded-[2px] px-2.5 text-[11px] font-medium ${
+                  reportTab === tab.value
+                    ? 'bg-neutral-700 text-text'
+                    : 'text-neutral-400 hover:text-text'
+                }`}
+              >
+                <Flag size={12} />
+                {tab.label}
+                <span className="min-w-[16px] rounded-[2px] bg-neutral-800 px-1 text-center text-[10px] text-neutral-300">
+                  {reportCounts[tab.value]}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <ul className="m-0 flex list-none flex-col gap-px overflow-hidden rounded-[2px] border border-neutral-800 bg-neutral-800 p-0">
+            {visibleReports.length === 0 && (
+              <li className="bg-surface px-3 py-4 text-[11px] text-neutral-500">
+                {reportTab === 'open'
+                  ? 'No open reports. Readers can report a Comparison, comment or Annotation.'
+                  : `No ${reportTab} reports.`}
+              </li>
+            )}
+            {visibleReports.map((report) => {
+              const open = report.status === 'open';
+              const panel = reportAction?.id === report.id ? reportAction : null;
+              const href = targetHref(report);
+              const targetNoun = report.targetType;
+              return (
+                <li
+                  key={report.id}
+                  data-report={report.id}
+                  data-report-status={report.status}
+                  className="bg-surface px-3 py-2.5"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-[2px] bg-neutral-800 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-neutral-300">
+                      {report.targetType}
+                    </span>
+                    {href ? (
+                      <Link
+                        href={href}
+                        className="min-w-0 max-w-[420px] truncate text-[12px] font-medium text-neutral-100 hover:text-accent-200"
+                      >
+                        {report.targetLabel || 'Deleted content'}
+                      </Link>
+                    ) : (
+                      <span className="text-[12px] text-neutral-400">Deleted content</span>
+                    )}
+                    <span className="text-[11px] text-neutral-500">
+                      @{report.targetAuthorHandle} · reported by @
+                      {report.reporterHandle ?? 'unknown'} · {formatUtc(report.createdAt)}
+                    </span>
+                    <div className="ml-auto flex flex-wrap items-center gap-1.5">
+                      {open && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setReportAction({
+                                id: report.id,
+                                mode: 'hide',
+                                reason: report.detail ?? '',
+                              })
+                            }
+                            aria-expanded={panel?.mode === 'hide'}
+                            className="btn-secondary h-7"
+                          >
+                            <EyeSlash size={12} />
+                            Hide {targetNoun}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => dismiss(report)}
+                            disabled={busy !== null}
+                            className="btn-ghost h-7"
+                          >
+                            {busy === `dismiss:${report.id}` ? (
+                              <CircleNotch size={12} className="animate-spin" />
+                            ) : null}
+                            Dismiss
+                          </button>
+                          {report.targetAuthorId && (
+                            <button
+                              type="button"
+                              data-suspend-trigger
+                              onClick={() =>
+                                setReportAction({
+                                  id: report.id,
+                                  mode: 'suspend',
+                                  reason: '',
+                                })
+                              }
+                              aria-expanded={panel?.mode === 'suspend'}
+                              className="btn-secondary h-7"
+                            >
+                              <UserMinus size={12} />
+                              Suspend @{report.targetAuthorHandle}
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {report.targetHidden && (
+                        <button
+                          type="button"
+                          data-restore-trigger
+                          onClick={() => restoreReported(report)}
+                          disabled={busy !== null}
+                          className="btn-secondary h-7"
+                        >
+                          {busy === `restore-report:${report.id}` ? (
+                            <CircleNotch size={12} className="animate-spin" />
+                          ) : (
+                            <ArrowCounterClockwise size={12} />
+                          )}
+                          Restore {targetNoun}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="m-0 mt-1 text-[11.5px] leading-[1.5] text-neutral-300">
+                    <span className="text-neutral-500">Reason: </span>
+                    {report.reasonLabel}
+                    {report.detail ? ` — ${report.detail}` : ''}
+                  </p>
+
+                  {report.status !== 'open' && (
+                    <p className="m-0 mt-0.5 text-[11px] text-neutral-500">
+                      {report.status === 'resolved' ? 'Resolved' : 'Dismissed'} by @
+                      {report.resolvedByHandle ?? 'unknown'} · {formatUtc(report.resolvedAt)}
+                      {report.resolution ? ` · ${report.resolution}` : ''}
+                    </p>
+                  )}
+
+                  {panel && (
+                    <div className="mt-2 flex flex-col gap-2 border-l-2 border-neutral-700 pl-3">
+                      <label
+                        htmlFor={`report-reason-${report.id}`}
+                        className="text-[11px] text-neutral-400"
+                      >
+                        {panel.mode === 'hide'
+                          ? 'Why is this content being hidden? This is recorded against your handle.'
+                          : `Why is @${report.targetAuthorHandle} being suspended? This is recorded against your handle.`}
+                      </label>
+                      <textarea
+                        id={`report-reason-${report.id}`}
+                        value={panel.reason}
+                        onChange={(event) =>
+                          setReportAction((current) =>
+                            current ? { ...current, reason: event.target.value } : current,
+                          )
+                        }
+                        maxLength={500}
+                        rows={2}
+                        className="w-full rounded-[2px] border border-neutral-700 bg-bg px-2 py-1.5 text-[12px] text-text outline-0 focus:border-accent"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          data-confirm-moderation
+                          onClick={() =>
+                            panel.mode === 'hide' ? hideReported(report) : suspend(report)
+                          }
+                          disabled={busy !== null}
+                          className="btn-primary h-7"
+                        >
+                          {busy === `hide:${report.id}` ||
+                          busy === `suspend:${report.targetAuthorId}` ? (
+                            <CircleNotch size={12} className="animate-spin" />
+                          ) : panel.mode === 'hide' ? (
+                            <EyeSlash size={12} />
+                          ) : (
+                            <UserMinus size={12} />
+                          )}
+                          {panel.mode === 'hide' ? 'Confirm hide' : 'Confirm suspension'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setReportAction(null)}
+                          className="btn-ghost h-7"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+
+        <section className="flex flex-col gap-3" aria-labelledby="admin-suspended">
+          <h2 id="admin-suspended" className="m-0 font-heading text-[14px] font-medium">
+            Suspended members
+          </h2>
+          <ul className="m-0 flex list-none flex-col gap-px overflow-hidden rounded-[2px] border border-neutral-800 bg-neutral-800 p-0">
+            {overview.suspendedUsers.length === 0 && (
+              <li className="bg-surface px-3 py-4 text-[11px] text-neutral-500">
+                No one is suspended. Suspended members can read but cannot post, annotate,
+                vote or report.
+              </li>
+            )}
+            {overview.suspendedUsers.map((user) => (
+              <li
+                key={user.id}
+                data-suspended-user={user.handle}
+                className="bg-surface px-3 py-2.5"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[12px] font-medium text-neutral-100">
+                    @{user.handle}
+                  </span>
+                  <span className="text-[11px] text-neutral-500">
+                    suspended {formatUtc(user.suspendedAt)}
+                    {user.suspendedByHandle ? ` by @${user.suspendedByHandle}` : ''}
+                  </span>
+                  <div className="ml-auto">
+                    <button
+                      type="button"
+                      data-reinstate-trigger
+                      onClick={() => reinstate(user)}
+                      disabled={busy !== null}
+                      className="btn-secondary h-7"
+                    >
+                      {busy === `reinstate:${user.id}` ? (
+                        <CircleNotch size={12} className="animate-spin" />
+                      ) : (
+                        <UserCheck size={12} />
+                      )}
+                      Reinstate
+                    </button>
+                  </div>
+                </div>
+                <p className="m-0 mt-1 border-l-2 border-danger pl-2 text-[11px] leading-[1.5] text-neutral-400">
+                  {user.suspensionReason}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         <section className="flex flex-col gap-3" aria-labelledby="admin-models">
           <div className="flex flex-wrap items-baseline justify-between gap-2">

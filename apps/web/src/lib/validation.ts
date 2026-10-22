@@ -1,4 +1,10 @@
-import { ANNOTATION_KINDS, CATEGORIES, HANDLE_MAX_LENGTH } from '@owm/core';
+import {
+  ANNOTATION_KINDS,
+  CATEGORIES,
+  HANDLE_MAX_LENGTH,
+  REPORT_REASONS,
+  REPORT_TARGETS,
+} from '@owm/core';
 import { z } from 'zod';
 
 export const annotationCreateSchema = z.object({
@@ -56,6 +62,27 @@ export const adminModelPatchSchema = z.object({
   enabled: z.boolean(),
 });
 
-export const adminTakedownSchema = z.object({
+export const reportCreateSchema = z.object({
+  targetType: z.enum(REPORT_TARGETS),
+  targetId: z.string().min(1),
+  reason: z.enum(REPORT_REASONS),
+  detail: z.string().trim().max(500).nullable().optional(),
+});
+
+export const adminReasonSchema = z.object({
   reason: z.string().trim().min(1).max(500),
+});
+
+export const adminRestoreSchema = z.object({
+  targetType: z.enum(['comment', 'annotation']),
+  targetId: z.string().min(1),
+  reason: z.string().trim().max(500).nullable().optional(),
+});
+
+export const adminOptionalReasonSchema = z.object({
+  reason: z.string().trim().max(500).nullable().optional(),
+});
+
+export const adminDismissSchema = z.object({
+  note: z.string().trim().max(500).nullable().optional(),
 });

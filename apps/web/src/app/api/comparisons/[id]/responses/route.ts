@@ -4,7 +4,7 @@ import {
   requireOwnedComparison,
 } from '@owm/core';
 import { apiError, json, readJson } from '@/lib/api';
-import { requireUser } from '@/lib/auth';
+import { requireSession, requireUser } from '@/lib/auth';
 import { toComparisonResponseViews } from '@/lib/comparison-responses';
 import { responseCreateSchema } from '@/lib/validation';
 
@@ -16,7 +16,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireUser();
+    // A suspended Author keeps read access to their own Comparison, so this
+    // endpoint asks for a session rather than a writable account.
+    const user = await requireSession();
     const { id } = await params;
     await requireOwnedComparison(id, user.id);
     const bundle = await getComparisonForViewer(id, user.id);

@@ -41,6 +41,7 @@ import {
   relativeTimeAgo,
 } from '@owm/core/client';
 import { Avatar } from './avatar';
+import { ReportControl } from './report-control';
 import { SiteHeader } from './site-header';
 import { MarkdownView } from './markdown-view';
 import { cn } from '@/lib/utils';
@@ -85,6 +86,7 @@ export type ComparisonPageData = {
   maxChallengers: number;
   currentUserId: string | null;
   viewerSignedIn: boolean;
+  viewerSuspended: boolean;
   initialModel: string | null;
   initialAnnOn: boolean;
   handle: string | null;
@@ -503,13 +505,14 @@ export function ComparisonView(props: ComparisonPageData) {
     maxChallengers,
     currentUserId,
     viewerSignedIn,
+    viewerSuspended,
     initialModel,
     initialAnnOn,
     handle,
   } = props;
 
   const isAuthor = currentUserId !== null && currentUserId === comparison.authorId;
-  const canWrite = currentUserId !== null;
+  const canWrite = currentUserId !== null && !viewerSuspended;
   const signInHref = signInPath(`/comparisons/${comparison.id}`);
   const requireSignIn = () => {
     if (canWrite) return false;
@@ -905,7 +908,7 @@ export function ComparisonView(props: ComparisonPageData) {
   };
 
   const voteAnnotation = async (annotation: AnnotationView) => {
-    if (requireSignIn()) return;
+    if (!canWrite || requireSignIn()) return;
     if (annotation.author.id === currentUserId) return;
     const response = await fetch('/api/votes', {
       method: 'POST',
@@ -924,7 +927,7 @@ export function ComparisonView(props: ComparisonPageData) {
   };
 
   const voteComment = async (comment: CommentView) => {
-    if (requireSignIn()) return;
+    if (!canWrite || requireSignIn()) return;
     if (comment.author.id === currentUserId) return;
     const response = await fetch('/api/votes', {
       method: 'POST',
@@ -1335,6 +1338,19 @@ export function ComparisonView(props: ComparisonPageData) {
       />
 
       <main className="mx-auto flex w-full max-w-[1480px] flex-col gap-4 px-5 pb-12 pt-[18px]">
+        {viewerSuspended && (
+          <div
+            role="status"
+            className="flex max-w-[860px] items-start gap-2 rounded-[2px] border border-danger px-3 py-2 text-[11.5px] leading-[1.5] text-neutral-300"
+          >
+            <WarningCircle size={14} className="mt-px shrink-0 text-danger" />
+            <span>
+              <span className="font-medium text-danger">Your account is suspended.</span>{' '}
+              You can keep reading, but posting, annotating, voting and reporting are
+              disabled. Contact an Admin if you think this is a mistake.
+            </span>
+          </div>
+        )}
         <div className="flex max-w-[860px] flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2 text-[12px] text-neutral-400">
             {comparison.categories.map((category) => (
@@ -1423,6 +1439,10 @@ export function ComparisonView(props: ComparisonPageData) {
                 <span className="text-[12px] text-neutral-500">
                   Select any text to annotate it
                 </span>
+              ) : viewerSuspended ? (
+                <span className="text-[12px] text-neutral-500">
+                  Annotations are read-only while your account is suspended.
+                </span>
               ) : (
                 <Link href={signInHref} className="text-[12px] font-medium text-accent-200">
                   Sign in to annotate
@@ -1432,6 +1452,15 @@ export function ComparisonView(props: ComparisonPageData) {
           )}
 
           <div className="flex-1" />
+          {!isAuthor && !viewerSuspended && (
+            <ReportControl
+              targetType="comparison"
+              targetId={comparison.id}
+              signedIn={viewerSignedIn}
+              signInHref={signInHref}
+              className="btn-ghost h-[30px] px-2"
+            />
+          )}
           <button type="button" onClick={copyLink} className="btn-ghost">
             {copied ? <Check size={14} /> : <LinkSimple size={14} />}
             {copied ? 'Copied' : 'Copy link'}
@@ -1733,11 +1762,20 @@ export function ComparisonView(props: ComparisonPageData) {
                       {annotationPeople} {annotationPeople === 1 ? 'person' : 'people'}
                     </span>
                     <div className="flex-1" />
-                    {activeAnnotation.author.id === currentUserId && (
+                    {canWrite && activeAnnotation.author.id === currentUserId && (
                       <AnnotationActions
                         annotation={activeAnnotation}
                         onChangeKind={changeAnnotationKind}
                         onDelete={() => deleteAnnotationAction(activeAnnotation)}
+                      />
+                    )}
+                    {activeAnnotation.author.id !== currentUserId && canWrite && (
+                      <ReportControl
+                        compact
+                        targetType="annotation"
+                        targetId={activeAnnotation.id}
+                        signedIn
+                        signInHref={signInHref}
                       />
                     )}
                     <button
@@ -1757,7 +1795,7 @@ export function ComparisonView(props: ComparisonPageData) {
                   <div className="flex max-h-[220px] flex-col gap-2.5 overflow-auto px-3 pt-2.5">
                     {activeAnnotation.thread.map((message) => {
                       const canManage =
-                        message.author.id === currentUserId && !message.deletedAt;
+                        canWrite && message.author.id === currentUserId && !message.deletedAt;
                       const editing =
                         messageEdit?.annotationId === activeAnnotation.id &&
                         messageEdit.id === message.id;
@@ -1817,7 +1855,7 @@ export function ComparisonView(props: ComparisonPageData) {
                       aria-label={
                         activeAnnotation.voted ? 'Remove annotation vote' : 'Vote on annotation'
                       }
-                      disabled={activeAnnotation.author.id === currentUserId}
+                      disabled={activeAnnotation.author.id === currentUserId || !canWrite}
                       onClick={() => voteAnnotation(activeAnnotation)}
                       className={cn(
                         'flex h-7 items-center gap-1 rounded-[2px] border border-neutral-700 px-2 text-[11px] font-medium text-neutral-200',
@@ -1991,6 +2029,12 @@ export function ComparisonView(props: ComparisonPageData) {
                 </button>
               </div>
             </div>
+          ) : viewerSuspended ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-[2px] border border-dashed border-danger bg-surface px-3 py-3">
+              <span className="text-[12px] text-neutral-300">
+                Your account is suspended, so the Discussion is read-only.
+              </span>
+            </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2 rounded-[2px] border border-dashed border-neutral-700 bg-surface px-3 py-3">
               <span className="text-[12px] text-neutral-300">
@@ -2008,11 +2052,12 @@ export function ComparisonView(props: ComparisonPageData) {
             ) : (
               filteredComments.map((comment) => {
                 const canManage =
-                  comment.author.id === currentUserId && !comment.deletedAt;
+                  canWrite && comment.author.id === currentUserId && !comment.deletedAt;
                 const editing = commentEdit?.id === comment.id;
                 return (
                   <div
                     key={comment.id}
+                    id={`comment-${comment.id}`}
                     data-comment={comment.id}
                     className="flex gap-2.5 border-b border-neutral-800 py-3.5"
                   >
@@ -2069,7 +2114,7 @@ export function ComparisonView(props: ComparisonPageData) {
                             aria-label={
                               comment.voted ? 'Remove comment vote' : 'Vote on comment'
                             }
-                            disabled={comment.author.id === currentUserId}
+                            disabled={comment.author.id === currentUserId || !canWrite}
                             onClick={() => void voteComment(comment)}
                             className={cn(
                               'flex items-center gap-1',
@@ -2084,24 +2129,35 @@ export function ComparisonView(props: ComparisonPageData) {
                             />
                             {comment.votes}
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => replyTo(comment)}
-                            className="flex items-center gap-1 transition-colors hover:text-text"
-                          >
-                            <ArrowBendUpLeft size={13} />
-                            Reply
-                          </button>
+                          {canWrite && (
+                            <button
+                              type="button"
+                              onClick={() => replyTo(comment)}
+                              className="flex items-center gap-1 transition-colors hover:text-text"
+                            >
+                              <ArrowBendUpLeft size={13} />
+                              Reply
+                            </button>
+                          )}
+                          {canWrite && comment.author.id !== currentUserId && (
+                            <ReportControl
+                              targetType="comment"
+                              targetId={comment.id}
+                              signedIn
+                              signInHref={signInHref}
+                            />
+                          )}
                         </div>
                       )}
 
                       {comment.replies.map((reply) => {
                         const canManageReply =
-                          reply.author.id === currentUserId && !reply.deletedAt;
+                          canWrite && reply.author.id === currentUserId && !reply.deletedAt;
                         const editingReply = commentEdit?.id === reply.id;
                         return (
                           <div
                             key={reply.id}
+                            id={`comment-${reply.id}`}
                             data-comment={reply.id}
                             className="mt-1 flex gap-2 border-l border-neutral-700 pl-3"
                           >
@@ -2148,26 +2204,36 @@ export function ComparisonView(props: ComparisonPageData) {
                                 </span>
                               )}
                               {!reply.deletedAt && (
-                                <button
-                                  type="button"
-                                  aria-label={
-                                    reply.voted ? 'Remove reply vote' : 'Vote on reply'
-                                  }
-                                  disabled={reply.author.id === currentUserId}
-                                  onClick={() => void voteComment(reply)}
-                                  className={cn(
-                                    'mt-0.5 flex items-center gap-1 text-[11px] font-medium text-neutral-400',
-                                    reply.voted && 'text-accent-200',
-                                    reply.author.id === currentUserId &&
-                                      'cursor-not-allowed opacity-50',
+                                <div className="mt-0.5 flex items-center gap-3 text-[11px] font-medium text-neutral-400">
+                                  <button
+                                    type="button"
+                                    aria-label={
+                                      reply.voted ? 'Remove reply vote' : 'Vote on reply'
+                                    }
+                                    disabled={reply.author.id === currentUserId || !canWrite}
+                                    onClick={() => void voteComment(reply)}
+                                    className={cn(
+                                      'flex items-center gap-1',
+                                      reply.voted && 'text-accent-200',
+                                      reply.author.id === currentUserId &&
+                                        'cursor-not-allowed opacity-50',
+                                    )}
+                                  >
+                                    <ArrowFatUp
+                                      size={12}
+                                      weight={reply.voted ? 'fill' : 'regular'}
+                                    />
+                                    {reply.votes}
+                                  </button>
+                                  {canWrite && reply.author.id !== currentUserId && (
+                                    <ReportControl
+                                      targetType="comment"
+                                      targetId={reply.id}
+                                      signedIn
+                                      signInHref={signInHref}
+                                    />
                                   )}
-                                >
-                                  <ArrowFatUp
-                                    size={12}
-                                    weight={reply.voted ? 'fill' : 'regular'}
-                                  />
-                                  {reply.votes}
-                                </button>
+                                </div>
                               )}
                             </div>
                           </div>

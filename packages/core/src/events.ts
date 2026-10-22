@@ -53,11 +53,13 @@ export async function recentActivity(limit = 30) {
 export async function retractActivity(input: {
   kind: string;
   comparisonId: string;
-  payload: Record<string, string>;
-  match: Record<string, string>;
+  payload: Record<string, unknown>;
+  match: Record<string, string | string[]>;
 }) {
-  const conditions = Object.entries(input.match).map(
-    ([key, value]) => sql`${activityEvents.payload}->>${key} = ${value}`,
+  const conditions = Object.entries(input.match).flatMap(([key, value]) =>
+    (Array.isArray(value) ? value : [value]).map(
+      (item) => sql`${activityEvents.payload}->>${key} = ${item}`,
+    ),
   );
 
   if (conditions.length) {

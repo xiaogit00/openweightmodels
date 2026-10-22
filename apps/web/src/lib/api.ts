@@ -52,3 +52,14 @@ export async function readJson(request: Request) {
     throw new DomainError('invalid_json', 'Expected a JSON body.', 400);
   }
 }
+
+/** For POST actions whose body is optional, such as an audit note. */
+export async function readOptionalJson(request: Request) {
+  const text = (await request.text()).trim();
+  if (!text) return {};
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    throw new DomainError('invalid_json', 'Expected a JSON body.', 400);
+  }
+}

@@ -1,18 +1,20 @@
 import { restoreComparison } from '@owm/core';
-import { apiError, json } from '@/lib/api';
+import { apiError, json, readOptionalJson } from '@/lib/api';
 import { requireAdmin } from '@/lib/auth';
+import { adminOptionalReasonSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const admin = await requireAdmin();
     const { id } = await params;
-    await restoreComparison(admin.id, id);
+    const { reason } = adminOptionalReasonSchema.parse(await readOptionalJson(request));
+    await restoreComparison(admin.id, id, reason);
     return json({ ok: true });
   } catch (error) {
     return apiError(error);

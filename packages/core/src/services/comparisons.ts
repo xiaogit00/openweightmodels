@@ -19,6 +19,7 @@ import { logActivity, logJobEvent } from '../events';
 import { getCardById } from '../queries';
 import { enqueueRun, removeAutoSkip } from '../queue';
 import { conflict, forbidden, notFound, tooMany } from './errors';
+import { assertCanWrite } from './identity';
 import { finalizeJob, recordRunStatus } from './jobs';
 
 function clampEffort(value: number) {
@@ -93,6 +94,7 @@ export type CreateComparisonResult = {
 export async function createComparison(
   input: CreateComparisonInput,
 ): Promise<CreateComparisonResult> {
+  await assertCanWrite(input.authorId);
   const db = getDb();
   await assertQuota(input.authorId);
 
@@ -188,6 +190,7 @@ export async function createComparison(
 }
 
 export async function publishComparison(id: string, userId: string): Promise<ComparisonCard> {
+  await assertCanWrite(userId);
   const db = getDb();
   const [row] = await db
     .select()
@@ -258,6 +261,7 @@ export async function publishComparison(id: string, userId: string): Promise<Com
 }
 
 export async function unpublishComparison(id: string, userId: string) {
+  await assertCanWrite(userId);
   const db = getDb();
   const row = await requireOwnedComparison(id, userId);
   if (row.status !== 'published') {
@@ -270,6 +274,7 @@ export async function unpublishComparison(id: string, userId: string) {
 }
 
 export async function softDeleteComparison(id: string, userId: string) {
+  await assertCanWrite(userId);
   const db = getDb();
   await requireOwnedComparison(id, userId);
   await db.update(comparisons).set({ deletedAt: new Date() }).where(eq(comparisons.id, id));
@@ -280,6 +285,7 @@ export async function updateComparison(
   userId: string,
   patch: { title?: string; categories?: string[]; effort?: number },
 ) {
+  await assertCanWrite(userId);
   const db = getDb();
   await requireOwnedComparison(id, userId);
   const values: Partial<typeof comparisons.$inferInsert> = {};
@@ -295,6 +301,7 @@ export async function addModelToComparison(
   modelId: string,
   userId: string,
 ): Promise<{ jobId: string; responseId: string }> {
+  await assertCanWrite(userId);
   const db = getDb();
   const row = await requireOwnedComparison(comparisonId, userId);
   if (row.status !== 'ready' && row.status !== 'published') {
@@ -361,6 +368,7 @@ export async function addModelToComparison(
 }
 
 export async function retryRun(responseId: string, userId: string) {
+  await assertCanWrite(userId);
   const db = getDb();
   const [response] = await db
     .select()
@@ -404,6 +412,7 @@ export async function retryRun(responseId: string, userId: string) {
 }
 
 export async function skipRun(responseId: string, userId: string) {
+  await assertCanWrite(userId);
   const db = getDb();
   const [response] = await db
     .select()

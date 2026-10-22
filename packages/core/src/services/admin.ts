@@ -1,16 +1,27 @@
-import { and, count, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNotNull, isNull, ne } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { uuidv7 } from 'uuidv7';
 import { getDb } from '../db/client';
 import {
   activityEvents,
   adminActions,
+  annotations,
+  comments,
   comparisons,
   models,
+  reports,
   responses,
   users,
 } from '../db/schema';
-import type { AdminActionKind, ComparisonStatus } from '../domain/types';
+import {
+  REPORT_REASON_META,
+  type AdminActionKind,
+  type AdminTargetType,
+  type ComparisonStatus,
+  type ReportReason,
+  type ReportStatus,
+  type ReportTarget,
+} from '../domain/types';
 import { logActivity } from '../events';
 import { getCardById } from '../queries';
 import { DomainError, conflict, notFound } from './errors';
@@ -49,17 +60,48 @@ export type AdminActionView = {
   id: string;
   action: AdminActionKind;
   actorHandle: string | null;
-  targetType: 'model' | 'comparison';
+  targetType: AdminTargetType;
   targetId: string;
   targetLabel: string;
   reason: string | null;
   createdAt: string;
 };
 
+export type AdminReportView = {
+  id: string;
+  targetType: ReportTarget;
+  targetId: string;
+  /** The Comparison an Admin opens to review a comment or annotation. */
+  comparisonId: string | null;
+  targetLabel: string;
+  targetAuthorHandle: string;
+  targetAuthorId: string | null;
+  targetHidden: boolean;
+  reporterHandle: string | null;
+  reason: ReportReason;
+  reasonLabel: string;
+  detail: string | null;
+  status: ReportStatus;
+  createdAt: string;
+  resolvedByHandle: string | null;
+  resolvedAt: string | null;
+  resolution: string | null;
+};
+
+export type AdminSuspendedUser = {
+  id: string;
+  handle: string;
+  suspendedAt: string;
+  suspensionReason: string;
+  suspendedByHandle: string | null;
+};
+
 export type AdminOverview = {
   models: AdminModel[];
   publishedComparisons: AdminPublishedComparison[];
   hiddenComparisons: AdminHiddenComparison[];
+  reports: AdminReportView[];
+  suspendedUsers: AdminSuspendedUser[];
   recentActions: AdminActionView[];
 };
 
@@ -67,7 +109,7 @@ export type AdminOverview = {
  * Admin operations are only reachable by the `admin` role. Missing and
  * non-admin actors look the same so the surface does not leak existence.
  */
-async function assertAdmin(actorId: string) {
+export async function assertAdmin(actorId: string) {
   const [actor] = await getDb()
     .select()
     .from(users)
@@ -117,15 +159,15 @@ export async function setModelEnabled(
   };
 }
 
-function takedownReason(reason: string) {
+export function validateModerationReason(reason: string) {
   const text = reason.trim();
   if (!text) {
-    throw new DomainError('reason_required', 'Say why this comparison is hidden.', 400);
+    throw new DomainError('reason_required', 'Say why this content is being removed.', 400);
   }
   if (text.length > 500) {
     throw new DomainError(
       'reason_too_long',
-      'Keep the takedown reason under 500 characters.',
+      'Keep the moderation reason under 500 characters.',
       400,
     );
   }
@@ -138,7 +180,7 @@ export async function takeDownComparison(
   reason: string,
 ): Promise<void> {
   await assertAdmin(actorId);
-  const reasonText = takedownReason(reason);
+  const reasonText = validateModerationReason(reason);
 
   const db = getDb();
   const [comparison] = await db
@@ -194,8 +236,10 @@ export async function takeDownComparison(
 export async function restoreComparison(
   actorId: string,
   comparisonId: string,
+  reason?: string | null,
 ): Promise<void> {
   await assertAdmin(actorId);
+  const reasonText = reason?.trim() ? validateModerationReason(reason) : 'Takedown reversed';
   const db = getDb();
   const [comparison] = await db
     .select()
@@ -221,6 +265,7 @@ export async function restoreComparison(
       action: 'comparison.restored',
       targetType: 'comparison',
       targetId: comparisonId,
+      reason: reasonText,
     });
   });
 
@@ -234,14 +279,22 @@ export async function restoreComparison(
   });
 }
 
+function shorten(value: string, limit = 120) {
+  const text = value.replace(/\s+/g, ' ').trim();
+  return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
+}
+
 export async function getAdminOverview(actorId: string): Promise<AdminOverview> {
   await assertAdmin(actorId);
   const db = getDb();
   const author = alias(users, 'comparison_author');
   const takedownBy = alias(users, 'takedown_actor');
   const actor = alias(users, 'action_actor');
+  const reporter = alias(users, 'report_reporter');
+  const resolver = alias(users, 'report_resolver');
+  const suspendedBy = alias(users, 'suspended_actor');
 
-  const [modelRows, usageRows, publishedRows, hiddenRows, actionRows] =
+  const [modelRows, usageRows, publishedRows, hiddenRows, actionRows, openReportRows, closedReportRows, suspendedRows] =
     await Promise.all([
       db.select().from(models).orderBy(models.displayName),
       db
@@ -287,7 +340,40 @@ export async function getAdminOverview(actorId: string): Promise<AdminOverview> 
         .leftJoin(actor, eq(actor.id, adminActions.actorId))
         .orderBy(desc(adminActions.createdAt))
         .limit(50),
+      db
+        .select({
+          report: reports,
+          reporterHandle: reporter.handle,
+          resolvedByHandle: resolver.handle,
+        })
+        .from(reports)
+        .leftJoin(reporter, eq(reporter.id, reports.reporterId))
+        .leftJoin(resolver, eq(resolver.id, reports.resolvedById))
+        .where(eq(reports.status, 'open'))
+        .orderBy(reports.createdAt)
+        .limit(500),
+      db
+        .select({
+          report: reports,
+          reporterHandle: reporter.handle,
+          resolvedByHandle: resolver.handle,
+        })
+        .from(reports)
+        .leftJoin(reporter, eq(reporter.id, reports.reporterId))
+        .leftJoin(resolver, eq(resolver.id, reports.resolvedById))
+        .where(ne(reports.status, 'open'))
+        .orderBy(desc(reports.createdAt))
+        .limit(100),
+      db
+        .select({ user: users, suspendedByHandle: suspendedBy.handle })
+        .from(users)
+        .leftJoin(suspendedBy, eq(suspendedBy.id, users.suspendedById))
+        .where(isNotNull(users.suspendedAt))
+        .orderBy(desc(users.suspendedAt)),
     ]);
+
+  // Every open report is in the queue; closed reports are the most recent 100.
+  const reportRows = [...openReportRows, ...closedReportRows];
 
   const usage = new Map(usageRows.map((row) => [row.modelId, Number(row.total)]));
   const modelById = new Map(modelRows.map((row) => [row.id, row]));
@@ -312,6 +398,147 @@ export async function getAdminOverview(actorId: string): Promise<AdminOverview> 
     : [];
   const restoredById = new Map(
     restoredComparisons.map((row) => [row.id, row.title]),
+  );
+
+  const targetIds = (type: ReportTarget) => [
+    ...new Set(
+      reportRows.filter((row) => row.report.targetType === type).map((row) => row.report.targetId),
+    ),
+  ];
+  const commentIds = targetIds('comment');
+  const annotationIds = targetIds('annotation');
+  const comparisonIds = targetIds('comparison');
+
+  const [comparisonTargets, commentTargets, annotationTargets] = await Promise.all([
+    comparisonIds.length
+      ? db
+          .select({
+            id: comparisons.id,
+            title: comparisons.title,
+            authorId: comparisons.authorId,
+            takedownAt: comparisons.takedownAt,
+          })
+          .from(comparisons)
+          .where(inArray(comparisons.id, comparisonIds))
+      : Promise.resolve([]),
+    commentIds.length
+      ? db
+          .select({
+            id: comments.id,
+            body: comments.body,
+            authorId: comments.authorId,
+            comparisonId: comments.comparisonId,
+            hiddenAt: comments.hiddenAt,
+          })
+          .from(comments)
+          .where(inArray(comments.id, commentIds))
+      : Promise.resolve([]),
+    annotationIds.length
+      ? db
+          .select({
+            id: annotations.id,
+            quote: annotations.quote,
+            authorId: annotations.authorId,
+            comparisonId: responses.comparisonId,
+            hiddenAt: annotations.hiddenAt,
+          })
+          .from(annotations)
+          .innerJoin(responses, eq(responses.id, annotations.responseId))
+          .where(inArray(annotations.id, annotationIds))
+      : Promise.resolve([]),
+  ]);
+
+  const targetAuthorIds = [
+    ...new Set([
+      ...comparisonTargets.map((row) => row.authorId),
+      ...commentTargets.map((row) => row.authorId),
+      ...annotationTargets.map((row) => row.authorId),
+    ]),
+  ];
+  const targetAuthorRows = targetAuthorIds.length
+    ? await db
+        .select({ id: users.id, handle: users.handle })
+        .from(users)
+        .where(inArray(users.id, targetAuthorIds))
+    : [];
+  const targetAuthorById = new Map(
+    targetAuthorRows.map((row) => [row.id, row.handle ?? 'unknown']),
+  );
+
+  const actionUserIds = [
+    ...new Set(
+      actionRows
+        .filter((row) => row.action.targetType === 'user')
+        .map((row) => row.action.targetId),
+    ),
+  ];
+  const actionUserRows = actionUserIds.length
+    ? await db
+        .select({ id: users.id, handle: users.handle })
+        .from(users)
+        .where(inArray(users.id, actionUserIds))
+    : [];
+  const actionUserById = new Map(
+    actionUserRows.map((row) => [row.id, row.handle ?? 'unknown']),
+  );
+
+  const comparisonTargetById = new Map(comparisonTargets.map((row) => [row.id, row]));
+  const commentTargetById = new Map(commentTargets.map((row) => [row.id, row]));
+  const annotationTargetById = new Map(annotationTargets.map((row) => [row.id, row]));
+
+  const reportViews: AdminReportView[] = reportRows.map(
+    ({ report, reporterHandle, resolvedByHandle }) => {
+      let comparisonId: string | null = null;
+      let targetLabel = 'Deleted content';
+      let authorId: string | null = null;
+      let hidden = true;
+
+      if (report.targetType === 'comparison') {
+        const target = comparisonTargetById.get(report.targetId);
+        if (target) {
+          comparisonId = target.id;
+          targetLabel = target.title;
+          authorId = target.authorId;
+          hidden = target.takedownAt !== null;
+        }
+      } else if (report.targetType === 'comment') {
+        const target = commentTargetById.get(report.targetId);
+        if (target) {
+          comparisonId = target.comparisonId;
+          targetLabel = shorten(target.body);
+          authorId = target.authorId;
+          hidden = target.hiddenAt !== null;
+        }
+      } else {
+        const target = annotationTargetById.get(report.targetId);
+        if (target) {
+          comparisonId = target.comparisonId;
+          targetLabel = shorten(target.quote);
+          authorId = target.authorId;
+          hidden = target.hiddenAt !== null;
+        }
+      }
+
+      return {
+        id: report.id,
+        targetType: report.targetType,
+        targetId: report.targetId,
+        comparisonId,
+        targetLabel,
+        targetAuthorHandle: authorId ? (targetAuthorById.get(authorId) ?? 'unknown') : 'unknown',
+        targetAuthorId: authorId,
+        targetHidden: hidden,
+        reporterHandle,
+        reason: report.reason,
+        reasonLabel: REPORT_REASON_META[report.reason],
+        detail: report.detail,
+        status: report.status,
+        createdAt: report.createdAt.toISOString(),
+        resolvedByHandle,
+        resolvedAt: report.resolvedAt?.toISOString() ?? null,
+        resolution: report.resolution,
+      };
+    },
   );
 
   return {
@@ -341,20 +568,70 @@ export async function getAdminOverview(actorId: string): Promise<AdminOverview> 
       takedownReason: row.takedownReason ?? '',
       takedownByHandle: row.takedownByHandle,
     })),
+    reports: reportViews,
+    suspendedUsers: suspendedRows.map(({ user, suspendedByHandle }) => ({
+      id: user.id,
+      handle: user.handle ?? 'unknown',
+      suspendedAt: user.suspendedAt!.toISOString(),
+      suspensionReason: user.suspensionReason ?? '',
+      suspendedByHandle,
+    })),
     recentActions: actionRows.map(({ action: row, actorHandle }) => ({
       id: row.id,
       action: row.action,
       actorHandle,
       targetType: row.targetType,
       targetId: row.targetId,
-      targetLabel:
-        row.targetType === 'model'
-          ? (modelById.get(row.targetId)?.displayName ?? 'Unknown model')
-          : (hiddenById.get(row.targetId)?.title ??
-            restoredById.get(row.targetId) ??
-            'Comparison'),
+      targetLabel: actionTargetLabel(row, {
+        modelById,
+        hiddenById,
+        restoredById,
+        comparisonTargetById,
+        commentTargetById,
+        annotationTargetById,
+        actionUserById,
+      }),
       reason: row.reason,
       createdAt: row.createdAt.toISOString(),
     })),
   };
+}
+
+function actionTargetLabel(
+  row: { targetType: AdminTargetType; targetId: string },
+  maps: {
+    modelById: Map<string, { displayName: string }>;
+    hiddenById: Map<string, { title: string }>;
+    restoredById: Map<string, string>;
+    comparisonTargetById: Map<string, { title: string }>;
+    commentTargetById: Map<string, { body: string }>;
+    annotationTargetById: Map<string, { quote: string }>;
+    actionUserById: Map<string, string>;
+  },
+): string {
+  switch (row.targetType) {
+    case 'model':
+      return maps.modelById.get(row.targetId)?.displayName ?? 'Unknown model';
+    case 'comparison':
+      return (
+        maps.hiddenById.get(row.targetId)?.title ??
+        maps.restoredById.get(row.targetId) ??
+        maps.comparisonTargetById.get(row.targetId)?.title ??
+        'Comparison'
+      );
+    case 'comment':
+      return maps.commentTargetById.get(row.targetId)
+        ? `Comment: ${shorten(maps.commentTargetById.get(row.targetId)!.body, 60)}`
+        : 'Comment';
+    case 'annotation':
+      return maps.annotationTargetById.get(row.targetId)
+        ? `Annotation: ${shorten(maps.annotationTargetById.get(row.targetId)!.quote, 60)}`
+        : 'Annotation';
+    case 'user':
+      return maps.actionUserById.get(row.targetId)
+        ? `@${maps.actionUserById.get(row.targetId)}`
+        : 'Member account';
+    case 'report':
+      return 'Report';
+  }
 }
