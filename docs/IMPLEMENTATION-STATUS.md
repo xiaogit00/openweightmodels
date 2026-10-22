@@ -109,8 +109,10 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 ### Verification
 
-- `pnpm typecheck` — **passes** (core, web, worker).
-- `pnpm test` — **passes**: 28 core tests (run lifecycle, job events, publish/visibility, New Comparison rules) and 3 worker dispatch/consumption tests.
+- `pnpm typecheck` — **passes** (core, web, worker and the E2E suite).
+- `pnpm test` — **passes**: 111 core tests and 3 worker dispatch/consumption tests. Coverage includes UTF-16 annotation offsets (emoji, CJK, escapes, cross-formatting, fenced vs indented code), upload parsing and limits, keyset cursors, Board filters/Top ordering and SQL pagination, the create → generate → publish pipeline with the mock provider, and author-only write permissions.
+- `pnpm test:e2e` — **passes**: a real browser journey covering upload → schedule → live Job → publish → Board arrival → annotate → thread → comment → vote across two identities. It seeds an isolated `openweightmodels_e2e` database and Redis DB `1`, then starts its own web and worker servers.
+- Defects found and fixed: indented code blocks were incorrectly annotatable (they now render as text, matching `BACKEND.md` §7); Annotation, comment and reply vote controls gained accessible names.
 - `pnpm db:migrate` — `0001_fuzzy_tag.sql` applied; re-running is a no-op.
 - `pnpm db:seed` — **passes**; counts above.
 - `pnpm dev:worker` — boots and logs `consuming owm-runs with concurrency 4`.
@@ -121,15 +123,9 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 ## 3. What is missing
 
-### Blocking the vertical slice
-
-1. **Annotation and discussion smoke** — the create → live Job → publish → Board → anonymous Comparison read path is smoke-tested. Annotate → thread → comment → vote still needs an end-to-end pass.
-
 ### Other missing pieces
 
 - Docker Compose + Dockerfiles (`web`, `worker`, Postgres, Redis, Mailpit) — package scripts assume it.
-- Vitest unit tests for offsets, cursor, filters, upload parsing, votes/self-vote.
-- Playwright create → publish → read and annotate → thread.
 - Admin UI (model enable/disable, takedown).
 - Better Auth magic-link integration + auth tables + handle onboarding.
 - Notification bell UI (API exists).
@@ -159,11 +155,8 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 ## 5. Suggested next order
 
-1. Full smoke test of the annotate → thread → comment → vote half of the journey (ticket 04).
-2. Docker Compose.
-3. Vitest offset/upload/cursor tests.
-4. Playwright happy path.
-5. M2: auth, admin, add-model UI, edit/delete UI, notifications, pagination.
+1. Docker Compose and the one-command local stack (ticket 05).
+2. M2: auth, admin, add-model UI, edit/delete UI, notifications, pagination.
 
 ---
 

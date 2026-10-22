@@ -4,11 +4,20 @@
 
 **Blocked by:** 03 — Watch a Job live, recover failures, and Publish.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Unit tests cover UTF-16 annotation range validation (emoji, CJK, escapes, cross-formatting, fenced vs indented code), upload parsing and limits, keyset cursors, Board filters and Top ordering.
-- [ ] Integration tests with the mock provider cover queued → done, forced failure → retry/skip, Job readiness, publish visibility and the job-ready notification.
-- [ ] A browser test covers upload → schedule → ready → publish → Board arrival → Comparison → annotate → thread → comment → vote.
-- [ ] Tests prove non-authors cannot read drafts or jobs and cannot mutate another Author's content.
-- [ ] `pnpm test`, `pnpm typecheck` and `pnpm build` pass from a clean install.
-- [ ] Defects found by the suites are fixed or split into explicit blocked tickets; no silent skips.
+- [x] Unit tests cover UTF-16 annotation range validation (emoji, CJK, escapes, cross-formatting, fenced vs indented code), upload parsing and limits, keyset cursors, Board filters and Top ordering.
+- [x] Integration tests with the mock provider cover queued → done, forced failure → retry/skip, Job readiness, publish visibility and the job-ready notification.
+- [x] A browser test covers upload → schedule → ready → publish → Board arrival → Comparison → annotate → thread → comment → vote.
+- [x] Tests prove non-authors cannot read drafts or jobs and cannot mutate another Author's content.
+- [x] `pnpm test`, `pnpm typecheck` and `pnpm build` pass from a clean install.
+- [x] Defects found by the suites are fixed or split into explicit blocked tickets; no silent skips.
+
+## Comments
+
+- `packages/core/test/markdown.test.ts`, `upload.test.ts`, `cursor.test.ts` and `filters.test.ts` cover the unit seams.
+- `board.test.ts` covers SQL pagination, cursor sort mismatch and filters.
+- `permissions.test.ts` covers author-only writes, draft visibility and self-votes.
+- `pipeline.test.ts` covers create → generate → publish using `createComparison`.
+- `e2e/journey.spec.ts` is the browser suite; `pnpm test:e2e` seeds an isolated database and Redis DB, then starts web and worker.
+- Fixed: indented code blocks were annotatable; `codeBlock` now requires a fenced block. Vote controls gained accessible names for the browser test.

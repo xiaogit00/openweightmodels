@@ -45,9 +45,15 @@ Open <http://localhost:3000>. The development identity defaults to `@mira`; `POS
 
 ```bash
 pnpm typecheck
-pnpm test                    # core lifecycle + worker integration tests (needs Postgres and Redis)
+pnpm test                    # unit + integration tests (needs Postgres and Redis)
 pnpm build
+pnpm test:e2e                # browser journey, with an isolated database and Redis DB
 ```
+
+The browser suite seeds `openweightmodels_e2e` and Redis database `1`, then starts its own web and
+worker servers on port 3100. Install the browser once with `pnpm exec playwright install chromium`.
+Override the targets with `E2E_DATABASE_URL` and `E2E_REDIS_URL`; the suite refuses to seed the
+development database.
 
 ## Scripts
 
@@ -60,7 +66,8 @@ pnpm build
 | `pnpm db:seed` | Reset and seed dev data |
 | `pnpm db:reset` | Drop and recreate the public schema (refuses production) |
 | `pnpm test` | Run the core and worker test suites |
-| `pnpm typecheck` | Typecheck all workspace packages |
+| `pnpm test:e2e` | Run the Playwright journey against an isolated database |
+| `pnpm typecheck` | Typecheck all workspace packages and the E2E suite |
 | `pnpm build` | Build all packages |
 
 ## Documentation

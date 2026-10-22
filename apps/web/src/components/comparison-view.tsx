@@ -763,6 +763,9 @@ export function ComparisonView(props: ComparisonPageData) {
                   <div className="flex items-center gap-1.5 px-3 py-2.5">
                     <button
                       type="button"
+                      aria-label={
+                        activeAnnotation.voted ? 'Remove annotation vote' : 'Vote on annotation'
+                      }
                       disabled={activeAnnotation.author.id === currentUserId}
                       onClick={() => voteAnnotation(activeAnnotation)}
                       className={cn(
@@ -954,6 +957,7 @@ export function ComparisonView(props: ComparisonPageData) {
                     <div className="flex items-center gap-3 text-[11px] font-medium text-neutral-400">
                       <button
                         type="button"
+                        aria-label={comment.voted ? 'Remove comment vote' : 'Vote on comment'}
                         disabled={comment.author.id === currentUserId}
                         onClick={() => void voteComment(comment)}
                         className={cn(
@@ -997,6 +1001,7 @@ export function ComparisonView(props: ComparisonPageData) {
                           </span>
                           <button
                             type="button"
+                            aria-label={reply.voted ? 'Remove reply vote' : 'Vote on reply'}
                             disabled={reply.author.id === currentUserId}
                             onClick={() => void voteComment(reply)}
                             className={cn(

@@ -186,8 +186,12 @@ function codeBlock(node: BlockNode, content: string): Block | null {
     valueStart = index >= 0 ? start + index : null;
   }
 
+  // Only fenced blocks are annotatable. An indented block's raw slice starts
+  // with its indentation, so an offset into the decoded value would drift.
   const annotatable =
-    valueStart !== null && content.slice(valueStart, valueStart + value.length) === value;
+    fenced &&
+    valueStart !== null &&
+    content.slice(valueStart, valueStart + value.length) === value;
 
   return {
     type: 'code',
