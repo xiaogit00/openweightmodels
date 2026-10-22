@@ -94,7 +94,7 @@ Implemented under `apps/web/src/app/api/`:
 - `/account/handle` — first-sign-in handle onboarding
 - `/comparisons` (GET list, POST multipart create)
 - `/comparisons/:id` (GET/PATCH/DELETE)
-- `/comparisons/:id/publish`, `/unpublish`, `/responses`
+- `/comparisons/:id/publish`, `/unpublish`; `/comparisons/:id/responses` (POST add, GET author resync)
 - `/responses/:id/retry`, `/skip`
 - `/annotations`, `/annotations/:id`, `/annotations/:id/messages`, `.../messages/:messageId`
 - `/comments`, `/comments/:id`
@@ -108,7 +108,7 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 ### Web UI
 
 - `app/page.tsx` + `BoardClient`: sticky header, search with `/` shortcut, ticker, category/model/effort sidebar with global counts, sort tabs, active chips, queued-arrivals pill, responsive card grid, keyset pagination (48 per page) with an infinite-scroll sentinel plus an accessible Load more button, explicit loading/error/empty states, URL-backed filters with back/forward, a shared minute tick for relative times, and one SSE subscription across sort/filter changes.
-- `app/comparisons/[id]/page.tsx` + `ComparisonView`: meta row, prompt disclosure, sticky toolbar, annotation toggle and kind filters, base pane, Challenger tabs, markdown rendering, selection → Annotate → new Annotation popover, thread popover with votes/replies, Discussion composer/filters/replies/votes, Copy link.
+- `app/comparisons/[id]/page.tsx` + `ComparisonView`: meta row, prompt disclosure, sticky toolbar, annotation toggle and kind filters, base pane, Challenger tabs, markdown rendering, selection → Annotate → new Annotation popover, thread popover with votes/replies, Discussion composer/filters/replies/votes, Copy link. The Author of a published Comparison gets an Add model menu (enabled models only, Base and existing models excluded, ETAs shown, disabled at four slots). A pending add is an author-only tab with spinner and shimmer, subscribes to that Job's SSE stream, and resyncs from `GET /comparisons/:id/responses` when it settles; a failed add is an author-only error tab with Retry and Dismiss.
 - `app/new/page.tsx` + `NewComparisonClient`: drag/drop upload with inline validation, front-matter prompt/title/model auto-fill, Base select, up to four Challenger tiles, Category/Effort controls, live "ON THE BOARD" draft preview, multipart submit and redirect to the Job summary.
 - `app/comparisons/[id]/job/page.tsx` + `JobSummary`: author-only Job page. Subscribes to `/api/stream/jobs/:id`, applies `response.status` events in place, resyncs after a reconnect, shows Live/Connecting/Reconnecting, Retry/Skip on failed rows, the four-stage strip, per-Run progress and the ready banner with Publish/Review. Publishes atomically and navigates to the Comparison.
 - Shared components: logo, avatar, site header with an account menu and a notification bell (unread count, newest-first dropdown, per-item links, mark-all read, empty/error states), Comparison card, markdown renderer.
@@ -119,8 +119,8 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 ### Verification
 
 - `pnpm typecheck` — **passes** (core, web, worker and the E2E suite).
-- `pnpm test` — **passes with local Postgres and Redis**: 154 core tests, 10 web mail/redirect/notification-link tests and 6 worker dispatch/consumption tests. When either service is unavailable the integration files warn and skip, so the unit tests still run. Coverage includes UTF-16 annotation offsets (emoji, CJK, escapes, cross-formatting, fenced vs indented code), upload parsing and limits, keyset cursors (including a sort mismatch and a Top cursor without a score), Board filter/URL helpers, 48-item default pagination, global Category/Model facets, the create → generate → publish pipeline with the mock provider, author-only write permissions, handle format/reserved-name rules, case-insensitive handle uniqueness and the concurrent-onboarding race, SMTP delivery of the magic-link email through a local sink, and post-auth redirect safety.
-- `pnpm test:e2e` — **passes (11 tests)**: an auth suite proves request → single-use link → handle onboarding → session reload → sign-out, reserved and taken handles, anonymous read with sign-in affordances, 401 on an anonymous write, replay rejection, expiry rejection after the verification row is expired, the development outbox, no bell for anonymous visitors, and a seeded author signing in with a link while their published Comparisons stay intact. A real browser journey covers upload → schedule → live Job → publish → Board arrival → the author's unread notification and its persisted read state → annotate → thread → comment → vote across two identities (explicitly signing in through the development switcher), and asserts that a second reader sees an empty bell, plus a Board suite covering 48-item pages, the Load more fallback, the infinite-scroll sentinel, global sidebar counts, URL state across reload/back/forward, a single SSE subscription, loading/error/Retry and reduced motion. It seeds an isolated `openweightmodels_e2e` database (with enough published fixtures to paginate) and Redis DB `1`, then starts its own web and worker servers.
+- `pnpm test` — **passes with local Postgres and Redis**: 158 core tests, 10 web mail/redirect/notification-link tests and 6 worker dispatch/consumption tests. When either service is unavailable the integration files warn and skip, so the unit tests still run. Coverage includes UTF-16 annotation offsets (emoji, CJK, escapes, cross-formatting, fenced vs indented code), upload parsing and limits, keyset cursors (including a sort mismatch and a Top cursor without a score), Board filter/URL helpers, 48-item default pagination, global Category/Model facets, the create → generate → publish pipeline with the mock provider, add-Challenger visibility (author-only pending/failed, atomic publication, cap/duplicate/Base/disabled rules, dismissed-slot release), author-only write permissions, handle format/reserved-name rules, case-insensitive handle uniqueness and the concurrent-onboarding race, SMTP delivery of the magic-link email through a local sink, and post-auth redirect safety.
+- `pnpm test:e2e` — **passes (12 tests)**: an auth suite proves request → single-use link → handle onboarding → session reload → sign-out, reserved and taken handles, anonymous read with sign-in affordances, 401 on an anonymous write, replay rejection, expiry rejection after the verification row is expired, the development outbox, no bell for anonymous visitors, and a seeded author signing in with a link while their published Comparisons stay intact. A real browser journey covers upload → schedule → live Job → publish → Board arrival → the author's unread notification and its persisted read state → annotate → thread → comment → vote across two identities (explicitly signing in through the development switcher), and asserts that a second reader sees an empty bell. A separate add-Challenger journey publishes a Comparison, adds a model from the menu (Base and existing models absent, ETA shown), proves the tab is author-only until it completes, and checks readers still have no Add control. A Board suite covers 48-item pages, the Load more fallback, the infinite-scroll sentinel, global sidebar counts, URL state across reload/back/forward, a single SSE subscription, loading/error/Retry and reduced motion. It seeds an isolated `openweightmodels_e2e` database (with enough published fixtures to paginate) and Redis DB `1`, then starts its own web and worker servers.
 - Defects found and fixed: indented code blocks were incorrectly annotatable (they still render as code, but are no longer annotatable, matching `BACKEND.md` §7); Annotation, comment and reply vote controls gained accessible names.
 - `pnpm db:migrate` — `0001_fuzzy_tag.sql` and `0002_modern_lucky_pierre.sql` applied; re-running is a no-op.
 - `pnpm db:seed` — **passes**; counts above.
@@ -139,7 +139,6 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 - Production images and the AWS deployment (ticket 13). The current `Dockerfile` is a development target only.
 - Admin UI (model enable/disable, takedown).
-- Add-model UI (API exists).
 - Annotation/message/comment edit/delete UI (APIs exist).
 - AWS CDK stack, Dockerfiles, CI/CD, deployment.
 - Real OpenRouter execution test.
@@ -165,7 +164,7 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 ## 5. Suggested next order
 
-1. M2 add-model UI (09), edit/delete UI (10) and admin (11).
+1. M2 edit/delete UI (10) and admin (11).
 2. Accessibility and fidelity audit (ticket 17) once those affordances land.
 
 ---

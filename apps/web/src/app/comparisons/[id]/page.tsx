@@ -1,12 +1,13 @@
 import { notFound } from 'next/navigation';
 import {
-  buildBlocks,
   getAnnotationViews,
   getCommentViews,
   getComparisonForViewer,
   getModels,
+  resolveMaxChallengers,
 } from '@owm/core';
 import { getCurrentUser } from '@/lib/auth';
+import { toComparisonResponseViews } from '@/lib/comparison-responses';
 import { ComparisonView } from '@/components/comparison-view';
 
 export const dynamic = 'force-dynamic';
@@ -54,21 +55,7 @@ export default async function ComparisonPage({
         name: bundle.baseModel.displayName,
         monogram: bundle.baseModel.monogram,
       }}
-      responses={bundle.responses.map(({ response, model }) => ({
-        id: response.id,
-        isBase: response.isBase,
-        contentMd: response.contentMd,
-        tokens: response.tokens,
-        latencyMs: response.latencyMs,
-        status: response.status,
-        error: response.error,
-        model: {
-          slug: model.slug,
-          name: model.displayName,
-          monogram: model.monogram,
-        },
-        blocks: response.status === 'done' ? buildBlocks(response.contentMd) : [],
-      }))}
+      responses={toComparisonResponseViews(bundle)}
       annotations={annotations}
       comments={comments}
       models={models.map((model) => ({
@@ -76,7 +63,9 @@ export default async function ComparisonPage({
         slug: model.slug,
         name: model.displayName,
         monogram: model.monogram,
+        etaSeconds: model.etaSeconds,
       }))}
+      maxChallengers={resolveMaxChallengers(process.env.MAX_CHALLENGERS)}
       currentUserId={user?.handle ? user.id : null}
       viewerSignedIn={user !== null}
       initialModel={modelParam ?? null}

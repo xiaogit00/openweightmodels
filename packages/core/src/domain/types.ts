@@ -134,6 +134,11 @@ export function runProgress(status: ResponseStatus, tokens: number): number {
   return 0;
 }
 
+/** A Run the Author is still waiting on, whether queued, calling or streaming. */
+export function isPendingResponse(status: ResponseStatus): boolean {
+  return status === 'queued' || status === 'calling' || status === 'streaming';
+}
+
 export type PublicUser = {
   id: string;
   handle: string;

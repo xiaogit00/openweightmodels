@@ -384,6 +384,16 @@ export function BoardClient({
             bumpCount(current, activity.comparisonId as string, 'commentCount'),
           );
         }
+
+        // A Challenger added to a published Comparison settles into the live
+        // card without a second publish. Replace the loaded card in place and
+        // refresh the global sidebar counts.
+        if (payload.type === 'run.finished' && activity.payload?.card) {
+          const card = activity.payload.card;
+          setItems((current) => current.map((item) => (item.id === card.id ? card : item)));
+          setPending((current) => current.map((item) => (item.id === card.id ? card : item)));
+          void refreshFacets();
+        }
       } catch {
         // Ignore malformed events; the next replay or reload repairs the view.
       }

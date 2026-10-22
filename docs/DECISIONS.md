@@ -200,7 +200,7 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 5. **Add-model on a `ready` draft** sets the Comparison back to `generating`; on a `published` Comparison it stays `published`.
 6. **Add-model on a published Comparison** shows the pending tab to the author only; completion publishes it atomically.
 7. **A fifth Challenger** is rejected (`409 too_many_challengers`).
-8. **A model already present** is rejected (`409 model_exists`); the Base model cannot be a Challenger.
+8. **A model already present** is rejected (`409 model_exists`); the Base model cannot be a Challenger. A skipped (dismissed) failed add frees its Challenger slot, but its model remains used and cannot be added again.
 9. **Unpublish** clears `published_at`, returns to `ready`, keeps comments/Annotations, and removes it from the Board stream.
 10. **Soft-deleted Comparison** is hidden from everyone, including the Author, until an admin surface exists.
 11. **Draft access** by a non-author is `404`, not `403`.

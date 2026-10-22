@@ -356,11 +356,17 @@ export async function getComparisonForViewer(
 
   if (!author || !baseModel) return null;
 
-  const responseRows = await db
+  const allResponseRows = await db
     .select()
     .from(responses)
     .where(eq(responses.comparisonId, id))
     .orderBy(responses.createdAt);
+  // An added Challenger is public only once it is done. Pending, failed and
+  // skipped Responses stay on the Author's page alone.
+  const responseRows =
+    comparison.authorId === viewerId
+      ? allResponseRows
+      : allResponseRows.filter((row) => row.status === 'done');
   const modelIds = [...new Set(responseRows.map((row) => row.modelId))];
   const modelRows = modelIds.length
     ? await db.select().from(models).where(inArray(models.id, modelIds))

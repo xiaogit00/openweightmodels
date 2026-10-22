@@ -15,7 +15,6 @@ import {
   WarningCircle,
 } from '@phosphor-icons/react';
 import {
-  RESPONSE_STATUSES,
   runProgress,
   type ComparisonStatus,
   type JobRunState,
@@ -24,6 +23,7 @@ import {
 } from '@owm/core/client';
 import { SiteHeader } from './site-header';
 import { ComparisonPreview } from './comparison-preview';
+import { isResponseStatus, responseErrorMessage, type JobStreamEvent } from '@/lib/run-events';
 import { cn } from '@/lib/utils';
 
 const STAGES = ['Scheduled', 'Resolving models', 'Calling hosted APIs', 'Ready'];
@@ -97,28 +97,13 @@ export type JobView = {
 type Connection = 'connecting' | 'live' | 'reconnecting';
 type RunAction = 'retry' | 'skip';
 
-type JobEventEnvelope = {
-  type: string;
-  data?: { payload?: Record<string, unknown> };
-};
-
-function isResponseStatus(value: unknown): value is ResponseStatus {
-  return (
-    typeof value === 'string' &&
-    (RESPONSE_STATUSES as readonly string[]).includes(value)
-  );
-}
-
 function errorText(error: unknown) {
   return error instanceof Error ? error.message : 'That action failed. Try again.';
 }
 
 async function ensureOk(response: Response, fallback: string) {
   if (response.ok) return;
-  const body = (await response.json().catch(() => null)) as {
-    error?: { message?: string };
-  } | null;
-  throw new Error(body?.error?.message ?? fallback);
+  throw new Error(await responseErrorMessage(response, fallback));
 }
 
 export function JobSummary({ view }: { view: JobView }) {
@@ -167,9 +152,9 @@ export function JobSummary({ view }: { view: JobView }) {
     };
 
     source.onmessage = (message) => {
-      let event: JobEventEnvelope;
+      let event: JobStreamEvent;
       try {
-        event = JSON.parse(message.data) as JobEventEnvelope;
+        event = JSON.parse(message.data) as JobStreamEvent;
       } catch {
         return;
       }

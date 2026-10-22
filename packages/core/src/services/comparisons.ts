@@ -1,4 +1,4 @@
-import { and, count, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
+import { and, count, eq, gte, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 import { getDb } from '../db/client';
 import {
@@ -311,7 +311,16 @@ export async function addModelToComparison(
   const [challengerCount] = await db
     .select({ total: count() })
     .from(responses)
-    .where(and(eq(responses.comparisonId, comparisonId), eq(responses.isBase, false)));
+    .where(
+      and(
+        eq(responses.comparisonId, comparisonId),
+        eq(responses.isBase, false),
+        // A dismissed (skipped) Run is no longer a Challenger; it must not hold
+        // one of the four slots open forever. Its model still counts as used
+        // for the duplicate check below.
+        ne(responses.status, 'skipped'),
+      ),
+    );
   if (Number(challengerCount?.total ?? 0) >= maxChallengers) {
     throw conflict(
       'too_many_challengers',

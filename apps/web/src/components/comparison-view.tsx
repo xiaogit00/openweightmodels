@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import * as Popover from '@radix-ui/react-popover';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowBendUpLeft,
   ArrowFatUp,
@@ -9,26 +10,30 @@ import {
   CaretDown,
   CaretRight,
   Check,
+  CircleNotch,
   Ghost,
   Highlighter,
   LinkSimple,
   PaperPlaneRight,
+  Plus,
   Question,
   Stack,
   ThumbsUp,
+  WarningCircle,
   X,
 } from '@phosphor-icons/react';
 import type {
   AnnotationKind,
   AnnotationView,
-  Block,
   CommentView,
   PublicUser,
+  ResponseStatus,
 } from '@owm/core/client';
 import {
   ANNOTATION_KIND_META,
   ANNOTATION_KINDS,
   EFFORT_LEVELS,
+  isPendingResponse,
   relativeTime,
   relativeTimeAgo,
 } from '@owm/core/client';
@@ -37,18 +42,14 @@ import { SiteHeader } from './site-header';
 import { MarkdownView } from './markdown-view';
 import { cn } from '@/lib/utils';
 import { signInPath } from '@/lib/next-path';
+import type { ComparisonResponseView } from '@/lib/comparison-responses';
+import {
+  isResponseStatus,
+  responseErrorMessage,
+  type JobStreamEvent,
+} from '@/lib/run-events';
 
-export type ComparisonResponseView = {
-  id: string;
-  isBase: boolean;
-  contentMd: string;
-  tokens: number;
-  latencyMs: number | null;
-  status: string;
-  error: string | null;
-  model: { slug: string; name: string; monogram: string };
-  blocks: Block[];
-};
+export type { ComparisonResponseView } from '@/lib/comparison-responses';
 
 export type ComparisonPageData = {
   comparison: {
@@ -67,7 +68,14 @@ export type ComparisonPageData = {
   responses: ComparisonResponseView[];
   annotations: AnnotationView[];
   comments: CommentView[];
-  models: Array<{ id: string; slug: string; name: string; monogram: string }>;
+  models: Array<{
+    id: string;
+    slug: string;
+    name: string;
+    monogram: string;
+    etaSeconds: number;
+  }>;
+  maxChallengers: number;
   currentUserId: string | null;
   viewerSignedIn: boolean;
   initialModel: string | null;
@@ -135,6 +143,8 @@ function ErrorLine({ message }: { message: string }) {
   );
 }
 
+type RunAction = 'retry' | 'dismiss';
+
 export function ComparisonView(props: ComparisonPageData) {
   const {
     comparison,
@@ -144,6 +154,7 @@ export function ComparisonView(props: ComparisonPageData) {
     annotations: initialAnnotations,
     comments: initialComments,
     models,
+    maxChallengers,
     currentUserId,
     viewerSignedIn,
     initialModel,
@@ -151,7 +162,7 @@ export function ComparisonView(props: ComparisonPageData) {
     handle,
   } = props;
 
-  const base = responses.find((response) => response.isBase);
+  const isAuthor = currentUserId !== null && currentUserId === comparison.authorId;
   const canWrite = currentUserId !== null;
   const signInHref = signInPath(`/comparisons/${comparison.id}`);
   const requireSignIn = () => {
@@ -159,9 +170,27 @@ export function ComparisonView(props: ComparisonPageData) {
     window.location.assign(signInHref);
     return true;
   };
-  const challengers = responses.filter(
-    (response) => !response.isBase && response.status === 'done',
+
+  const [responseList, setResponseList] = useState(responses);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addingModelId, setAddingModelId] = useState<string | null>(null);
+  const [runBusy, setRunBusy] = useState<{ id: string; action: RunAction } | null>(null);
+  const [runError, setRunError] = useState<{ id: string; message: string } | null>(null);
+
+  const base = responseList.find((response) => response.isBase);
+  const challengers = responseList.filter(
+    (response) =>
+      !response.isBase &&
+      (isAuthor ? response.status !== 'skipped' : response.status === 'done'),
   );
+  const challengerTotal = responseList.filter(
+    (response) => !response.isBase && response.status !== 'skipped',
+  ).length;
+  const atCap = challengerTotal >= maxChallengers;
+  // The Add affordance belongs to published Comparisons; a ready draft still
+  // goes through the Job page to publish.
+  const canAdd = isAuthor && comparison.status === 'published';
   const initialSlug =
     challengers.find((response) => response.model.slug === initialModel)?.model.slug ??
     challengers[0]?.model.slug ??
@@ -201,10 +230,39 @@ export function ComparisonView(props: ComparisonPageData) {
     [annotations, kind],
   );
 
+  const usedModelSlugs = useMemo(
+    () => new Set(responseList.map((response) => response.model.slug)),
+    [responseList],
+  );
+  const availableModels = useMemo(
+    () =>
+      models.filter(
+        (model) => model.slug !== baseModel.slug && !usedModelSlugs.has(model.slug),
+      ),
+    [baseModel.slug, models, usedModelSlugs],
+  );
+  const pendingJobKey = useMemo(
+    () =>
+      [
+        ...new Set(
+          responseList
+            .filter(
+              (response) =>
+                !response.isBase &&
+                isPendingResponse(response.status) &&
+                response.jobId,
+            )
+            .map((response) => response.jobId as string),
+        ),
+      ].join(','),
+    [responseList],
+  );
+
   const commentModels = useMemo(() => {
     const seen = new Set<string>();
     const rows: Array<{ id: string; slug: string; name: string; monogram: string }> = [];
-    for (const model of [baseModel, ...challengers.map((response) => response.model)]) {
+    const reviewed = challengers.filter((response) => response.status === 'done');
+    for (const model of [baseModel, ...reviewed.map((response) => response.model)]) {
       const match = models.find((item) => item.slug === model.slug);
       if (match && !seen.has(model.slug)) {
         seen.add(model.slug);
@@ -242,6 +300,78 @@ export function ComparisonView(props: ComparisonPageData) {
       document.removeEventListener('keydown', onKey);
     };
   }, [popover]);
+
+  const resyncResponses = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/comparisons/${comparison.id}/responses`, {
+        cache: 'no-store',
+      });
+      if (!response.ok) return;
+      const payload = (await response.json()) as {
+        responses?: ComparisonResponseView[];
+      };
+      if (Array.isArray(payload.responses)) setResponseList(payload.responses);
+    } catch {
+      // The next settled event or a reload repairs the view.
+    }
+  }, [comparison.id]);
+
+  // An added Challenger reuses the Job event stream: one connection per Job
+  // that still has a pending Run. Last-Event-ID replay covers reloads.
+  useEffect(() => {
+    if (!isAuthor || !pendingJobKey) return;
+    const sources = pendingJobKey.split(',').map((jobId) => {
+      const source = new EventSource(`/api/stream/jobs/${jobId}`);
+      let opened = false;
+      source.onopen = () => {
+        if (opened) void resyncResponses();
+        opened = true;
+      };
+      source.onmessage = (message) => {
+        let event: JobStreamEvent;
+        try {
+          event = JSON.parse(message.data) as JobStreamEvent;
+        } catch {
+          return;
+        }
+
+        if (event.type === 'job.ready') {
+          void resyncResponses();
+          return;
+        }
+        if (event.type !== 'response.status') return;
+
+        const payload = event.data?.payload ?? {};
+        const responseId = typeof payload.responseId === 'string' ? payload.responseId : null;
+        if (!responseId || !isResponseStatus(payload.status)) return;
+        const status = payload.status;
+        const tokens = typeof payload.tokens === 'number' ? payload.tokens : 0;
+
+        setResponseList((current) =>
+          current.map((item) =>
+            item.id === responseId
+              ? {
+                  ...item,
+                  status,
+                  tokens: status === 'queued' ? 0 : tokens,
+                  latencyMs:
+                    typeof payload.latencyMs === 'number'
+                      ? payload.latencyMs
+                      : item.latencyMs,
+                  error: status === 'failed' ? String(payload.error ?? 'API timeout') : null,
+                }
+              : item,
+          ),
+        );
+
+        if (status === 'done' || status === 'failed' || status === 'skipped') {
+          void resyncResponses();
+        }
+      };
+      return source;
+    });
+    return () => sources.forEach((source) => source.close());
+  }, [isAuthor, pendingJobKey, resyncResponses]);
 
   const rel = (rect: DOMRect) => {
     const grid = gridRef.current?.getBoundingClientRect();
@@ -496,6 +626,109 @@ export function ComparisonView(props: ComparisonPageData) {
     composerRef.current?.focus();
   };
 
+  const addChallenger = async (model: ComparisonPageData['models'][number]) => {
+    if (addingModelId || atCap) return;
+    setAddingModelId(model.id);
+    setAddError(null);
+    try {
+      const response = await fetch(`/api/comparisons/${comparison.id}/responses`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ modelId: model.id }),
+      });
+      const payload = (await response.json()) as {
+        jobId?: string;
+        responseId?: string;
+        error?: { message?: string };
+      };
+      if (!response.ok || !payload.jobId || !payload.responseId) {
+        setAddError(payload.error?.message ?? 'Could not add that model.');
+        return;
+      }
+
+      const queuedView: ComparisonResponseView = {
+        id: payload.responseId,
+        jobId: payload.jobId,
+        isBase: false,
+        contentMd: '',
+        tokens: 0,
+        latencyMs: null,
+        status: 'queued',
+        error: null,
+        model: { slug: model.slug, name: model.name, monogram: model.monogram },
+        blocks: [],
+      };
+      setResponseList((current) => [...current, queuedView]);
+      setMenuOpen(false);
+      switchTab(model.slug);
+    } catch {
+      setAddError('Could not add that model. Try again.');
+    } finally {
+      setAddingModelId(null);
+    }
+  };
+
+  const actOnRun = async (
+    responseView: ComparisonResponseView,
+    action: RunAction,
+  ) => {
+    if (runBusy) return;
+    setRunBusy({ id: responseView.id, action });
+    setRunError(null);
+    try {
+      const endpoint = action === 'retry' ? 'retry' : 'skip';
+      const response = await fetch(
+        `/api/responses/${responseView.id}/${endpoint}`,
+        { method: 'POST' },
+      );
+      if (!response.ok) {
+        setRunError({
+          id: responseView.id,
+          message: await responseErrorMessage(
+            response,
+            action === 'retry' ? 'Retry failed. Try again.' : 'Could not dismiss it.',
+          ),
+        });
+        return;
+      }
+
+      if (action === 'retry') {
+        setResponseList((current) =>
+          current.map((item) =>
+            item.id === responseView.id
+              ? { ...item, status: 'queued', error: null, tokens: 0, latencyMs: null }
+              : item,
+          ),
+        );
+      } else {
+        setResponseList((current) =>
+          current.map((item) =>
+            item.id === responseView.id
+              ? { ...item, status: 'skipped', error: null }
+              : item,
+          ),
+        );
+        setActiveSlug((current) => {
+          if (current !== responseView.model.slug) return current;
+          const fallback = responseList.find(
+            (item) =>
+              item.id !== responseView.id &&
+              !item.isBase &&
+              item.status === 'done',
+          );
+          return fallback?.model.slug ?? null;
+        });
+      }
+    } catch {
+      setRunError({
+        id: responseView.id,
+        message: action === 'retry' ? 'Retry failed. Try again.' : 'Could not dismiss it.',
+      });
+    } finally {
+      setRunBusy(null);
+    }
+  };
+
   const copyLink = async () => {
     const url = new URL(window.location.href);
     if (activeSlug) url.searchParams.set('model', activeSlug);
@@ -666,32 +899,136 @@ export function ComparisonView(props: ComparisonPageData) {
 
           <section className="relative flex min-w-0 flex-col rounded-[2px] bg-surface">
             <div className="flex h-[42px] min-w-0 items-stretch gap-[2px] overflow-x-auto border-b border-neutral-800 px-1.5 [scrollbar-width:none]">
-              {challengers.map((response) => (
-                <button
-                  key={response.model.slug}
-                  type="button"
-                  onClick={() => switchTab(response.model.slug)}
-                  className={cn(
-                    'my-[-1px] flex flex-none items-center gap-[6px] whitespace-nowrap border-b-2 px-2.5 text-[12px] font-medium transition-colors',
-                    response.model.slug === activeSlug
-                      ? 'border-accent text-text'
-                      : 'border-transparent text-neutral-400 hover:text-text',
-                  )}
-                >
-                  <span className="monogram !h-[18px] !w-[18px] !text-[9px]">
-                    {response.model.monogram}
-                  </span>
-                  {response.model.name}
-                </button>
-              ))}
+              {challengers.map((response) => {
+                const pending = isPendingResponse(response.status);
+                const failed = response.status === 'failed';
+                return (
+                  <button
+                    key={response.model.slug}
+                    type="button"
+                    data-challenger-tab={response.model.slug}
+                    onClick={() => switchTab(response.model.slug)}
+                    title={
+                      pending
+                        ? `Calling ${response.model.name} hosted API…`
+                        : failed
+                          ? response.error ?? 'API timeout'
+                          : undefined
+                    }
+                    className={cn(
+                      'my-[-1px] flex flex-none items-center gap-[6px] whitespace-nowrap border-b-2 px-2.5 text-[12px] font-medium transition-colors',
+                      response.model.slug === activeSlug
+                        ? 'border-accent text-text'
+                        : 'border-transparent text-neutral-400 hover:text-text',
+                    )}
+                  >
+                    <span className="monogram !h-[18px] !w-[18px] !text-[9px]">
+                      {response.model.monogram}
+                    </span>
+                    {response.model.name}
+                    {pending && (
+                      <CircleNotch
+                        size={12}
+                        className="text-accent-300"
+                        style={{ animation: 'spin-soft 1s linear infinite' }}
+                      />
+                    )}
+                    {failed && <WarningCircle size={12} className="text-danger" />}
+                  </button>
+                );
+              })}
               {challengers.length === 0 && (
                 <span className="flex items-center px-2 text-[12px] text-neutral-500">
                   No challenger responses
                 </span>
               )}
+              {canAdd && (
+                <Popover.Root
+                  open={menuOpen}
+                  onOpenChange={(open) => {
+                    setMenuOpen(open);
+                    if (open) setAddError(null);
+                  }}
+                >
+                  <Popover.Trigger asChild>
+                    <button
+                      type="button"
+                      data-add-button
+                      disabled={atCap}
+                      aria-label={
+                        atCap
+                          ? `Adding is disabled: ${challengerTotal} of ${maxChallengers} challengers`
+                          : 'Add model'
+                      }
+                      title={
+                        atCap
+                          ? `A comparison can hold at most ${maxChallengers} challengers.`
+                          : 'Generate another response from the same prompt.'
+                      }
+                      className={cn(
+                        'flex flex-none items-center gap-[5px] whitespace-nowrap px-2.5 text-[12px] font-medium transition-colors',
+                        atCap
+                          ? 'cursor-not-allowed text-neutral-600'
+                          : 'text-neutral-400 hover:text-accent-200',
+                      )}
+                    >
+                      <Plus size={13} />
+                      Add model
+                      {atCap && (
+                        <span className="text-[10px] text-neutral-500">
+                          {challengerTotal} of {maxChallengers}
+                        </span>
+                      )}
+                    </button>
+                  </Popover.Trigger>
+                  <Popover.Portal>
+                    <Popover.Content
+                      align="start"
+                      sideOffset={6}
+                      aria-label="Add model"
+                      data-add-menu
+                      className="z-40 flex w-[260px] flex-col gap-[2px] rounded-[2px] border border-neutral-700 bg-neutral-800 p-1.5 shadow-lg"
+                    >
+                      <span className="px-2 pb-1 pt-1.5 text-[10px] font-medium tracking-[0.06em] text-neutral-500">
+                        GENERATE ANOTHER RESPONSE
+                      </span>
+                      {availableModels.map((model) => (
+                        <button
+                          key={model.id}
+                          type="button"
+                          disabled={Boolean(addingModelId)}
+                          onClick={() => void addChallenger(model)}
+                          className="flex h-8 items-center gap-2 rounded-[2px] px-2 text-left text-[12px] font-medium text-text transition-colors hover:bg-neutral-700 disabled:opacity-50"
+                        >
+                          <span className="monogram !h-[18px] !w-[18px] !text-[9px]">
+                            {model.monogram}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate">{model.name}</span>
+                          <span className="text-[11px] font-normal text-neutral-400">
+                            {addingModelId === model.id ? 'Adding…' : `~${model.etaSeconds}s`}
+                          </span>
+                        </button>
+                      ))}
+                      {availableModels.length === 0 && (
+                        <span className="px-2 py-1 text-[11px] text-neutral-400">
+                          Every available model is already in this comparison.
+                        </span>
+                      )}
+                      {addError && (
+                        <span className="px-2 py-1 text-[11px] text-danger" role="alert">
+                          {addError}
+                        </span>
+                      )}
+                      <span className="px-2 pb-1 pt-1.5 text-[11px] leading-[1.4] text-neutral-500">
+                        Runs the same prompt through the model&apos;s hosted API.
+                      </span>
+                    </Popover.Content>
+                  </Popover.Portal>
+                </Popover.Root>
+              )}
             </div>
 
-            {active ? (
+            {active && active.status === 'done' ? (
               <div className="flex flex-col gap-3 px-4 pb-[18px] pt-3.5">
                 <span className="-mb-1 text-[11px] text-neutral-500">
                   {active.tokens.toLocaleString()} tok
@@ -706,6 +1043,75 @@ export function ComparisonView(props: ComparisonPageData) {
                   openId={popover?.mode === 'thread' ? popover.id : null}
                   onOpen={openThread}
                 />
+              </div>
+            ) : active && active.status === 'failed' ? (
+              <div className="flex flex-col gap-3 px-4 pb-[18px] pt-3.5">
+                <span className="flex items-center gap-2 text-[12px] font-medium text-danger">
+                  <WarningCircle size={14} />
+                  {active.error ?? 'API timeout'}
+                </span>
+                <span className="text-[12px] leading-[1.5] text-neutral-400">
+                  Only you can see this failed response. Readers still see the
+                  Comparison without it.
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={Boolean(runBusy)}
+                    onClick={() => void actOnRun(active, 'retry')}
+                    className="btn-secondary h-[28px] disabled:opacity-45"
+                  >
+                    {runBusy?.id === active.id && runBusy.action === 'retry'
+                      ? 'Retrying…'
+                      : 'Retry'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={Boolean(runBusy)}
+                    onClick={() => void actOnRun(active, 'dismiss')}
+                    className="btn-neutral h-[28px] disabled:opacity-45"
+                  >
+                    {runBusy?.id === active.id && runBusy.action === 'dismiss'
+                      ? 'Dismissing…'
+                      : 'Dismiss'}
+                  </button>
+                </div>
+                {runError?.id === active.id && (
+                  <ErrorLine message={runError.message} />
+                )}
+              </div>
+            ) : active && isPendingResponse(active.status) ? (
+              <div className="flex flex-col gap-3 px-4 pb-[18px] pt-3.5" aria-live="polite">
+                <span className="flex items-center gap-2 text-[12px] font-medium text-accent-200">
+                  <CircleNotch
+                    size={14}
+                    style={{ animation: 'spin-soft 1s linear infinite' }}
+                  />
+                  Calling {active.model.name} hosted API…
+                </span>
+                <div className="flex flex-col gap-2">
+                  <div
+                    className="h-2 w-[92%] rounded-[2px] bg-neutral-800"
+                    style={{ animation: 'shimmer 1.2s infinite' }}
+                  />
+                  <div
+                    className="h-2 w-[78%] rounded-[2px] bg-neutral-800"
+                    style={{ animation: 'shimmer 1.2s .15s infinite' }}
+                  />
+                  <div
+                    className="h-16 rounded-[2px] bg-bg"
+                    style={{ animation: 'shimmer 1.2s .3s infinite' }}
+                  />
+                  <div
+                    className="h-2 w-[64%] rounded-[2px] bg-neutral-800"
+                    style={{ animation: 'shimmer 1.2s .45s infinite' }}
+                  />
+                </div>
+                <span className="text-[11px] text-neutral-500">
+                  {active.status === 'queued'
+                    ? 'Queued — waiting for a worker.'
+                    : `${active.tokens.toLocaleString()} tok so far`}
+                </span>
               </div>
             ) : (
               <div className="px-4 py-8 text-[12px] text-neutral-500">

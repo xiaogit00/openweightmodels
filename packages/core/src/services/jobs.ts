@@ -10,6 +10,7 @@ import {
 } from '../db/schema';
 import { logActivity, logJobEvent } from '../events';
 import { getProvider } from '../providers';
+import { getCardById } from '../queries';
 import { enqueueAutoSkip } from '../queue';
 import type { ResponseStatus } from '../domain/types';
 
@@ -275,11 +276,15 @@ export async function finalizeJob(jobId: string) {
       .from(users)
       .where(eq(users.id, comparison.authorId))
       .limit(1);
+    // The Board needs the settled card, not just a ticker line: an added
+    // Challenger changes the model list and snippets of a live card.
+    const card = await getCardById(comparison.id);
     await logActivity({
       kind: 'run.finished',
       actorId: comparison.authorId,
       comparisonId: comparison.id,
       summary: `${author?.handle ?? 'someone'} finished a response on ${comparison.title}`,
+      payload: card ? { card } : {},
     });
   }
 }

@@ -258,10 +258,11 @@ queued → calling → streaming → done
 
 ### Add-model behaviour
 
-- Maximum **4 challengers per Comparison**, including creation-time challengers.
+- Maximum **4 challengers per Comparison**, including creation-time challengers. A skipped Run is dismissed and does not hold a slot; its model still counts as used, so it cannot be added twice.
 - The Base model cannot be added as a Challenger; an existing model cannot be added twice.
 - On a published Comparison, a newly added Challenger is visible to the **Author only** while generating; the public sees the tab when it completes. It is published atomically on completion, with no second review.
 - A failed add is an author-only error tab with Retry/Dismiss; the public never sees it.
+- Public reads (`GET /comparisons/:id`) omit skipped, failed and pending challenger Responses; the Author's read includes them.
 
 ---
 
@@ -308,6 +309,7 @@ Page routes: `/sign-in` requests a link, `/auth/complete` decides between onboar
 | `POST` | `/comparisons/:id/publish` | author; requires ≥1 done challenger; returns `{ card }` |
 | `POST` | `/comparisons/:id/unpublish` | author; sets back to `ready` |
 | `POST` | `/comparisons/:id/responses` | author; `{ modelId }`; adds a Challenger and Job |
+| `GET` | `/comparisons/:id/responses` | author-only; current Responses for resync after an added Run settles |
 
 List query parameters: `cat`, `models` (comma-separated slugs), `effort`, `q`, `sort=live|top|new`, `cursor`, `limit` (default 48, max 100).
 
@@ -422,7 +424,7 @@ Both use `text/event-stream`, monotonic `id:` values, `Last-Event-ID` replay fro
    - a 120-second timeout.
 4. **Stream.** The worker appends chunks, updates `tokens` and `response.status` at most every 500 ms, and emits `response.status` job events.
 5. **Finish.** On success it stores `content_md`, final tokens, latency and provider cost, sets `done`, then attempts to finalise the Job. On failure it stores the error, sets `failed`, schedules the attempt-scoped 24-hour auto-skip, then attempts to finalise.
-6. **Finalise.** `finalizeJob` locks the Job row, checks every Run; if all are `done`/`skipped`, it sets the Job `ready`, moves a `generating` Comparison to `ready`, inserts a `job.ready` notification for the Author, emits `job.ready`, and writes `run.finished` activity only if the Comparison is already published.
+6. **Finalise.** `finalizeJob` locks the Job row, checks every Run; if all are `done`/`skipped`, it sets the Job `ready`, moves a `generating` Comparison to `ready`, inserts a `job.ready` notification for the Author, emits `job.ready`, and writes `run.finished` activity only if the Comparison is already published. That activity carries the settled `card`, so the Board can replace a live card's model list, snippets and counts when an added Challenger completes.
 7. **Publish.** Explicit `POST /publish` sets `published_at`, `status = published`, and emits `comparison.published` with the full card payload.
 
 **Redis loss**: Postgres is authoritative. Non-terminal Runs can be re-enqueued from Postgres; the SSE stream falls back to polling. Redis must run with `maxmemory-policy: noeviction`; ElastiCache Serverless is not supported for BullMQ.
