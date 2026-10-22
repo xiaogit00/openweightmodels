@@ -62,6 +62,7 @@ export default async function BoardPage({
         kind: event.kind,
         summary: event.summary,
         createdAt: event.createdAt.toISOString(),
+        comparisonId: event.comparisonId,
         payload: event.payload,
       }))}
       handle={user?.handle ?? null}

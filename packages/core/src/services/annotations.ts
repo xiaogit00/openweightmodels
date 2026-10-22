@@ -32,6 +32,7 @@ async function responseContext(responseId: string) {
     .where(eq(comparisons.id, response.comparisonId))
     .limit(1);
   if (!comparison || comparison.deletedAt) throw notFound('Comparison not found.');
+  if (comparison.takedownAt) throw notFound('Comparison not found.');
 
   const [model] = await db
     .select()

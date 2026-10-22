@@ -1,9 +1,10 @@
 'use client';
 
 import * as Popover from '@radix-ui/react-popover';
-import { SignOut, User } from '@phosphor-icons/react';
+import { ShieldCheck, SignOut, User } from '@phosphor-icons/react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { authClient } from '@/lib/auth-client';
 import { Avatar } from './avatar';
 
@@ -11,6 +12,20 @@ export function AccountMenu({ handle }: { handle: string | null }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch('/api/me')
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { user?: { role?: string } } | null) => {
+        if (!cancelled) setIsAdmin(data?.user?.role === 'admin');
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const signOut = async () => {
     setSigningOut(true);
@@ -54,6 +69,16 @@ export function AccountMenu({ handle }: { handle: string | null }) {
             </span>
           </div>
           <div className="my-1 h-px bg-neutral-700" />
+          {isAdmin && (
+            <Link
+              href="/admin"
+              onClick={() => setOpen(false)}
+              className="flex h-7 items-center gap-1.5 rounded-[2px] px-2 text-[12px] text-neutral-200 outline-0 hover:bg-surface focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <ShieldCheck size={13} />
+              Admin
+            </Link>
+          )}
           <button
             type="button"
             onClick={() => void signOut()}

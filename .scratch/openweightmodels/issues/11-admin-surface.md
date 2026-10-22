@@ -4,11 +4,11 @@
 
 **Blocked by:** 07 — Sign in with email magic links; 10 — Edit and delete your Discussion and Annotations.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] An admin-only surface is reachable only by users with the `admin` role; non-admins get 404/403.
-- [ ] Enabling or disabling a Model updates pickers immediately and prevents new Runs; existing published Comparisons keep their content.
-- [ ] An Admin can take a Comparison down and restore it; takedown removes it from the Board, public Comparison routes and the live stream.
-- [ ] The Admin can see which Comparisons are hidden and why.
-- [ ] Each action records actor, target, action and timestamp.
-- [ ] No report queue, user suspension or moderation console is added here; those belong to 14.
+- [x] An admin-only surface is reachable only by users with the `admin` role; non-admins get 404/403.
+- [x] Enabling or disabling a Model updates pickers immediately and prevents new Runs; existing published Comparisons keep their content.
+- [x] An Admin can take a Comparison down and restore it; takedown removes it from the Board, public Comparison routes and the live stream.
+- [x] The Admin can see which Comparisons are hidden and why.
+- [x] Each action records actor, target, action and timestamp.
+- [x] No report queue, user suspension or moderation console is added here; those belong to 14.

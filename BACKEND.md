@@ -57,7 +57,7 @@ Better Auth owns `auth_sessions` (session id, token, user, expiry, IP/user agent
 | `api_base` | text null | endpoint base; **never a secret** |
 | `api_model_id` | text null | provider's model identifier |
 | `eta_seconds` | integer | used for ETA copy |
-| `enabled` | boolean | disabled models are hidden from pickers and rejected by the API |
+| `enabled` | boolean | disabled models are hidden from pickers, rejected by the API, and a queued Run on one fails instead of calling the provider |
 | `created_at` | timestamptz | |
 
 Provider API keys live in environment variables / AWS Secrets Manager, never in this table.
@@ -76,11 +76,14 @@ Provider API keys live in environment variables / AWS Secrets Manager, never in 
 | `status` | text | `draft`, `generating`, `ready`, `published`, `failed` |
 | `created_at` | timestamptz | |
 | `published_at` | timestamptz null | |
-| `deleted_at` | timestamptz null | soft delete |
+| `deleted_at` | timestamptz null | soft delete by the Author |
+| `takedown_at` | timestamptz null | soft hide by an Admin |
+| `takedown_by_id` | uuid FK users null | the Admin who hid it |
+| `takedown_reason` | text null | shown in the Admin record |
 | `comment_count` | integer | denormalised; includes replies; decremented on delete |
 | `annotation_count` | integer | denormalised; decremented on annotation delete |
 
-**Visibility invariant**: a Comparison is readable when `status = 'published' AND deleted_at IS NULL`, or when the viewer is its Author. Everyone else gets `404`, not `403`, for a draft or deleted Comparison. A deleted Comparison is hidden from everyone until an admin surface exists.
+**Visibility invariant**: a Comparison is readable when `status = 'published' AND deleted_at IS NULL AND takedown_at IS NULL`. Its Author can also read a non-deleted draft or ready Comparison. An Admin can read a non-deleted Comparison only while it is taken down, so they can review and restore it. Everyone else gets `404`, not `403`, for a draft, deleted or taken-down Comparison. A deleted Comparison is hidden from everyone; a taken-down Comparison keeps its Responses and Discussion but is hidden from its Author and the public.
 
 **Mutability invariant**: `prompt` and the Base output freeze at scheduling. `title`, `categories` and `effort` remain editable by the Author.
 
@@ -184,7 +187,7 @@ Public feed for the Board ticker and SSE replay.
 | Column | Type | Notes |
 |---|---|---|
 | `id` | bigserial PK | monotonic SSE event ID |
-| `kind` | text | `comparison.published`, `annotation.created`, `annotation.replied`, `comment.created`, `comment.replied`, `run.finished`, plus summary-less `comment.deleted`, `annotation.deleted`, `annotation.message.deleted` |
+| `kind` | text | `comparison.published`, `comparison.restored`, `annotation.created`, `annotation.replied`, `comment.created`, `comment.replied`, `run.finished`, plus summary-less `comparison.takedown`, `comment.deleted`, `annotation.deleted`, `annotation.message.deleted` |
 | `actor_id` | uuid null | |
 | `comparison_id` | uuid null | |
 | `model_id` | uuid null | |
@@ -194,7 +197,25 @@ Public feed for the Board ticker and SSE replay.
 
 Deleting a comment or Annotation removes its ticker rows, then emits a summary-less deletion event so open Boards lower the card count and drop those lines live. `recentActivity` omits summary-less rows.
 
+A takedown emits a summary-less `comparison.takedown` event so open Boards drop the card and its ticker lines; `comparison.restored` carries the settled card so a live Board can add it back.
+
 Draft activity must never enter this table in a way that leaks to the public stream. `run.finished` is only written when the Comparison is already published.
+
+### `admin_actions`
+
+Append-only audit trail for the minimal Admin surface. Unlike `activity_events`, this table is never published to the Board.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid PK | |
+| `actor_id` | uuid FK users null | the Admin who acted; null only if the account is later removed |
+| `action` | text | `model.enabled`, `model.disabled`, `comparison.takedown`, `comparison.restored` |
+| `target_type` | text | `model` or `comparison` |
+| `target_id` | uuid | target row; intentionally not a foreign key so the record outlives its target |
+| `reason` | text null | required for a takedown |
+| `created_at` | timestamptz | |
+
+Every admin action records actor, target, action and timestamp. Ticket 14's moderation queue and report records are separate from this table.
 
 ### `job_events`
 
@@ -295,8 +316,10 @@ Page routes: `/sign-in` requests a link, `/auth/complete` decides between onboar
 | Method | Path | Notes |
 |---|---|---|
 | `GET` | `/models` | enabled registry for pickers |
-| `PATCH` | `/admin/models/:id` | admin-only enable/disable (M2) |
-| `POST` | `/admin/comparisons/:id/takedown` | admin-only hide of a published Comparison (M2) |
+| `GET` | `/admin/overview` | admin-only registry, hidden Comparisons and recent actions for the Admin page |
+| `PATCH` | `/admin/models/:id` | admin-only `{ enabled }` (M2) |
+| `POST` | `/admin/comparisons/:id/takedown` | admin-only `{ reason }`; hides a published Comparison (M2) |
+| `POST` | `/admin/comparisons/:id/restore` | admin-only; clears a takedown (M2) |
 
 ### Comparisons
 
@@ -488,7 +511,7 @@ Annotatable runs are leaf text nodes and fenced code blocks for which the raw ma
 - Raw HTML is never rendered as HTML.
 - Uploads are size-, encoding- and YAML-restricted.
 - API keys live in environment variables / Secrets Manager, never in `models.api_base`.
-- Admin takedown and model enable/disable are minimal M2 surfaces; report/flag, suspension, account deletion and export are launch gates.
+- Admin takedown and model enable/disable are minimal M2 surfaces; report/flag, suspension, account deletion and export are launch gates. Admin pages and endpoints return `404` to anyone without the `admin` role.
 
 ---
 

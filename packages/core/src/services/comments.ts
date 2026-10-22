@@ -34,6 +34,7 @@ export async function createComment(input: CreateCommentInput) {
     .where(and(eq(comparisons.id, input.comparisonId), isNull(comparisons.deletedAt)))
     .limit(1);
   if (!comparison) throw notFound('Comparison not found.');
+  if (comparison.takedownAt) throw notFound('Comparison not found.');
   if (comparison.status !== 'published' && comparison.authorId !== input.userId) {
     throw notFound('Comparison not found.');
   }

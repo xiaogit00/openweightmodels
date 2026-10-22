@@ -23,12 +23,14 @@ export type FixtureOptions = {
 /**
  * Creates a signed-in user that owns nothing, for permission and voting tests.
  */
-export async function createUserFixture() {
+export async function createUserFixture(
+  options: { role?: 'user' | 'admin' } = {},
+) {
   const db = getDb();
   const tag = uuidv7().replace(/-/g, '').slice(-10);
   const [user] = await db
     .insert(users)
-    .values({ id: uuidv7(), handle: `reader-${tag}` })
+    .values({ id: uuidv7(), handle: `reader-${tag}`, role: options.role ?? 'user' })
     .returning();
   if (!user) throw new Error('fixture user was not inserted');
 

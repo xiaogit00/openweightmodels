@@ -60,6 +60,15 @@ export const JOB_STATUSES = [
 ] as const;
 export type JobStatus = (typeof JOB_STATUSES)[number];
 
+/** Append-only audit actions on the minimal Admin surface. */
+export const ADMIN_ACTION_KINDS = [
+  'model.enabled',
+  'model.disabled',
+  'comparison.takedown',
+  'comparison.restored',
+] as const;
+export type AdminActionKind = (typeof ADMIN_ACTION_KINDS)[number];
+
 export type VoteTarget = 'comment' | 'annotation';
 
 export type CardModel = {

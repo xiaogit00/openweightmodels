@@ -46,6 +46,7 @@ type TickerEvent = {
   kind: string;
   summary: string;
   createdAt: string;
+  comparisonId?: string | null;
   payload?: Record<string, unknown>;
 };
 
@@ -147,6 +148,8 @@ export function BoardClient({
   const filtersRef = useRef(filters);
   filtersRef.current = filters;
   const knownCardIdsRef = useRef(new Set(initialPage.items.map((card) => card.id)));
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
   const reducedMotionRef = useRef(reducedMotion);
   reducedMotionRef.current = reducedMotion;
 
@@ -340,6 +343,7 @@ export function BoardClient({
                 kind: payload.type,
                 summary: activity.summary as string,
                 createdAt: activity.createdAt ?? new Date().toISOString(),
+                comparisonId: activity.comparisonId ?? null,
                 payload: activity.payload,
               },
               ...current,
@@ -347,7 +351,11 @@ export function BoardClient({
           );
         }
 
-        if (payload.type === 'comparison.published' && activity.payload?.card) {
+        if (
+          (payload.type === 'comparison.published' ||
+            payload.type === 'comparison.restored') &&
+          activity.payload?.card
+        ) {
           const card = activity.payload.card;
           const activeFilters = filtersRef.current;
 
@@ -376,6 +384,22 @@ export function BoardClient({
               }
             }
           }
+        }
+
+        if (
+          payload.type === 'comparison.takedown' &&
+          typeof activity.comparisonId === 'string'
+        ) {
+          const comparisonId = activity.comparisonId;
+          const wasLoaded = itemsRef.current.some((item) => item.id === comparisonId);
+          knownCardIdsRef.current.delete(comparisonId);
+          setItems((current) => current.filter((item) => item.id !== comparisonId));
+          setPending((current) => current.filter((item) => item.id !== comparisonId));
+          setEvents((current) =>
+            current.filter((event) => event.comparisonId !== comparisonId),
+          );
+          if (wasLoaded) setTotal((current) => Math.max(0, current - 1));
+          void refreshFacets();
         }
 
         if (

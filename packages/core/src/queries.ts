@@ -127,7 +127,11 @@ export async function listComparisons(options: ListOptions = {}): Promise<ListRe
   const cursor = options.cursor ? decodeCursor(options.cursor) : null;
   if (cursor && cursor.sort !== sort) throw new CursorError();
 
-  const baseConditions = [eq(comparisons.status, 'published'), isNull(comparisons.deletedAt)];
+  const baseConditions = [
+    eq(comparisons.status, 'published'),
+    isNull(comparisons.deletedAt),
+    isNull(comparisons.takedownAt),
+  ];
 
   if (options.cat && options.cat !== 'All') {
     baseConditions.push(arrayContains(comparisons.categories, [options.cat]));
@@ -285,7 +289,11 @@ export async function listComparisons(options: ListOptions = {}): Promise<ListRe
  */
 export async function getBoardFacets(): Promise<BoardFacets> {
   const db = getDb();
-  const published = and(eq(comparisons.status, 'published'), isNull(comparisons.deletedAt));
+  const published = and(
+    eq(comparisons.status, 'published'),
+    isNull(comparisons.deletedAt),
+    isNull(comparisons.takedownAt),
+  );
 
   const [categoryRows, modelRows, totalRow] = await Promise.all([
     db.execute<{ category: string; total: number }>(sql`
@@ -332,6 +340,7 @@ export type ComparisonBundle = {
 export async function getComparisonForViewer(
   id: string,
   viewerId: string | null,
+  viewerIsAdmin = false,
 ): Promise<ComparisonBundle | null> {
   const db = getDb();
   const [comparison] = await db
@@ -341,7 +350,14 @@ export async function getComparisonForViewer(
     .limit(1);
 
   if (!comparison || comparison.deletedAt) return null;
-  if (comparison.status !== 'published' && comparison.authorId !== viewerId) return null;
+  // A taken-down Comparison is gone from public and author routes; an Admin
+  // can still open that hidden record to review or restore it. Admins do not
+  // gain access to other people's drafts or in-progress work.
+  const adminCanReview = viewerIsAdmin && comparison.takedownAt !== null;
+  if (comparison.takedownAt && !adminCanReview) return null;
+  if (comparison.status !== 'published' && comparison.authorId !== viewerId) {
+    return null;
+  }
 
   const [author] = await db
     .select()
@@ -598,6 +614,7 @@ export async function getJobForAuthor(
     .where(eq(comparisons.id, job.comparisonId))
     .limit(1);
   if (!comparison || comparison.authorId !== viewerId || comparison.deletedAt) return null;
+  if (comparison.takedownAt) return null;
 
   const [author] = await db
     .select()
@@ -681,7 +698,13 @@ export async function getCardById(id: string): Promise<ComparisonCard | null> {
   const [comparison] = await db
     .select()
     .from(comparisons)
-    .where(and(eq(comparisons.id, id), isNull(comparisons.deletedAt)))
+    .where(
+      and(
+        eq(comparisons.id, id),
+        isNull(comparisons.deletedAt),
+        isNull(comparisons.takedownAt),
+      ),
+    )
     .limit(1);
   if (!comparison) return null;
 

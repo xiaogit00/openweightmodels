@@ -87,6 +87,28 @@ export async function processRun(responseId: string) {
     return;
   }
 
+  // Disabling a Model in the admin registry stops it from being called. A Run
+  // that was already queued fails with a clear message rather than silently
+  // generating on a disabled model; the Author can retry once it is enabled.
+  if (!model.enabled) {
+    const [failed] = await db
+      .update(responses)
+      .set({ status: 'failed', error: 'Model disabled', finishedAt: new Date() })
+      .where(and(eq(responses.id, responseId), eq(responses.status, 'queued')))
+      .returning({ id: responses.id });
+    if (!failed) return;
+    if (response.jobId) {
+      await recordRunStatus(response, 'failed', {
+        modelName: model.displayName,
+        tokens: 0,
+        error: 'Model disabled',
+      });
+      await enqueueAutoSkip(responseId, response.attempt);
+      await finalizeJob(response.jobId);
+    }
+    return;
+  }
+
   // Claim the Run atomically: two workers holding the same BullMQ job (or a
   // retry racing the previous attempt) must not both call the provider.
   const [claimed] = await db

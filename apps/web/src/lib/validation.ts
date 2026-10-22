@@ -51,3 +51,11 @@ export const notificationPatchSchema = z.union([
 export const handleSchema = z.object({
   handle: z.string().min(1).max(HANDLE_MAX_LENGTH),
 });
+
+export const adminModelPatchSchema = z.object({
+  enabled: z.boolean(),
+});
+
+export const adminTakedownSchema = z.object({
+  reason: z.string().trim().min(1).max(500),
+});

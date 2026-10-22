@@ -110,6 +110,10 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 | 48 | Minimal admin: model enable/disable + Comparison takedown; `role` and soft-delete columns now | A disabled provider must not require a deploy. No report queue in v1. |
 | 49 | Registry seeded by migration/SQL until an admin UI exists | Avoids building CRUD for a small curated list. |
 | 50 | **No moderation powers** beyond author delete and admin takedown in M1 | Report/flag and suspension are launch gates. |
+| 51 | The admin surface is one `/admin` page plus gated `/api/admin/*` endpoints; missing and non-admin actors get **404** | Answers open question 8 without revealing the surface or the role of an account. |
+| 52 | Takedown uses its own `takedown_at` / `takedown_by_id` / `takedown_reason` columns, separate from author `deleted_at` | A takedown is reversible and attributable; an Admin can review and restore the hidden record while the Author and public get 404. |
+| 53 | Every admin action appends to `admin_actions`; the public activity stream gets only a summary-less, actor-less takedown/restore event | The audit trail is attributable without telling anonymous readers which Admin acted. Historical ticker rows for the hidden Comparison are removed. |
+| 54 | Disabling a Model blocks new Runs and fails a Run that was queued but not yet claimed; completed Responses stay readable | Avoids silently generating on a disabled Model while keeping published Comparisons intact. |
 
 **Rejected**: GitHub OAuth; hosted auth; real auth before the slice; anonymous write; admin CRUD for models in M1; full moderation console in M1.
 

@@ -16,6 +16,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { uuidv7 } from 'uuidv7';
 import type {
+  AdminActionKind,
   AnnotationKind,
   ComparisonStatus,
   JobStatus,
@@ -93,6 +94,11 @@ export const comparisons = pgTable(
     createdAt: createdAt(),
     publishedAt: timestamp('published_at', { withTimezone: true, mode: 'date' }),
     deletedAt: timestamp('deleted_at', { withTimezone: true, mode: 'date' }),
+    takedownAt: timestamp('takedown_at', { withTimezone: true, mode: 'date' }),
+    takedownById: uuid('takedown_by_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    takedownReason: text('takedown_reason'),
     commentCount: integer('comment_count').notNull().default(0),
     annotationCount: integer('annotation_count').notNull().default(0),
   },
@@ -100,6 +106,7 @@ export const comparisons = pgTable(
     index('comparisons_published_at_idx').on(t.publishedAt),
     index('comparisons_created_at_idx').on(t.createdAt),
     index('comparisons_status_idx').on(t.status),
+    index('comparisons_takedown_idx').on(t.takedownAt),
   ],
 );
 
@@ -245,6 +252,27 @@ export const activityEvents = pgTable(
   (t) => [index('activity_events_created_idx').on(t.createdAt)],
 );
 
+/**
+ * Append-only audit trail for admin actions. Activity events are public ticker
+ * content; this table is the attributable record an Admin surface reads back.
+ */
+export const adminActions = pgTable(
+  'admin_actions',
+  {
+    id: id(),
+    actorId: uuid('actor_id').references(() => users.id, { onDelete: 'set null' }),
+    action: text('action').$type<AdminActionKind>().notNull(),
+    targetType: text('target_type').$type<'model' | 'comparison'>().notNull(),
+    targetId: uuid('target_id').notNull(),
+    reason: text('reason'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('admin_actions_created_idx').on(t.createdAt),
+    index('admin_actions_target_idx').on(t.targetType, t.targetId),
+  ],
+);
+
 export const jobEvents = pgTable(
   'job_events',
   {
@@ -367,6 +395,7 @@ export const schema = {
   comments,
   votes,
   activityEvents,
+  adminActions,
   jobEvents,
   notifications,
   authSessions,

@@ -23,3 +23,4 @@ export * from './services/comments';
 export * from './services/votes';
 export * from './services/jobs';
 export * from './services/identity';
+export * from './services/admin';

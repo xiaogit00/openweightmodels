@@ -22,7 +22,11 @@ export default async function ComparisonPage({
   const { id } = await params;
   const query = await searchParams;
   const user = await getCurrentUser();
-  const bundle = await getComparisonForViewer(id, user?.id ?? null);
+  const bundle = await getComparisonForViewer(
+    id,
+    user?.id ?? null,
+    user?.role === 'admin',
+  );
   if (!bundle) notFound();
 
   const [annotations, comments, models] = await Promise.all([

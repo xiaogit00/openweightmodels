@@ -6,7 +6,7 @@ import {
   updateComparison,
 } from '@owm/core';
 import { apiError, json, readJson } from '@/lib/api';
-import { getViewerId, requireUser } from '@/lib/auth';
+import { getCurrentUser, requireUser } from '@/lib/auth';
 import { comparisonPatchSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
@@ -18,8 +18,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const viewerId = await getViewerId();
-    const bundle = await getComparisonForViewer(id, viewerId);
+    const user = await getCurrentUser();
+    const viewerId = user?.id ?? null;
+    const bundle = await getComparisonForViewer(id, viewerId, user?.role === 'admin');
     if (!bundle) {
       return json({ error: { code: 'not_found', message: 'Comparison not found.' } }, { status: 404 });
     }

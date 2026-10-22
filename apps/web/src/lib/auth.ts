@@ -12,6 +12,7 @@ import {
   getDb,
   getUserByHandle,
   getUserById,
+  notFound,
   unauthorized,
   users,
   type UserRow,
@@ -144,5 +145,15 @@ export async function requireUser() {
       403,
     );
   }
+  return user;
+}
+
+/**
+ * Admin surfaces and endpoints are invisible to everyone else: a missing or
+ * non-admin actor gets the same 404 as a route that does not exist.
+ */
+export async function requireAdmin() {
+  const user = await getCurrentUser();
+  if (!user || user.role !== 'admin') throw notFound('Not found.');
   return user;
 }

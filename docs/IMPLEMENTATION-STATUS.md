@@ -52,7 +52,7 @@ GLOSSARY.md, BACKEND.md
 
 ### Database
 
-Migration creates 15 tables: `users`, `models`, `comparisons`, `jobs`, `responses`, `annotations`, `annotation_messages`, `comments`, `votes`, `activity_events`, `job_events`, `notifications`, and Better Auth's `auth_sessions`, `auth_accounts`, `auth_verifications`. Migration `0002_modern_lucky_pierre.sql` adds the auth tables and makes `users.handle` nullable until onboarding.
+Migration creates 16 tables: `users`, `models`, `comparisons`, `jobs`, `responses`, `annotations`, `annotation_messages`, `comments`, `votes`, `activity_events`, `job_events`, `notifications`, `admin_actions`, and Better Auth's `auth_sessions`, `auth_accounts`, `auth_verifications`. Migration `0002_modern_lucky_pierre.sql` adds the auth tables and makes `users.handle` nullable until onboarding; `0003_shallow_odin.sql` adds the takedown columns and the admin audit table.
 
 Seed (`pnpm db:seed`) inserts:
 
@@ -119,10 +119,10 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 ### Verification
 
 - `pnpm typecheck` — **passes** (core, web, worker and the E2E suite).
-- `pnpm test` — **passes with local Postgres and Redis**: 165 core tests, 13 web mail/redirect/notification-link/discussion tests and 6 worker dispatch/consumption tests. When either service is unavailable the integration files warn and skip, so the unit tests still run. Coverage includes UTF-16 annotation offsets (emoji, CJK, escapes, cross-formatting, fenced vs indented code), upload parsing and limits, keyset cursors (including a sort mismatch and a Top cursor without a score), Board filter/URL helpers, 48-item default pagination, global Category/Model facets, the create → generate → publish pipeline with the mock provider, add-Challenger visibility (author-only pending/failed, atomic publication, cap/duplicate/Base/disabled rules, dismissed-slot release), comment and Annotation edit/delete rules (inline body limit, hard delete and votes, tombstone with live replies, retagging, message tombstone, counters, ticker retraction), author-only write permissions, handle format/reserved-name rules, case-insensitive handle uniqueness and the concurrent-onboarding race, SMTP delivery of the magic-link email through a local sink, and post-auth redirect safety.
-- `pnpm test:e2e` — **passes (14 tests)**: an auth suite proves request → single-use link → handle onboarding → session reload → sign-out, reserved and taken handles, anonymous read with sign-in affordances, 401 on an anonymous write, replay rejection, expiry rejection after the verification row is expired, the development outbox, no bell for anonymous visitors, and a seeded author signing in with a link while their published Comparisons stay intact. A real browser journey covers upload → schedule → live Job → publish → Board arrival → the author's unread notification and its persisted read state → annotate → thread → comment → vote across two identities (explicitly signing in through the development switcher), and asserts that a second reader sees an empty bell. A separate add-Challenger journey publishes a Comparison, adds a model from the menu (Base and existing models absent, ETA shown), proves the tab is author-only until it completes, and checks readers still have no Add control. An edit/delete journey proves inline comment editing, childless hard delete, parent tombstone with a surviving reply, live Board count and ticker retraction, inline message edit and tombstone, Annotation retagging and deletion, and that non-owners get no controls and a direct `PATCH` returns 403. A Board suite covers 48-item pages, the Load more fallback, the infinite-scroll sentinel, global sidebar counts, URL state across reload/back/forward, a single SSE subscription, loading/error/Retry and reduced motion. It seeds an isolated `openweightmodels_e2e` database (with enough published fixtures to paginate) and Redis DB `1`, then starts its own web and worker servers.
+- `pnpm test` — **passes with local Postgres and Redis**: 168 core tests, 13 web mail/redirect/notification-link/discussion tests and 6 worker dispatch/consumption tests. When either service is unavailable the integration files warn and skip, so the unit tests still run. Coverage includes UTF-16 annotation offsets (emoji, CJK, escapes, cross-formatting, fenced vs indented code), upload parsing and limits, keyset cursors (including a sort mismatch and a Top cursor without a score), Board filter/URL helpers, 48-item default pagination, global Category/Model facets, the create → generate → publish pipeline with the mock provider, add-Challenger visibility (author-only pending/failed, atomic publication, cap/duplicate/Base/disabled rules, dismissed-slot release), admin authorization and audit (Model enable/disable, queued Runs failing on a disabled Model, takedown hiding from Board/public routes and restore), comment and Annotation edit/delete rules (inline body limit, hard delete and votes, tombstone with live replies, retagging, message tombstone, counters, ticker retraction), author-only write permissions, handle format/reserved-name rules, case-insensitive handle uniqueness and the concurrent-onboarding race, SMTP delivery of the magic-link email through a local sink, and post-auth redirect safety.
+- `pnpm test:e2e` — **passes (15 tests)** (the run logged a Turbopack cache write warning after the suite; all tests still passed): an auth suite proves request → single-use link → handle onboarding → session reload → sign-out, reserved and taken handles, anonymous read with sign-in affordances, 401 on an anonymous write, replay rejection, expiry rejection after the verification row is expired, the development outbox, no bell for anonymous visitors, and a seeded author signing in with a link while their published Comparisons stay intact. An admin suite proves anonymous and member requests to `/admin` get 404, an admin can disable a Model (removing it from the API picker and `/new`) and re-enable it, a published Comparison can be taken down with a reason (disappearing from the public route and Board), the audit and hidden record show the actor and reason, and restore makes it public again. A real browser journey covers upload → schedule → live Job → publish → Board arrival → the author's unread notification and its persisted read state → annotate → thread → comment → vote across two identities (explicitly signing in through the development switcher), and asserts that a second reader sees an empty bell. A separate add-Challenger journey publishes a Comparison, adds a model from the menu (Base and existing models absent, ETA shown), proves the tab is author-only until it completes, and checks readers still have no Add control. An edit/delete journey proves inline comment editing, childless hard delete, parent tombstone with a surviving reply, live Board count and ticker retraction, inline message edit and tombstone, Annotation retagging and deletion, and that non-owners get no controls and a direct `PATCH` returns 403. A Board suite covers 48-item pages, the Load more fallback, the infinite-scroll sentinel, global sidebar counts, URL state across reload/back/forward, a single SSE subscription, loading/error/Retry and reduced motion. It seeds an isolated `openweightmodels_e2e` database (with enough published fixtures to paginate) and Redis DB `1`, then starts its own web and worker servers.
 - Defects found and fixed: indented code blocks were incorrectly annotatable (they still render as code, but are no longer annotatable, matching `BACKEND.md` §7); Annotation, comment and reply vote controls gained accessible names.
-- `pnpm db:migrate` — `0001_fuzzy_tag.sql` and `0002_modern_lucky_pierre.sql` applied; re-running is a no-op.
+- `pnpm db:migrate` — `0001_fuzzy_tag.sql`, `0002_modern_lucky_pierre.sql` and `0003_shallow_odin.sql` applied; re-running is a no-op.
 - `pnpm db:seed` — **passes**; counts above.
 - `pnpm db:init` — applied against a scratch database twice: the first run migrated and seeded, the second applied nothing and skipped the seed. No rows were duplicated. `db:seed` truncates, then inserts in one transaction, so a failed seed leaves an empty database that the next `db:init` retries instead of wedging.
 - The documented Homebrew path was exercised end to end: `pnpm db:init` + `pnpm dev` with a real magic-link sign-in and handle onboarding, a two-Challenger Comparison reaching Ready, Publish, an anonymous Board and Comparison read, an Annotation with a thread reply, a Comment and a vote.
@@ -138,9 +138,9 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 ### Other missing pieces
 
 - Production images and the AWS deployment (ticket 13). The current `Dockerfile` is a development target only.
-- Admin UI (model enable/disable, takedown).
 - AWS CDK stack, Dockerfiles, CI/CD, deployment.
 - Real OpenRouter execution test.
+- Report queue, user suspension and the wider moderation console (ticket 14).
 
 ---
 
@@ -163,8 +163,8 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 ## 5. Suggested next order
 
-1. M2 admin (11).
-2. Accessibility and fidelity audit (ticket 17) once that affordance lands.
+1. Accessibility and fidelity audit (ticket 17), including the admin surface.
+2. Moderation queue and user suspension (ticket 14), building on `admin_actions`.
 
 ---
 
@@ -173,9 +173,11 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 | Area | Path |
 |---|---|
 | Schema | `packages/core/src/db/schema.ts` |
-| Migration | `packages/core/drizzle/0000_marvelous_paladin.sql` … `0002_modern_lucky_pierre.sql` |
+| Migration | `packages/core/drizzle/0000_marvelous_paladin.sql` … `0003_shallow_odin.sql` |
 | Seed | `packages/core/src/seed.ts` |
 | Queries/cards | `packages/core/src/queries.ts` |
+| Admin services | `packages/core/src/services/admin.ts` |
+| Admin UI | `apps/web/src/app/admin/page.tsx`, `apps/web/src/components/admin-client.tsx` |
 | Job processing | `packages/core/src/services/jobs.ts` |
 | Comparison lifecycle | `packages/core/src/services/comparisons.ts` |
 | Annotation offsets | `packages/core/src/domain/markdown.ts` |
