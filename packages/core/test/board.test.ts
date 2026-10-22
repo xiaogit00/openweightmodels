@@ -5,6 +5,7 @@ import {
   closeDb,
   closeRedis,
   decodeCursor,
+  getBoardFacets,
   listComparisons,
   softDeleteComparison,
 } from '../src/index';
@@ -190,6 +191,66 @@ describe.skipIf(!available)('Board listing', () => {
       expect(list.items).toEqual([]);
     } finally {
       await cleanupAll([draft, deleted]);
+    }
+  });
+
+  it('returns 48 items per page by default and a cursor for the rest', async () => {
+    const prefix = `Page size ${uuidv7().slice(-8)}`;
+    const fixtures: Fixture[] = [];
+    for (let index = 0; index < 49; index += 1) {
+      fixtures.push(
+        await publishedFixture(prefix, {
+          publishedAt: new Date(Date.UTC(2026, 9, 1, 12, index)),
+          createdAt: new Date(Date.UTC(2026, 8, 1, 12, index)),
+        }),
+      );
+    }
+
+    try {
+      const first = await listComparisons({ q: prefix });
+      expect(first.items).toHaveLength(48);
+      expect(first.total).toBe(49);
+      expect(first.nextCursor).toBeTruthy();
+
+      const second = await listComparisons({ q: prefix, cursor: first.nextCursor });
+      expect(second.items).toHaveLength(1);
+      expect(second.nextCursor).toBeNull();
+
+      const firstPageIds = new Set(first.items.map((item) => item.id));
+      expect(firstPageIds.size).toBe(48);
+      expect(firstPageIds.has(second.items[0]!.id)).toBe(false);
+    } finally {
+      await cleanupAll(fixtures);
+    }
+  });
+
+  it('reports global Category and Model counts for published Comparisons', async () => {
+    const prefix = `Facets ${uuidv7().slice(-8)}`;
+    const before = await getBoardFacets();
+    const published = await publishedFixture(prefix, {
+      categories: ['Coding'],
+      challengers: 2,
+    });
+    const draft = await createJobFixture({
+      titlePrefix: prefix,
+      comparisonStatus: 'generating',
+      categories: ['Reasoning'],
+    });
+    const deleted = await publishedFixture(prefix, { categories: ['Math'] });
+    await softDeleteComparison(deleted.comparisonId, deleted.userId);
+
+    try {
+      const after = await getBoardFacets();
+      expect(after.total).toBe(before.total + 1);
+      expect(after.categories.Coding).toBe((before.categories.Coding ?? 0) + 1);
+      expect(after.models[published.baseModelSlug]).toBe(1);
+      for (const slug of published.challengerSlugs) {
+        expect(after.models[slug]).toBe(1);
+      }
+      expect(after.models[draft.challengerSlugs[0]!]).toBeUndefined();
+      expect(after.models[deleted.challengerSlugs[0]!]).toBeUndefined();
+    } finally {
+      await cleanupAll([published, draft, deleted]);
     }
   });
 

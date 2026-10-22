@@ -2,6 +2,7 @@ import {
   and,
   arrayContains,
   count,
+  countDistinct,
   desc,
   eq,
   exists,
@@ -26,11 +27,14 @@ import {
   votes,
 } from './db/schema';
 import { decodeCursor, encodeCursor, CursorError } from './domain/cursor';
+import { BOARD_PAGE_SIZE, emptyBoardFacets } from './domain/filters';
 import { summariseMarkdown } from './domain/upload';
 import { runProgress } from './domain/types';
 import type {
   AnnotationThreadMessage,
   AnnotationView,
+  BoardFacets,
+  BoardPage,
   CardModel,
   CommentView,
   ComparisonCard,
@@ -55,11 +59,7 @@ export type ListOptions = {
   limit?: number;
 };
 
-export type ListResult = {
-  items: ComparisonCard[];
-  total: number;
-  nextCursor: string | null;
-};
+export type ListResult = BoardPage;
 
 function toPublicUser(user: UserRow): PublicUser {
   return {
@@ -119,7 +119,7 @@ function cardFromRows(
 export async function listComparisons(options: ListOptions = {}): Promise<ListResult> {
   const db = getDb();
   const sort: Sort = options.sort ?? 'live';
-  const limit = Math.min(Math.max(options.limit ?? 48, 1), 100);
+  const limit = Math.min(Math.max(options.limit ?? BOARD_PAGE_SIZE, 1), 100);
   const cursor = options.cursor ? decodeCursor(options.cursor) : null;
   if (cursor && cursor.sort !== sort) throw new CursorError();
 
@@ -141,6 +141,7 @@ export async function listComparisons(options: ListOptions = {}): Promise<ListRe
           .where(
             and(
               eq(responses.comparisonId, comparisons.id),
+              eq(responses.status, 'done'),
               inArray(models.slug, options.models),
             ),
           ),
@@ -160,6 +161,7 @@ export async function listComparisons(options: ListOptions = {}): Promise<ListRe
             .where(
               and(
                 eq(responses.comparisonId, comparisons.id),
+                eq(responses.status, 'done'),
                 ilike(models.displayName, pattern),
               ),
             ),
@@ -270,6 +272,50 @@ export async function listComparisons(options: ListOptions = {}): Promise<ListRe
   }
 
   return { items, total, nextCursor };
+}
+
+/**
+ * Sidebar counts across every published Comparison, independent of the active
+ * filters. The Board fetches this once per page load and patches it from live
+ * publish events, so scrolling pages never pays for another aggregate.
+ */
+export async function getBoardFacets(): Promise<BoardFacets> {
+  const db = getDb();
+  const published = and(eq(comparisons.status, 'published'), isNull(comparisons.deletedAt));
+
+  const [categoryRows, modelRows, totalRow] = await Promise.all([
+    db.execute<{ category: string; total: number }>(sql`
+      select c.category as category, count(*)::int as total
+      from ${comparisons}
+      cross join lateral unnest(${comparisons.categories}) as c(category)
+      where ${published}
+      group by c.category
+    `),
+    db
+      .select({ slug: models.slug, total: countDistinct(comparisons.id) })
+      .from(comparisons)
+      .innerJoin(responses, eq(responses.comparisonId, comparisons.id))
+      .innerJoin(models, eq(models.id, responses.modelId))
+      .where(and(published, eq(responses.status, 'done')))
+      .groupBy(models.slug),
+    db.select({ total: count() }).from(comparisons).where(published),
+  ]);
+
+  const categories = emptyBoardFacets().categories;
+  for (const row of categoryRows) {
+    categories[row.category] = Number(row.total);
+  }
+
+  const modelCounts: Record<string, number> = {};
+  for (const row of modelRows) {
+    modelCounts[row.slug] = Number(row.total);
+  }
+
+  return {
+    categories,
+    models: modelCounts,
+    total: Number(totalRow[0]?.total ?? 0),
+  };
 }
 
 export type ComparisonBundle = {

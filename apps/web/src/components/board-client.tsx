@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ArrowUp,
   ChatCircle,
   CheckCircle,
+  CircleNotch,
   Clock,
   Flame,
   GitDiff,
@@ -13,15 +14,18 @@ import {
   MagnifyingGlass,
   X,
 } from '@phosphor-icons/react';
-import type { ComparisonCard } from '@owm/core/client';
+import type { BoardFacets, BoardPage, ComparisonCard } from '@owm/core/client';
 import {
   CATEGORIES,
   EFFORT_LEVELS,
   SORTS,
-  categoryCounts,
-  filterCards,
-  modelCounts,
-  sortCards,
+  addCardToFacets,
+  appendUniqueCards,
+  arrivalPlacement,
+  boardFiltersKey,
+  boardFiltersToSearchParams,
+  matchesFilters,
+  parseBoardFilters,
   type BoardFilters,
   type Sort,
 } from '@owm/core/client';
@@ -44,13 +48,24 @@ type TickerEvent = {
   createdAt: string;
 };
 
+type BoardEvent = {
+  id?: number;
+  comparisonId?: string | null;
+  summary?: string;
+  createdAt?: string;
+  payload?: { card?: ComparisonCard };
+};
+
 type Props = {
-  initialCards: ComparisonCard[];
+  initialPage: BoardPage;
+  initialFacets: BoardFacets;
   models: BoardModel[];
   events: TickerEvent[];
   handle: string;
   initialFilters: BoardFilters;
 };
+
+type CountField = 'commentCount' | 'annotationCount';
 
 const EVENT_ICONS: Record<string, typeof GitDiff> = {
   'comparison.published': GitDiff,
@@ -61,44 +76,94 @@ const EVENT_ICONS: Record<string, typeof GitDiff> = {
   'run.finished': CheckCircle,
 };
 
-export function BoardClient({ initialCards, models, events: initialEvents, handle, initialFilters }: Props) {
-  const [items, setItems] = useState(initialCards);
+async function requestPage(
+  filters: BoardFilters,
+  cursor: string | null,
+  signal: AbortSignal,
+): Promise<BoardPage> {
+  const params = boardFiltersToSearchParams(filters);
+  if (cursor) params.set('cursor', cursor);
+  const query = params.toString();
+  const response = await fetch(query ? `/api/comparisons?${query}` : '/api/comparisons', {
+    signal,
+  });
+  if (!response.ok) throw new Error(`Board request failed with ${response.status}`);
+  return (await response.json()) as BoardPage;
+}
+
+function bumpCount(cards: ComparisonCard[], id: string, field: CountField) {
+  let changed = false;
+  const next = cards.map((card) => {
+    if (card.id !== id) return card;
+    changed = true;
+    return { ...card, [field]: card[field] + 1 };
+  });
+  return changed ? next : cards;
+}
+
+export function BoardClient({
+  initialPage,
+  initialFacets,
+  models,
+  events: initialEvents,
+  handle,
+  initialFilters,
+}: Props) {
+  const [filters, setFilters] = useState(initialFilters);
+  const [items, setItems] = useState(initialPage.items);
+  const [total, setTotal] = useState(initialPage.total);
+  const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
+  const [facets, setFacets] = useState(initialFacets);
+  const [phase, setPhase] = useState<'idle' | 'first' | 'more'>('idle');
+  const [error, setError] = useState<{ kind: 'first' | 'more'; message: string } | null>(
+    null,
+  );
   const [pending, setPending] = useState<ComparisonCard[]>([]);
-  const [cat, setCat] = useState(initialFilters.cat);
-  const [selectedModels, setSelectedModels] = useState<string[]>(initialFilters.models);
-  const [effort, setEffort] = useState<number | null>(initialFilters.effort);
-  const [sort, setSort] = useState<Sort>(initialFilters.sort);
-  const [q, setQ] = useState(initialFilters.q);
   const [events, setEvents] = useState(initialEvents);
   const [newId, setNewId] = useState<string | null>(null);
   const [flip, setFlip] = useState(false);
   const [live, setLive] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
+  const [reducedMotion, setReducedMotion] = useState(false);
+
   const searchRef = useRef<HTMLInputElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const requestSeqRef = useRef(0);
+  const filterKey = boardFiltersKey(filters);
+  const loadedKeyRef = useRef(filterKey);
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
+  const knownCardIdsRef = useRef(new Set(initialPage.items.map((card) => card.id)));
+  const reducedMotionRef = useRef(reducedMotion);
+  reducedMotionRef.current = reducedMotion;
 
-  const filters: BoardFilters = { cat, models: selectedModels, effort, q, sort };
+  const patchFilters = useCallback((patch: Partial<BoardFilters>) => {
+    setFilters((current) => ({ ...current, ...patch }));
+  }, []);
 
-  const visible = useMemo(() => {
-    const filtered = filterCards(items, filters);
-    return sort === 'live' ? filtered : sortCards(filtered, sort);
-  }, [items, cat, selectedModels, effort, q, sort]);
-
-  const catCounts = useMemo(() => categoryCounts(items), [items]);
-  const mCounts = useMemo(() => modelCounts(items), [items]);
-
+  // Filter, sort and search state lives in the URL. Defaults are omitted so a
+  // pristine Board keeps a clean address.
   useEffect(() => {
-    const url = new URL(window.location.href);
-    if (cat !== 'All') url.searchParams.set('cat', cat);
-    else url.searchParams.delete('cat');
-    if (selectedModels.length) url.searchParams.set('models', selectedModels.join(','));
-    else url.searchParams.delete('models');
-    if (effort !== null) url.searchParams.set('effort', String(effort));
-    else url.searchParams.delete('effort');
-    if (sort !== 'live') url.searchParams.set('sort', sort);
-    else url.searchParams.delete('sort');
-    if (q) url.searchParams.set('q', q);
-    else url.searchParams.delete('q');
-    window.history.replaceState(null, '', `${url.pathname}${url.search}`);
-  }, [cat, selectedModels, effort, sort, q]);
+    const query = boardFiltersToSearchParams(filters).toString();
+    const target = `${window.location.pathname}${query ? `?${query}` : ''}`;
+    const current = `${window.location.pathname}${window.location.search}`;
+    if (target === current) return;
+
+    const timer = setTimeout(() => {
+      window.history.pushState(null, '', target);
+    }, 180);
+    return () => clearTimeout(timer);
+  }, [filterKey, filters]);
+
+  // Browser back/forward restores the view without a full navigation.
+  useEffect(() => {
+    const onPopState = () => {
+      setFilters(parseBoardFilters(new URLSearchParams(window.location.search)));
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -112,7 +177,7 @@ export function BoardClient({ initialCards, models, events: initialEvents, handl
         searchRef.current?.focus();
       }
       if (event.key === 'Escape' && document.activeElement === searchRef.current) {
-        setQ('');
+        setFilters((current) => ({ ...current, q: '' }));
         searchRef.current?.blur();
       }
     };
@@ -121,75 +186,287 @@ export function BoardClient({ initialCards, models, events: initialEvents, handl
   }, []);
 
   useEffect(() => {
-    const source = new EventSource('/api/stream/board');
-    source.onopen = () => setLive(true);
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReducedMotion(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  // Starts a request and invalidates any older one. Only the newest sequence
+  // number may write to state, so a slow response cannot overwrite a newer view.
+  const beginRequest = useCallback(() => {
+    const request = requestSeqRef.current + 1;
+    requestSeqRef.current = request;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    return { request, signal: controller.signal };
+  }, []);
+
+  const loadFirstPage = useCallback(
+    async (nextFilters: BoardFilters) => {
+      const { request, signal } = beginRequest();
+      setPhase('first');
+      setError(null);
+
+      try {
+        const page = await requestPage(nextFilters, null, signal);
+        if (request !== requestSeqRef.current) return;
+        loadedKeyRef.current = boardFiltersKey(nextFilters);
+        knownCardIdsRef.current = new Set(page.items.map((card) => card.id));
+        setItems(page.items);
+        setTotal(page.total);
+        setNextCursor(page.nextCursor);
+        setPending([]);
+        setPhase('idle');
+      } catch {
+        if (request !== requestSeqRef.current || signal.aborted) return;
+        setError({ kind: 'first', message: 'Could not load comparisons.' });
+        setPhase('idle');
+      }
+    },
+    [beginRequest],
+  );
+
+  // A filter change resets the keyset window. The 180ms debounce keeps typing
+  // in the search box from issuing one request per keystroke. Returning to the
+  // view that is already on screen cancels any request for the view in between.
+  useEffect(() => {
+    if (filterKey === loadedKeyRef.current) {
+      requestSeqRef.current += 1;
+      abortRef.current?.abort();
+      setPhase('idle');
+      setError(null);
+      return;
+    }
+
+    // Block Load more during the debounce so an old cursor cannot fetch the
+    // next page of the new view and append it to the old items.
+    setPhase('first');
+    setError(null);
+    const timer = setTimeout(() => {
+      void loadFirstPage(filtersRef.current);
+    }, 180);
+    return () => {
+      clearTimeout(timer);
+      requestSeqRef.current += 1;
+      abortRef.current?.abort();
+    };
+  }, [filterKey, loadFirstPage]);
+
+  const loadMore = useCallback(async () => {
+    if (!nextCursor || phase !== 'idle') return;
+
+    const { request, signal } = beginRequest();
+    setPhase('more');
+    setError(null);
+
+    try {
+      const page = await requestPage(filtersRef.current, nextCursor, signal);
+      if (request !== requestSeqRef.current) return;
+      for (const card of page.items) knownCardIdsRef.current.add(card.id);
+      setItems((current) => appendUniqueCards(current, page.items));
+      setNextCursor(page.nextCursor);
+      setTotal(page.total);
+      setPhase('idle');
+    } catch {
+      if (request !== requestSeqRef.current || signal.aborted) return;
+      setError({ kind: 'more', message: 'Could not load more comparisons.' });
+      setPhase('idle');
+    }
+  }, [beginRequest, nextCursor, phase]);
+
+  const refreshFacets = useCallback(async () => {
+    try {
+      const response = await fetch('/api/comparisons/facets');
+      if (!response.ok) return;
+      setFacets((await response.json()) as BoardFacets);
+    } catch {
+      // The live counts are cosmetic; the next reload repairs them.
+    }
+  }, []);
+
+  // One subscription for the life of the page. Sort and filter changes only
+  // update refs, so reconnecting resumes from the browser's Last-Event-ID.
+  useEffect(() => {
+    const after = initialEvents[0]?.id ?? 0;
+    const source = new EventSource(
+      after > 0 ? `/api/stream/board?after=${after}` : '/api/stream/board',
+    );
+    let opened = false;
+    let lastSeen = after;
+
+    source.onopen = () => {
+      setLive(true);
+      if (opened) void refreshFacets();
+      opened = true;
+    };
     source.onerror = () => setLive(false);
     source.onmessage = (message) => {
       try {
-        const payload = JSON.parse(message.data) as {
-          type: string;
-          data: Record<string, unknown> & { payload?: { card?: ComparisonCard } };
-        };
+        const payload = JSON.parse(message.data) as { type: string; data: BoardEvent };
         const activity = payload.data;
+        if (typeof activity.id === 'number') {
+          if (activity.id <= lastSeen) return;
+          lastSeen = activity.id;
+        }
+
+        if (typeof activity.summary === 'string' && typeof activity.id === 'number') {
+          setEvents((current) =>
+            [
+              {
+                id: activity.id as number,
+                kind: payload.type,
+                summary: activity.summary as string,
+                createdAt: activity.createdAt ?? new Date().toISOString(),
+              },
+              ...current,
+            ].slice(0, 30),
+          );
+        }
+
         if (payload.type === 'comparison.published' && activity.payload?.card) {
           const card = activity.payload.card;
-          const shouldInsert =
-            sort === 'live' && typeof window !== 'undefined' && window.scrollY < 200;
-          if (shouldInsert) {
-            setItems((current) =>
-              current.some((item) => item.id === card.id) ? current : [card, ...current],
-            );
-            setNewId(card.id);
-            setFlip((value) => !value);
-          } else {
-            setPending((current) =>
-              current.some((item) => item.id === card.id) ? current : [card, ...current],
-            );
+          const activeFilters = filtersRef.current;
+
+          if (!knownCardIdsRef.current.has(card.id)) {
+            knownCardIdsRef.current.add(card.id);
+            // Sidebar counts are global, so every publish counts even when the
+            // card does not match the reader's current filters.
+            setFacets((current) => addCardToFacets(current, card));
+
+            if (matchesFilters(card, activeFilters)) {
+              setTotal((current) => current + 1);
+              const placement =
+                typeof window === 'undefined'
+                  ? 'queue'
+                  : arrivalPlacement(activeFilters.sort, window.scrollY);
+              if (placement === 'insert') {
+                setItems((current) =>
+                  current.some((item) => item.id === card.id) ? current : [card, ...current],
+                );
+                setNewId(card.id);
+                setFlip((value) => !value);
+              } else {
+                setPending((current) =>
+                  current.some((item) => item.id === card.id) ? current : [card, ...current],
+                );
+              }
+            }
           }
         }
-        if (typeof activity.summary === 'string' && typeof activity.id === 'number') {
-          setEvents((current) => [
-            {
-              id: activity.id as number,
-              kind: payload.type,
-              summary: activity.summary as string,
-              createdAt: (activity.createdAt as string) ?? new Date().toISOString(),
-            },
-            ...current,
-          ].slice(0, 30));
+
+        if (
+          payload.type === 'annotation.created' &&
+          typeof activity.comparisonId === 'string'
+        ) {
+          setItems((current) =>
+            bumpCount(current, activity.comparisonId as string, 'annotationCount'),
+          );
+        }
+
+        if (
+          (payload.type === 'comment.created' || payload.type === 'comment.replied') &&
+          typeof activity.comparisonId === 'string'
+        ) {
+          setItems((current) =>
+            bumpCount(current, activity.comparisonId as string, 'commentCount'),
+          );
         }
       } catch {
-        // ignore malformed event
+        // Ignore malformed events; the next replay or reload repairs the view.
       }
     };
+
     return () => source.close();
-  }, [sort]);
+  }, [initialEvents, refreshFacets]);
 
   const chips: Array<{ label: string; remove: () => void }> = [];
-  if (cat !== 'All') chips.push({ label: cat, remove: () => setCat('All') });
-  for (const model of selectedModels) {
+  if (filters.cat !== 'All') {
+    chips.push({ label: filters.cat, remove: () => patchFilters({ cat: 'All' }) });
+  }
+  for (const model of filters.models) {
     const name = models.find((item) => item.slug === model)?.displayName ?? model;
     chips.push({
       label: name,
-      remove: () => setSelectedModels(selectedModels.filter((value) => value !== model)),
+      remove: () =>
+        setFilters((current) => ({
+          ...current,
+          models: current.models.filter((value) => value !== model),
+        })),
     });
   }
-  if (effort !== null) {
+  if (filters.effort !== null) {
     chips.push({
-      label: `${EFFORT_LEVELS[effort - 1]?.label ?? ''} effort`,
-      remove: () => setEffort(null),
+      label: `${EFFORT_LEVELS[filters.effort - 1]?.label ?? ''} effort`,
+      remove: () => patchFilters({ effort: null }),
     });
   }
 
   const flush = () => {
     if (!pending.length) return;
-    setItems((current) => [...pending, ...current]);
+    window.scrollTo({
+      top: 0,
+      behavior: reducedMotionRef.current ? 'auto' : 'smooth',
+    });
+
+    // A Top arrival cannot be placed without re-ranking, so let the server
+    // apply the new order. Live and New arrivals genuinely belong at the top.
+    if (filters.sort === 'top') {
+      void loadFirstPage(filters);
+      return;
+    }
+
+    const ids = new Set(pending.map((card) => card.id));
+    setItems((current) => [...pending, ...current.filter((card) => !ids.has(card.id))]);
     setNewId(pending[0]?.id ?? null);
     setFlip((value) => !value);
     setPending([]);
   };
 
+  const retry = () => {
+    if (error?.kind === 'more') void loadMore();
+    else void loadFirstPage(filters);
+  };
+
+  const clearFilters = () => {
+    setFilters(parseBoardFilters(new URLSearchParams()));
+  };
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (
+      !node ||
+      !nextCursor ||
+      phase !== 'idle' ||
+      error ||
+      typeof IntersectionObserver === 'undefined'
+    ) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) void loadMore();
+      },
+      { rootMargin: '600px 0px' },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [error, loadMore, nextCursor, phase]);
+
   const ticker = events.length ? [...events, ...events] : [];
+  const loadingFirst = phase === 'first';
+  const loadingMore = phase === 'more';
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -200,9 +477,10 @@ export function BoardClient({ initialCards, models, events: initialEvents, handl
             <MagnifyingGlass size={15} className="text-neutral-400" />
             <input
               ref={searchRef}
-              value={q}
-              onChange={(event) => setQ(event.target.value)}
+              value={filters.q}
+              onChange={(event) => patchFilters({ q: event.target.value })}
               placeholder="Search prompts or models"
+              aria-label="Search comparisons"
               className="min-w-0 flex-1 border-0 bg-transparent text-[12px] text-text outline-0"
             />
             <span className="rounded-[2px] border border-neutral-700 px-[5px] py-[2px] text-[10px] font-medium text-neutral-500">
@@ -212,11 +490,16 @@ export function BoardClient({ initialCards, models, events: initialEvents, handl
         }
       />
 
-      <div className="flex items-center gap-[14px] overflow-hidden whitespace-nowrap border-b border-neutral-800 px-5" style={{ height: 30 }}>
+      <div
+        className="flex items-center gap-[14px] overflow-hidden whitespace-nowrap border-b border-neutral-800 px-5"
+        style={{ height: 30 }}
+      >
         <span className="flex flex-none items-center gap-[6px] text-[11px] font-medium text-accent-200">
           <span
             className={cn('h-[6px] w-[6px] rounded-[2px]', live ? 'bg-accent' : 'bg-neutral-500')}
-            style={live ? { animation: 'pulse-soft 1.6s infinite' } : undefined}
+            style={
+              live && !reducedMotion ? { animation: 'pulse-soft 1.6s infinite' } : undefined
+            }
           />
           {live ? 'LIVE' : 'RECONNECTING'}
         </span>
@@ -243,12 +526,13 @@ export function BoardClient({ initialCards, models, events: initialEvents, handl
           <div className="flex flex-col gap-px">
             <span className="micro-label px-2 pb-[6px]">CATEGORIES</span>
             {['All', ...CATEGORIES].map((category) => {
-              const active = cat === category;
+              const active = filters.cat === category;
               return (
                 <button
                   key={category}
                   type="button"
-                  onClick={() => setCat(category)}
+                  aria-pressed={active}
+                  onClick={() => patchFilters({ cat: category })}
                   className={cn(
                     'flex h-7 items-center justify-between rounded-[2px] px-2 text-left text-[12px] font-medium transition-colors hover:bg-surface',
                     active ? 'bg-surface text-text' : 'text-neutral-300',
@@ -256,7 +540,9 @@ export function BoardClient({ initialCards, models, events: initialEvents, handl
                 >
                   <span>{category}</span>
                   <span className="text-[11px] font-normal text-neutral-500">
-                    {category === 'All' ? items.length : (catCounts.get(category) ?? 0)}
+                    {category === 'All'
+                      ? facets.total
+                      : (facets.categories[category] ?? 0)}
                   </span>
                 </button>
               );
@@ -266,10 +552,10 @@ export function BoardClient({ initialCards, models, events: initialEvents, handl
           <div className="flex flex-col gap-px">
             <div className="flex items-baseline justify-between px-2 pb-[6px]">
               <span className="micro-label">MODELS</span>
-              {selectedModels.length > 0 && (
+              {filters.models.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setSelectedModels([])}
+                  onClick={() => patchFilters({ models: [] })}
                   className="text-[11px] font-medium text-accent-300"
                 >
                   Clear
@@ -277,17 +563,19 @@ export function BoardClient({ initialCards, models, events: initialEvents, handl
               )}
             </div>
             {models.map((model) => {
-              const checked = selectedModels.includes(model.slug);
+              const checked = filters.models.includes(model.slug);
               return (
                 <button
                   key={model.slug}
                   type="button"
+                  aria-pressed={checked}
                   onClick={() =>
-                    setSelectedModels((current) =>
-                      checked
-                        ? current.filter((value) => value !== model.slug)
-                        : [...current, model.slug],
-                    )
+                    setFilters((current) => ({
+                      ...current,
+                      models: checked
+                        ? current.models.filter((value) => value !== model.slug)
+                        : [...current.models, model.slug],
+                    }))
                   }
                   className="flex h-7 items-center gap-2 rounded-[2px] px-2 text-left text-[12px] font-medium text-neutral-200 transition-colors hover:bg-surface"
                 >
@@ -301,7 +589,7 @@ export function BoardClient({ initialCards, models, events: initialEvents, handl
                   </span>
                   <span className="flex-1 truncate">{model.displayName}</span>
                   <span className="text-[11px] font-normal text-neutral-500">
-                    {mCounts.get(model.slug) ?? 0}
+                    {facets.models[model.slug] ?? 0}
                   </span>
                 </button>
               );
@@ -312,12 +600,15 @@ export function BoardClient({ initialCards, models, events: initialEvents, handl
             <span className="micro-label">EFFORT</span>
             <div className="grid grid-cols-3 gap-[2px] rounded-[2px] bg-surface p-[2px]">
               {EFFORT_LEVELS.map((level) => {
-                const active = effort === level.value;
+                const active = filters.effort === level.value;
                 return (
                   <button
                     key={level.value}
                     type="button"
-                    onClick={() => setEffort(active ? null : level.value)}
+                    aria-pressed={active}
+                    onClick={() =>
+                      patchFilters({ effort: active ? null : level.value })
+                    }
                     className={cn(
                       'h-6 rounded-[2px] text-[11px] font-medium transition-colors',
                       active ? 'bg-neutral-700 text-text' : 'text-neutral-400',
@@ -331,7 +622,10 @@ export function BoardClient({ initialCards, models, events: initialEvents, handl
           </div>
         </aside>
 
-        <main className="flex min-w-0 flex-col gap-3 px-5 pb-8 pt-[14px]">
+        <main
+          className="flex min-w-0 flex-col gap-3 px-5 pb-8 pt-[14px]"
+          aria-busy={loadingFirst}
+        >
           <div className="flex flex-wrap items-center gap-[10px]">
             <div className="flex gap-[2px]">
               {SORTS.map((value) => {
@@ -340,16 +634,21 @@ export function BoardClient({ initialCards, models, events: initialEvents, handl
                   top: { label: 'Top', Icon: Flame },
                   new: { label: 'New', Icon: Clock },
                 }[value];
-                const active = sort === value;
+                const active = filters.sort === value;
                 return (
                   <button
                     key={value}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => {
-                      setSort(value);
-                      if (value === 'live') {
-                        setItems((current) => [...pending, ...current]);
-                        setPending([]);
+                      if (value !== filters.sort) {
+                        patchFilters({ sort: value as Sort });
+                      } else if (pending.length > 0) {
+                        flush();
+                      } else {
+                        // Re-clicking the active sort refetches page one, which
+                        // is how a Top view applies the counts updated in place.
+                        void loadFirstPage(filters);
                       }
                     }}
                     className={cn(
@@ -363,7 +662,15 @@ export function BoardClient({ initialCards, models, events: initialEvents, handl
                 );
               })}
             </div>
-            <span className="text-[12px] text-neutral-500">{visible.length} comparisons</span>
+            <span className="text-[12px] text-neutral-500" aria-live="polite">
+              {total} comparison{total === 1 ? '' : 's'}
+            </span>
+            {loadingFirst && (
+              <span className="flex items-center gap-[5px] text-[11px] text-neutral-400">
+                <CircleNotch size={11} style={{ animation: 'spin-soft 1s linear infinite' }} />
+                Loading…
+              </span>
+            )}
             {chips.map((chip) => (
               <button
                 key={chip.label}
@@ -388,40 +695,86 @@ export function BoardClient({ initialCards, models, events: initialEvents, handl
             )}
           </div>
 
-          {visible.length > 0 ? (
+          {error && (
             <div
-              className="grid gap-2"
+              role="alert"
+              className="flex items-center gap-3 rounded-[2px] border border-neutral-700 bg-surface px-3 py-2 text-[12px] text-neutral-200"
+            >
+              <span>{error.message}</span>
+              <button
+                type="button"
+                onClick={retry}
+                className="text-[12px] font-medium text-accent-300"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {items.length > 0 ? (
+            <div
+              className={cn(
+                'grid gap-2 transition-opacity',
+                loadingFirst && 'opacity-50',
+              )}
               style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))' }}
             >
-              {visible.map((card) => (
+              {items.map((card) => (
                 <ComparisonCardView
                   key={card.id}
                   card={card}
+                  now={now}
                   href={`/comparisons/${card.id}`}
-                  animation={newId === card.id ? (flip ? 'a' : 'b') : undefined}
+                  animation={
+                    !reducedMotion && newId === card.id ? (flip ? 'a' : 'b') : undefined
+                  }
                 />
               ))}
             </div>
-          ) : (
+          ) : loadingFirst ? (
+            <div
+              role="status"
+              className="flex items-center gap-2 py-12 text-[12px] text-neutral-400"
+            >
+              <CircleNotch size={13} style={{ animation: 'spin-soft 1s linear infinite' }} />
+              Loading comparisons…
+            </div>
+          ) : error ? null : (
             <div className="flex flex-col items-start gap-2 py-12">
               <span className="font-heading text-[14px] font-medium">No comparisons match</span>
               <button
                 type="button"
-                onClick={() => {
-                  setCat('All');
-                  setSelectedModels([]);
-                  setEffort(null);
-                  setQ('');
-                }}
+                onClick={clearFilters}
                 className="text-[12px] font-medium text-accent-300"
               >
                 Clear filters
               </button>
             </div>
           )}
+
+          <div
+            ref={sentinelRef}
+            aria-hidden="true"
+            data-testid="board-sentinel"
+            className="h-px w-full"
+          />
+          {nextCursor && (
+            <div className="flex justify-center py-2">
+              <button
+                type="button"
+                onClick={() => void loadMore()}
+                disabled={phase !== 'idle'}
+                className="btn-neutral"
+              >
+                {loadingMore && (
+                  <CircleNotch size={12} style={{ animation: 'spin-soft 1s linear infinite' }} />
+                )}
+                {loadingMore ? 'Loading more…' : 'Load more'}
+              </button>
+            </div>
+          )}
         </main>
       </div>
-
     </div>
   );
 }

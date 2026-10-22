@@ -103,7 +103,7 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 ### Web UI
 
-- `app/page.tsx` + `BoardClient`: sticky header, search with `/` shortcut, ticker, category/model/effort sidebar, sort tabs, active chips, queued-arrivals pill, responsive card grid, empty state, live SSE arrival animation.
+- `app/page.tsx` + `BoardClient`: sticky header, search with `/` shortcut, ticker, category/model/effort sidebar with global counts, sort tabs, active chips, queued-arrivals pill, responsive card grid, keyset pagination (48 per page) with an infinite-scroll sentinel plus an accessible Load more button, explicit loading/error/empty states, URL-backed filters with back/forward, a shared minute tick for relative times, and one SSE subscription across sort/filter changes.
 - `app/comparisons/[id]/page.tsx` + `ComparisonView`: meta row, prompt disclosure, sticky toolbar, annotation toggle and kind filters, base pane, Challenger tabs, markdown rendering, selection → Annotate → new Annotation popover, thread popover with votes/replies, Discussion composer/filters/replies/votes, Copy link.
 - `app/new/page.tsx` + `NewComparisonClient`: drag/drop upload with inline validation, front-matter prompt/title/model auto-fill, Base select, up to four Challenger tiles, Category/Effort controls, live "ON THE BOARD" draft preview, multipart submit and redirect to the Job summary.
 - `app/comparisons/[id]/job/page.tsx` + `JobSummary`: author-only Job page. Subscribes to `/api/stream/jobs/:id`, applies `response.status` events in place, resyncs after a reconnect, shows Live/Connecting/Reconnecting, Retry/Skip on failed rows, the four-stage strip, per-Run progress and the ready banner with Publish/Review. Publishes atomically and navigates to the Comparison.
@@ -114,8 +114,8 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 ### Verification
 
 - `pnpm typecheck` — **passes** (core, web, worker and the E2E suite).
-- `pnpm test` — **passes with local Postgres and Redis**: 111 core tests and 4 worker dispatch/consumption tests. When either service is unavailable the integration files warn and skip, so the unit tests still run. Coverage includes UTF-16 annotation offsets (emoji, CJK, escapes, cross-formatting, fenced vs indented code), upload parsing and limits, keyset cursors, Board filters/Top ordering and SQL pagination, the create → generate → publish pipeline with the mock provider, and author-only write permissions.
-- `pnpm test:e2e` — **passes**: a real browser journey covering upload → schedule → live Job → publish → Board arrival → annotate → thread → comment → vote across two identities. It seeds an isolated `openweightmodels_e2e` database and Redis DB `1`, then starts its own web and worker servers.
+- `pnpm test` — **passes with local Postgres and Redis**: 138 core tests and 6 worker dispatch/consumption tests. When either service is unavailable the integration files warn and skip, so the unit tests still run. Coverage includes UTF-16 annotation offsets (emoji, CJK, escapes, cross-formatting, fenced vs indented code), upload parsing and limits, keyset cursors (including a sort mismatch and a Top cursor without a score), Board filter/URL helpers, 48-item default pagination, global Category/Model facets, the create → generate → publish pipeline with the mock provider, and author-only write permissions.
+- `pnpm test:e2e` — **passes**: a real browser journey covering upload → schedule → live Job → publish → Board arrival → annotate → thread → comment → vote across two identities, plus a Board suite covering 48-item pages, the Load more fallback, the infinite-scroll sentinel, global sidebar counts, URL state across reload/back/forward, a single SSE subscription, loading/error/Retry and reduced motion. It seeds an isolated `openweightmodels_e2e` database (with enough published fixtures to paginate) and Redis DB `1`, then starts its own web and worker servers.
 - Defects found and fixed: indented code blocks were incorrectly annotatable (they still render as code, but are no longer annotatable, matching `BACKEND.md` §7); Annotation, comment and reply vote controls gained accessible names.
 - `pnpm db:migrate` — `0001_fuzzy_tag.sql` applied; re-running is a no-op.
 - `pnpm db:seed` — **passes**; counts above.
@@ -138,8 +138,6 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 - Notification bell UI (API exists).
 - Add-model UI (API exists).
 - Annotation/message/comment edit/delete UI (APIs exist).
-- Infinite scroll / Load more on the Board (API cursor exists; UI loads up to 100 and filters client-side).
-- Global sidebar counts when pagination lands.
 - AWS CDK stack, Dockerfiles, CI/CD, deployment.
 - Real OpenRouter execution test.
 
@@ -150,20 +148,18 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 1. **Client/server imports**: client components must import from `@owm/core/client` (pure domain only). Server components/routes import `@owm/core`. Do not import `@owm/core` from a client component or `postgres`/`ioredis` enters the browser bundle.
 2. `packages/core/src/services/votes.ts` has a stray `voteTargetTables` export and an unused `annotationMessages` import. Harmless; remove.
 3. `packages/core/src/services/comparisons.ts` has an unused `sql` import and a stray `comparisonSql` export. Harmless; remove.
-4. `BoardClient` holds up to 100 Comparisons and filters client-side. This is acceptable for M1 but contradicts the accepted pagination policy; fix in M2.
-5. The Board ticker reconnects whenever `sort` changes because the SSE effect depends on `sort`; it dedupes cards but can duplicate ticker lines. Refactor to a stable effect with a ref in M2.
-6. `postComment` now supports one-level replies; verify the server re-parenting when replying to a reply (the UI only exposes Reply on top-level comments).
-7. Front-matter `model:` now preselects the Base model in the form; unknown values are ignored with a prompt to choose.
-8. A worker crash between `calling` and a terminal Run status leaves that Run stranded; re-enqueueing non-terminal Runs from Postgres (BACKEND.md §5) is not implemented yet.
-9. The `db:*` scripts, the worker and `next dev`/`next build` now load the repo-root `.env`.
-10. No `.DS_Store` cleanup; it is ignored but present under `apps/` and `docs/`.
+4. `postComment` now supports one-level replies; verify the server re-parenting when replying to a reply (the UI only exposes Reply on top-level comments).
+5. Front-matter `model:` now preselects the Base model in the form; unknown values are ignored with a prompt to choose.
+6. A worker crash between `calling` and a terminal Run status leaves that Run stranded; re-enqueueing non-terminal Runs from Postgres (BACKEND.md §5) is not implemented yet.
+7. The `db:*` scripts, the worker and `next dev`/`next build` now load the repo-root `.env`.
+8. No `.DS_Store` cleanup; it is ignored but present under `apps/` and `docs/`.
 
 ---
 
 ## 5. Suggested next order
 
-1. Docker Compose and the one-command local stack (ticket 05).
-2. M2: auth, admin, add-model UI, edit/delete UI, notifications, pagination.
+1. M2 auth (ticket 07), then notifications, add-model UI, edit/delete UI and admin.
+2. Accessibility and fidelity audit (ticket 17) once those affordances land.
 
 ---
 

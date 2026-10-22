@@ -40,12 +40,15 @@ export function ComparisonCardView({
   className,
   animation,
   preview = true,
+  now,
 }: {
   card: CardData;
   href?: string;
   className?: string;
   animation?: 'a' | 'b';
   preview?: boolean;
+  /** Shared clock so relative times refresh without per-card timers. */
+  now?: number;
 }) {
   const [base, challenger, ...rest] = card.models;
   const effortLabel = ['Low', 'Med', 'High'][Math.max(0, Math.min(2, card.effort - 1))];
@@ -114,7 +117,7 @@ export function ComparisonCardView({
         <Avatar handle={card.author.handle} size={14} />
         <span className="text-neutral-300">@{card.author.handle}</span>
         <span>·</span>
-        <span>{relativeTime(card.publishedAt)}</span>
+        <span>{relativeTime(card.publishedAt, now)}</span>
       </div>
     </>
   );

@@ -33,7 +33,8 @@ export function decodeCursor(cursor: string): CursorPayload {
       typeof parsed.id !== 'string' ||
       typeof parsed.createdAt !== 'string' ||
       !(parsed.publishedAt === null || typeof parsed.publishedAt === 'string') ||
-      (parsed.score !== undefined && typeof parsed.score !== 'number')
+      (parsed.score !== undefined && typeof parsed.score !== 'number') ||
+      (parsed.sort === 'top' && typeof parsed.score !== 'number')
     ) {
       throw new CursorError();
     }

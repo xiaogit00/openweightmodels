@@ -1,5 +1,12 @@
-import { CATEGORIES, createComparison, decodeUtf8, listComparisons, validateFileSize } from '@owm/core';
-import type { Sort } from '@owm/core';
+import {
+  BOARD_PAGE_SIZE,
+  CATEGORIES,
+  createComparison,
+  decodeUtf8,
+  listComparisons,
+  parseBoardFilters,
+  validateFileSize,
+} from '@owm/core';
 import { apiError, json } from '@/lib/api';
 import { requireUser } from '@/lib/auth';
 
@@ -9,18 +16,16 @@ export const runtime = 'nodejs';
 export async function GET(request: Request) {
   try {
     const params = new URL(request.url).searchParams;
-    const sortRaw = params.get('sort');
-    const sort: Sort = sortRaw === 'top' || sortRaw === 'new' ? sortRaw : 'live';
-    const effort = params.get('effort') ? Number(params.get('effort')) : null;
+    const filters = parseBoardFilters(params);
+    const limitParam = params.get('limit');
+    const requestedLimit = Number(limitParam);
+    const limit =
+      limitParam && Number.isFinite(requestedLimit) ? requestedLimit : BOARD_PAGE_SIZE;
 
     const result = await listComparisons({
-      cat: params.get('cat'),
-      models: (params.get('models') ?? '').split(',').filter(Boolean),
-      effort: effort && [1, 2, 3].includes(effort) ? effort : null,
-      q: params.get('q'),
-      sort,
+      ...filters,
       cursor: params.get('cursor'),
-      limit: params.get('limit') ? Number(params.get('limit')) : 48,
+      limit,
     });
 
     return json(result);

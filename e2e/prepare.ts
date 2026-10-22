@@ -93,4 +93,7 @@ run('pnpm', ['--filter', '@owm/core', 'exec', 'tsx', 'src/db/migrate.ts'], env);
 console.log('[e2e] seeding deterministic data');
 run('pnpm', ['--filter', '@owm/core', 'exec', 'tsx', 'src/seed.ts'], env);
 
+console.log('[e2e] seeding Board pagination fixtures');
+run('pnpm', ['exec', 'tsx', 'e2e/seed-board.ts'], env);
+
 console.log(`[e2e] ready: ${databaseName}`);

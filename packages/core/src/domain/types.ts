@@ -92,6 +92,23 @@ export type BoardFilters = {
   sort: Sort;
 };
 
+/** One page of the Board, keyset-paginated by `nextCursor`. */
+export type BoardPage = {
+  items: ComparisonCard[];
+  total: number;
+  nextCursor: string | null;
+};
+
+/**
+ * Sidebar counts for the whole published Board, deliberately ignoring the
+ * reader's active filters. `total` is the number of published Comparisons.
+ */
+export type BoardFacets = {
+  categories: Record<string, number>;
+  models: Record<string, number>;
+  total: number;
+};
+
 export type JobRunState = {
   id: string;
   modelId: string;

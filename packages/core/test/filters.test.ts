@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addCardToFacets,
+  appendUniqueCards,
+  arrivalPlacement,
+  boardFiltersKey,
+  boardFiltersToSearchParams,
   categoryCounts,
+  emptyBoardFacets,
   filterCards,
+  matchesFilters,
   modelCounts,
+  parseBoardFilters,
   relativeTime,
   sortCards,
   topScore,
@@ -180,6 +188,127 @@ describe('sidebar counts', () => {
       'llama-3-3-70b': 1,
       'qwen-2-5-72b': 2,
       'gemma-2-27b': 1,
+    });
+  });
+});
+
+describe('matchesFilters', () => {
+  it('matches one card exactly as filterCards does', () => {
+    expect(matchesFilters(cards[0]!, noFilters)).toBe(true);
+    expect(matchesFilters(cards[0]!, { ...noFilters, cat: 'Reasoning' })).toBe(false);
+    expect(matchesFilters(cards[0]!, { ...noFilters, q: 'RATE' })).toBe(true);
+  });
+});
+
+describe('board URL state', () => {
+  it('parses valid filter state', () => {
+    const filters = parseBoardFilters(
+      new URLSearchParams(
+        'cat=Coding&models=qwen-2-5-72b,llama-3-3-70b&effort=3&sort=top&q=rate',
+      ),
+    );
+    expect(filters).toEqual({
+      cat: 'Coding',
+      models: ['qwen-2-5-72b', 'llama-3-3-70b'],
+      effort: 3,
+      sort: 'top',
+      q: 'rate',
+    });
+  });
+
+  it('falls back to defaults for unknown values', () => {
+    expect(
+      parseBoardFilters(new URLSearchParams('cat=Unknown&effort=9&sort=oldest')),
+    ).toEqual(noFilters);
+  });
+
+  it('deduplicates repeated Models', () => {
+    expect(
+      parseBoardFilters(new URLSearchParams('models=qwen,qwen,llama')).models,
+    ).toEqual(['qwen', 'llama']);
+  });
+
+  it('round-trips through the URL and omits defaults', () => {
+    const filters: BoardFilters = {
+      cat: 'Creative',
+      models: ['gemma-2-27b'],
+      effort: 2,
+      q: 'tides',
+      sort: 'new',
+    };
+    expect(parseBoardFilters(boardFiltersToSearchParams(filters))).toEqual(filters);
+    expect(boardFiltersToSearchParams(noFilters).toString()).toBe('');
+  });
+
+  it('treats model order and search padding as the same view', () => {
+    expect(
+      boardFiltersKey({ ...noFilters, models: ['a', 'b'], q: '  rate  ' }),
+    ).toBe(boardFiltersKey({ ...noFilters, models: ['b', 'a'], q: 'rate' }));
+    expect(boardFiltersKey({ ...noFilters, sort: 'top' })).not.toBe(
+      boardFiltersKey(noFilters),
+    );
+  });
+});
+
+describe('page merging', () => {
+  it('appends only unseen cards and keeps the existing order', () => {
+    const merged = appendUniqueCards([cards[0]!, cards[1]!], [cards[1]!, cards[2]!]);
+    expect(merged.map((item) => item.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('returns the same array when a page is entirely duplicate', () => {
+    const current = [cards[0]!];
+    expect(appendUniqueCards(current, [cards[0]!])).toBe(current);
+  });
+});
+
+describe('arrival placement', () => {
+  it('inserts a Live or New arrival near the top', () => {
+    expect(arrivalPlacement('live', 0)).toBe('insert');
+    expect(arrivalPlacement('live', 199)).toBe('insert');
+    expect(arrivalPlacement('new', 0)).toBe('insert');
+  });
+
+  it('queues an arrival once the reader has scrolled away', () => {
+    for (const sort of ['live', 'top', 'new'] as const) {
+      expect(arrivalPlacement(sort, 200)).toBe('queue');
+      expect(arrivalPlacement(sort, 2400)).toBe('queue');
+    }
+  });
+
+  it('always queues when the grid is Top sorted', () => {
+    expect(arrivalPlacement('top', 0)).toBe('queue');
+    expect(arrivalPlacement('top', 100)).toBe('queue');
+  });
+});
+
+describe('global facets', () => {
+  it('starts with a zero for every Category', () => {
+    const facets = emptyBoardFacets();
+    expect(facets.categories).toMatchObject({
+      Coding: 0,
+      Reasoning: 0,
+      Creative: 0,
+      Math: 0,
+      'Long-context': 0,
+      Language: 0,
+    });
+    expect(facets.total).toBe(0);
+  });
+
+  it('counts every Category and distinct Model on a new card once', () => {
+    const facets = addCardToFacets(
+      {
+        categories: { Coding: 1, Creative: 1 },
+        models: { 'llama-3-3-70b': 1 },
+        total: 1,
+      },
+      cards[2]!,
+    );
+    expect(facets).toEqual({
+      categories: { Coding: 1, Creative: 2, Language: 1 },
+      models: { 'llama-3-3-70b': 1, 'gemma-2-27b': 1 },
+      total: 2,
     });
   });
 });

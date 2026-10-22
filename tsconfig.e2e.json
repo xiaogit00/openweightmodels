@@ -1,7 +1,12 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "types": ["node"]
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@owm/core": ["packages/core/src/index.ts"],
+      "@owm/core/*": ["packages/core/src/*"]
+    }
   },
   "include": ["e2e/**/*.ts", "playwright.config.ts"]
 }

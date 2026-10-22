@@ -83,6 +83,12 @@ describe('keyset cursors', () => {
     );
   });
 
+  it('rejects a Top cursor without a score', () => {
+    expect(errorCode(() => decodeCursor(encoded({ ...live, sort: 'top' })))).toBe(
+      'invalid_cursor',
+    );
+  });
+
   it('rejects a payload that is not an object', () => {
     expect(errorCode(() => decodeCursor(encoded(null)))).toBe('invalid_cursor');
     expect(errorCode(() => decodeCursor(encoded([])))).toBe('invalid_cursor');

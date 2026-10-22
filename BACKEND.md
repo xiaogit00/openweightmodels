@@ -295,7 +295,8 @@ Status codes: `400`, `401`, `403`, `404`, `409`, `429`, `500`. Authorization fai
 
 | Method | Path | Notes |
 |---|---|---|
-| `GET` | `/comparisons` | published, non-deleted only |
+| `GET` | `/comparisons` | published, non-deleted only; keyset-paginated |
+| `GET` | `/comparisons/facets` | global Category/Model counts for the Board sidebar, ignoring active filters |
 | `GET` | `/comparisons/:id` | published public; draft author-only; otherwise `404` |
 | `POST` | `/comparisons` | multipart upload; creates comparison + base response + job; returns `{ id, jobId, title }` |
 | `PATCH` | `/comparisons/:id` | author; title/categories/effort only |
@@ -318,7 +319,15 @@ Ordering:
 - `new`: `created_at DESC, id DESC`
 - `top`: `(comment_count + 2 * annotation_count) DESC, published_at DESC, id DESC`
 
-Cursors are opaque base64url JSON containing the sort, ID, score and timestamps.
+Cursors are opaque base64url JSON containing the sort, ID, score and timestamps. A cursor minted for one sort is rejected by another. The Board requests the next page with the returned cursor and appends it; the first and subsequent pages both default to 48 items.
+
+`GET /comparisons/facets` returns counts over every published, non-deleted Comparison, independent of `cat`/`models`/`effort`/`q`:
+
+```json
+{ "categories": { "Coding": 12, "Reasoning": 8 }, "models": { "llama-3-3-70b": 9 }, "total": 80 }
+```
+
+The Board loads facets once per page, patches them from `comparison.published` SSE events, and refetches after a reconnect so the sidebar never counts only the loaded page.
 
 `POST /comparisons` multipart fields:
 

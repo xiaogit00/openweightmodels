@@ -155,7 +155,7 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 | # | Decision | Rationale |
 |---|---|---|
 | 68 | Board filters/sort/search live in the **URL**; back-button friendly | Shareable views. |
-| 69 | Arrivals queue unless within **200px of the top**, flushed by the existing pill | Prevents content jumping under a scrolled reader. |
+| 69 | Arrivals queue unless within **200px of the top**; Live/New insert there, Top always queues into the pill | Prevents content jumping under a scrolled reader without breaking Top order. |
 | 70 | Top scores update counts **in place**, never reorder live | Avoids a dancing grid. |
 | 71 | Infinite scroll with a **Load more** fallback; 48 per page | Accessible pagination. |
 | 72 | Ticker pauses on hover/focus; static under reduced motion; 30 events retained | Readability and accessibility. |
@@ -165,7 +165,9 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 | 76 | Filters combine **AND across groups, OR within the model list**; category is single-select; Effort active-toggle clears | Matches the prototype logic. |
 | 77 | Search is case-insensitive over **Comparison title and Model display names** only | Explicit scope; Prompt/Response body search is a future feature. |
 | 78 | Board Top score is `comment_count + 2 * annotation_count`; tie-break `published_at DESC, id DESC` | Handoff formula. |
-| 79 | "Ago" times refresh every minute | Handoff behaviour; not yet implemented (OPEN). |
+| 79 | "Ago" times refresh every minute | Handoff behaviour; the Board shares one minute tick across cards. |
+| 80 | Sidebar counts come from `GET /comparisons/facets`, loaded once and patched from publish events | Global counts must not shrink to the loaded page; a separate aggregate keeps page fetches cheap. |
+| 81 | A filter change refetches page one; `Load more` stays keyset-paginated | Filter/sort changes need the server's ordering, while scrolling must not re-read earlier pages. |
 
 **Rejected**: local-only filter state; always inserting at the top; live Top reordering; no pagination; autoplaying ticker with no pause; non-shareable tab state; OR-across-groups filtering; body/Prompt search in v1; ranking by raw votes.
 
@@ -224,7 +226,7 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 31. **Cost** is stored when the provider reports it; there is no cost display in v1.
 32. **Job notifications** are in-app only; the bell UI is not designed yet.
 33. **Email sandbox**: until SES production access, only verified addresses receive magic links.
-34. **Board counts** are computed from the loaded page in the current build; with pagination they must become global (OPEN).
+34. **Board counts** are global: the sidebar reads `GET /comparisons/facets`, not the loaded page.
 35. **Canonical URL** for a Comparison ignores `?model`, and Job pages are `noindex`.
 36. **Reduced motion** makes the ticker static and removes arrival/shimmer animations.
 
@@ -264,15 +266,15 @@ These are intentionally unresolved. Do not assume them.
 21. Annotation threads have no pagination; very long threads will scroll.
 
 ### Board and UI
-22. Infinite scroll/Load more is specified but **not implemented**; the current Board loads up to 100 Comparisons and filters client-side.
-23. Sidebar counts are computed from loaded items; with pagination they need a global counts endpoint.
+22. Resolved: infinite scroll with a Load more fallback pages the Board 48 at a time through an opaque cursor.
+23. Resolved: sidebar counts come from `GET /comparisons/facets`, so they stay global while pages load.
 24. The notification bell has no dropdown design.
 25. The kebab menu for editing/deleting Discussion content is not designed.
 26. The New Comparison form and Job summary exist; the Job page's live SSE updates, Retry/Skip and Publish are not yet built (see implementation status).
 27. Anonymous "Sign in to annotate/comment/vote" affordances are specified but not designed.
-28. "Ago" times are specified to refresh every minute; no timer is implemented yet.
-29. Loading skeletons and empty states are specified but not designed screen-by-screen.
-30. The Board live SSE effect currently reconnects on sort changes; a single stable subscription is preferred.
+28. Resolved: Board relative times share one timer and refresh every minute.
+29. The Board has explicit loading, error, empty and reduced-motion states; a screen-by-screen skeleton and accessibility audit remains ticket 17.
+30. Resolved: the Board keeps one SSE subscription across sort/filter changes, anchored with `after` and resuming from `Last-Event-ID`.
 
 ### Infrastructure and operations
 31. AWS region, domain, DNS, TLS, CI/CD, CDK stack layout, secret rotation and backup/restore drills are undecided.
@@ -311,7 +313,6 @@ Not M1 work, but required before public exposure:
 - No WebSockets.
 - No real provider execution in M1 (mock default; OpenRouter adapter is M3).
 - No model-registry CRUD UI in M1; SQL/migration only.
-- No infinite scroll/Load more implementation yet (specified for M2).
 - No CloudFront in front of SSE initially.
 - No WAF or edge rate limiting yet.
 
@@ -334,7 +335,7 @@ Not M1 work, but required before public exposure:
 **Tests**: Vitest for offsets, cursor, filters and upload parsing; integration for job transitions with the mock provider; Playwright for create → publish → read and annotate → thread.
 
 **M2**
-Full Board (infinite scroll/Load more, global counts, stable SSE effect), add-model UI, magic-link auth with handle onboarding, notification bell, minimal admin, edit/delete affordances for Discussion and annotations, pagination.
+Board pagination (infinite scroll/Load more, global counts, stable SSE effect) is done; remaining M2 work is add-model UI, magic-link auth with handle onboarding, the notification bell, minimal admin and edit/delete affordances for Discussion and annotations.
 
 **M3**
 Real OpenRouter execution, accessibility audit, AWS deployment, operational hardening.
