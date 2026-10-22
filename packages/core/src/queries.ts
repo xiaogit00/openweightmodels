@@ -30,6 +30,7 @@ import { summariseMarkdown } from './domain/upload';
 import type {
   AnnotationThreadMessage,
   AnnotationView,
+  CardModel,
   CommentView,
   ComparisonCard,
   JobRunState,
@@ -524,6 +525,8 @@ export type JobBundle = {
   job: JobRow;
   comparison: ComparisonRow;
   author: PublicUser;
+  baseModel: CardModel | null;
+  baseSnippet: string;
   runs: JobRunState[];
 };
 
@@ -552,11 +555,17 @@ export async function getJobForAuthor(
     .from(responses)
     .where(and(eq(responses.jobId, jobId), eq(responses.isBase, false)))
     .orderBy(responses.createdAt);
-  const modelIds = [...new Set(runRows.map((row) => row.modelId))];
-  const modelRows = modelIds.length
-    ? await db.select().from(models).where(inArray(models.id, modelIds))
-    : [];
+  const modelIds = [
+    ...new Set([comparison.baseModelId, ...runRows.map((row) => row.modelId)]),
+  ];
+  const modelRows = await db.select().from(models).where(inArray(models.id, modelIds));
   const modelMap = new Map(modelRows.map((row) => [row.id, row]));
+  const baseModelRow = modelMap.get(comparison.baseModelId);
+  const [baseResponse] = await db
+    .select()
+    .from(responses)
+    .where(and(eq(responses.comparisonId, comparison.id), eq(responses.isBase, true)))
+    .limit(1);
 
   return {
     job,
@@ -567,6 +576,15 @@ export async function getJobForAuthor(
       avatarUrl: null,
       image: null,
     },
+    baseModel: baseModelRow
+      ? {
+          id: baseModelRow.id,
+          slug: baseModelRow.slug,
+          name: baseModelRow.displayName,
+          monogram: baseModelRow.monogram,
+        }
+      : null,
+    baseSnippet: baseResponse ? snippet(baseResponse.contentMd) : '',
     runs: runRows.map((response) => {
       const model = modelMap.get(response.modelId);
       const progress =
@@ -593,6 +611,21 @@ export async function getJobForAuthor(
       };
     }),
   };
+}
+
+export async function getJobForComparisonForAuthor(
+  comparisonId: string,
+  viewerId: string | null,
+): Promise<JobBundle | null> {
+  if (!viewerId) return null;
+  const [job] = await getDb()
+    .select()
+    .from(jobs)
+    .where(eq(jobs.comparisonId, comparisonId))
+    .orderBy(desc(jobs.createdAt))
+    .limit(1);
+  if (!job) return null;
+  return getJobForAuthor(job.id, viewerId);
 }
 
 export async function getCardById(id: string): Promise<ComparisonCard | null> {

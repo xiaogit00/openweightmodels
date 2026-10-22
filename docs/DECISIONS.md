@@ -219,7 +219,7 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 26. **Provider timeout** is 120s; the error is stored and surfaced as "API timeout".
 27. **Mock failures** are opt-in via `MOCK_FAIL_ONCE=true` and optional `MOCK_FAIL_MODEL`.
 28. **Upload failures** are `400` with a specific code: unsupported type, too large, empty, binary, invalid UTF-8, invalid front matter, empty body, prompt/title limits.
-29. **Front-matter `model:`** is parsed but not yet used to preselect the Base model (OPEN).
+29. **Front-matter `model:`** is matched to a registry slug or display name to preselect the Base model. Unknown values are ignored with a prompt to choose.
 30. **Base output metadata** is uploaded, so token/latency values are synthetic or blank; the UI must not imply they were measured.
 31. **Cost** is stored when the provider reports it; there is no cost display in v1.
 32. **Job notifications** are in-app only; the bell UI is not designed yet.
@@ -268,7 +268,7 @@ These are intentionally unresolved. Do not assume them.
 23. Sidebar counts are computed from loaded items; with pagination they need a global counts endpoint.
 24. The notification bell has no dropdown design.
 25. The kebab menu for editing/deleting Discussion content is not designed.
-26. The Job page and New Comparison page are not yet built (see implementation status).
+26. The New Comparison form and Job summary exist; the Job page's live SSE updates, Retry/Skip and Publish are not yet built (see implementation status).
 27. Anonymous "Sign in to annotate/comment/vote" affordances are specified but not designed.
 28. "Ago" times are specified to refresh every minute; no timer is implemented yet.
 29. Loading skeletons and empty states are specified but not designed screen-by-screen.

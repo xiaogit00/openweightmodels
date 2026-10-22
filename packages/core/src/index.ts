@@ -5,6 +5,7 @@ export * from './domain/filters';
 export * from './domain/cursor';
 export * from './domain/upload';
 export * from './domain/markdown';
+export * from './domain/new-comparison';
 
 export * from './db/client';
 export * from './db/schema';

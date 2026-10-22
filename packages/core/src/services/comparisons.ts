@@ -8,6 +8,7 @@ import {
   responses,
 } from '../db/schema';
 import { CATEGORIES, type ComparisonCard } from '../domain/types';
+import { resolveMaxChallengers } from '../domain/new-comparison';
 import {
   estimateTokens,
   parseMarkdownUpload,
@@ -19,10 +20,6 @@ import { getCardById } from '../queries';
 import { enqueueRun, removeAutoSkip } from '../queue';
 import { conflict, forbidden, notFound, tooMany } from './errors';
 import { finalizeJob } from './jobs';
-
-function maxChallengers() {
-  return Number(process.env.MAX_CHALLENGERS ?? 4);
-}
 
 function clampEffort(value: number) {
   if (!Number.isInteger(value) || value < 1 || value > 3) {
@@ -105,14 +102,15 @@ export async function createComparison(
   const categories = normaliseCategories(input.categories);
   const effort = clampEffort(input.effort);
   const challengerIds = [...new Set(input.modelIds)];
+  const maxChallengers = resolveMaxChallengers(process.env.MAX_CHALLENGERS);
 
   if (!challengerIds.length) {
     throw conflict('no_challengers', 'Choose at least one model to compare against.');
   }
-  if (challengerIds.length > maxChallengers()) {
+  if (challengerIds.length > maxChallengers) {
     throw conflict(
       'too_many_challengers',
-      `You can compare against at most ${maxChallengers()} models.`,
+      `You can compare against at most ${maxChallengers} models.`,
     );
   }
   if (challengerIds.includes(input.baseModelId)) {
@@ -292,14 +290,15 @@ export async function addModelToComparison(
   const [model] = await db.select().from(models).where(eq(models.id, modelId)).limit(1);
   if (!model?.enabled) throw conflict('invalid_model', 'That model is not available.');
 
+  const maxChallengers = resolveMaxChallengers(process.env.MAX_CHALLENGERS);
   const [challengerCount] = await db
     .select({ total: count() })
     .from(responses)
     .where(and(eq(responses.comparisonId, comparisonId), eq(responses.isBase, false)));
-  if (Number(challengerCount?.total ?? 0) >= maxChallengers()) {
+  if (Number(challengerCount?.total ?? 0) >= maxChallengers) {
     throw conflict(
       'too_many_challengers',
-      `A comparison can hold at most ${maxChallengers()} challengers.`,
+      `A comparison can hold at most ${maxChallengers} challengers.`,
     );
   }
 

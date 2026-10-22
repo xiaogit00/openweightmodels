@@ -4,7 +4,7 @@ A forum where people publish side-by-side comparisons of open-weight model outpu
 
 This repository is the production-intended implementation of the design handoff in `design_handoff_openweightmodels/`. The `v2` HTML files are the visual source of truth; `designs/styles.css` is only the prototype's base sheet and its tokens are overridden by every v2 screen.
 
-**Status: Milestone 1 in progress.** The Board and Comparison screens, the backend API and the generation worker exist; the New Comparison page, Job page and Docker Compose are not built yet. See `docs/IMPLEMENTATION-STATUS.md` for an exact snapshot.
+**Status: Milestone 1 in progress.** The Board and Comparison screens, the New Comparison form, the author-only Job summary, the backend API and the generation worker exist. Live Job updates, Retry/Skip, Publish and Docker Compose are not built yet. See `docs/IMPLEMENTATION-STATUS.md` for an exact snapshot.
 
 ## Stack
 

@@ -101,6 +101,8 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 - `app/page.tsx` + `BoardClient`: sticky header, search with `/` shortcut, ticker, category/model/effort sidebar, sort tabs, active chips, queued-arrivals pill, responsive card grid, empty state, live SSE arrival animation.
 - `app/comparisons/[id]/page.tsx` + `ComparisonView`: meta row, prompt disclosure, sticky toolbar, annotation toggle and kind filters, base pane, Challenger tabs, markdown rendering, selection → Annotate → new Annotation popover, thread popover with votes/replies, Discussion composer/filters/replies/votes, Copy link.
+- `app/new/page.tsx` + `NewComparisonClient`: drag/drop upload with inline validation, front-matter prompt/title/model auto-fill, Base select, up to four Challenger tiles, Category/Effort controls, live "ON THE BOARD" draft preview, multipart submit and redirect to the Job summary.
+- `app/comparisons/[id]/job/page.tsx` + `JobSummary`: author-only snapshot with the four-stage strip, Base row, per-Run status/progress, ready panel and draft preview. Live SSE updates, Retry/Skip and Publish remain for ticket 03.
 - Shared components: logo, avatar, site header, Comparison card, markdown renderer.
 - Tailwind theme and component classes in `globals.css` (2px radii, lime tokens, danger token, reduced-motion rules).
 - Dev identity seam: `getCurrentUser()`; no real auth yet.
@@ -108,12 +110,12 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 ### Verification
 
 - `pnpm typecheck` — **passes** (core, web, worker).
-- `pnpm test` — **passes**: 6 core lifecycle tests and 3 worker dispatch/consumption tests.
+- `pnpm test` — **passes**: 7 core lifecycle tests, 16 New Comparison rule tests and 3 worker dispatch/consumption tests.
 - `pnpm db:migrate` — `0001_fuzzy_tag.sql` applied; re-running is a no-op.
 - `pnpm db:seed` — **passes**; counts above.
 - `pnpm dev:worker` — boots and logs `consuming owm-runs with concurrency 4`.
 - A real queue round-trip is covered by the worker integration test: enqueue → done → Job ready → one notification.
-- `pnpm build` — **not run yet**.
+- `pnpm build` — **passes**; `/new` and `/comparisons/[id]/job` are in the route manifest.
 
 ---
 
@@ -121,14 +123,10 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 ### Blocking the vertical slice
 
-1. **New Comparison page** — `app/new/page.tsx` + client form.
-   - Upload/drop zone, front-matter prompt/title auto-fill, base select, Challenger tiles (max 4), categories, effort.
-   - Sticky "ON THE BOARD" draft card preview.
-   - POST multipart and redirect to the Job page.
-2. **Job page** — `app/comparisons/[id]/job/page.tsx` + client view.
-   - 4-stage strip, per-Run rows/progress, Retry/Skip, ready banner, Publish.
+1. **Job page interactivity** — the summary is built, but not yet live.
    - SSE subscription to `/api/stream/jobs/:id`, reconnect/`Last-Event-ID`.
-3. **End-to-end smoke** — schedule with mock provider, watch SSE, ready, publish, Board arrival, open Comparison, annotate, comment, vote.
+   - Retry/Skip on failed rows, an in-place progress update and the ready banner's Publish action.
+2. **End-to-end smoke** — schedule with mock provider, watch SSE, ready, publish, Board arrival, open Comparison, annotate, comment, vote.
 
 ### Other missing pieces
 
@@ -158,18 +156,18 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 6. `BoardClient` holds up to 100 Comparisons and filters client-side. This is acceptable for M1 but contradicts the accepted pagination policy; fix in M2.
 7. The Board ticker reconnects whenever `sort` changes because the SSE effect depends on `sort`; it dedupes cards but can duplicate ticker lines. Refactor to a stable effect with a ref in M2.
 8. `postComment` now supports one-level replies; verify the server re-parenting when replying to a reply (the UI only exposes Reply on top-level comments).
-9. Front-matter `model:` is parsed but ignored; the form's `base_model_id` wins. Tracked as an open question.
-10. `getJobForAuthor`/job routes exist, but no UI consumes them yet.
+9. Front-matter `model:` now preselects the Base model in the form; unknown values are ignored with a prompt to choose.
+10. The Job summary consumes `getJobForComparisonForAuthor`; SSE, Retry/Skip and Publish are still missing (ticket 03).
 11. A worker crash between `calling` and a terminal Run status leaves that Run stranded; re-enqueueing non-terminal Runs from Postgres (BACKEND.md §5) is not implemented yet.
-12. The `db:*` scripts and the worker load the repo-root `.env`; `next dev` still needs its own verified env path.
+12. The `db:*` scripts, the worker and `next dev`/`next build` now load the repo-root `.env`.
 13. No `.DS_Store` cleanup; it is ignored but present under `apps/` and `docs/`.
 
 ---
 
 ## 5. Suggested next order
 
-1. New Comparison page + Job page.
-2. Full smoke test, then `pnpm build`.
+1. Job page live updates, Retry/Skip and Publish (ticket 03).
+2. Full smoke test of the create → publish → read journey.
 3. Docker Compose.
 4. Vitest offset/upload/cursor tests.
 5. Playwright happy path.
