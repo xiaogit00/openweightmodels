@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] A worker process starts from the documented development command and consumes the generation queue.
 - [ ] A queued Run calls the mock provider, persists streamed content, token count and latency, and reaches Done.

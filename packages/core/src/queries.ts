@@ -27,6 +27,7 @@ import {
 } from './db/schema';
 import { decodeCursor, encodeCursor, CursorError } from './domain/cursor';
 import { summariseMarkdown } from './domain/upload';
+import { runProgress } from './domain/types';
 import type {
   AnnotationThreadMessage,
   AnnotationView,
@@ -527,6 +528,7 @@ export type JobBundle = {
   author: PublicUser;
   baseModel: CardModel | null;
   baseSnippet: string;
+  challengerSnippet: string;
   runs: JobRunState[];
 };
 
@@ -585,18 +587,12 @@ export async function getJobForAuthor(
         }
       : null,
     baseSnippet: baseResponse ? snippet(baseResponse.contentMd) : '',
+    challengerSnippet: (() => {
+      const firstDone = runRows.find((row) => row.status === 'done');
+      return firstDone ? snippet(firstDone.contentMd) : '';
+    })(),
     runs: runRows.map((response) => {
       const model = modelMap.get(response.modelId);
-      const progress =
-        response.status === 'done' || response.status === 'skipped'
-          ? 100
-          : response.status === 'streaming'
-            ? Math.min(95, Math.max(6, Math.round((response.tokens / 900) * 100)))
-            : response.status === 'failed'
-              ? 45
-              : response.status === 'calling'
-                ? 6
-                : 0;
       return {
         id: response.id,
         modelId: response.modelId,
@@ -607,7 +603,7 @@ export async function getJobForAuthor(
         latencyMs: response.latencyMs,
         error: response.error,
         attempt: response.attempt,
-        progress,
+        progress: runProgress(response.status, response.tokens),
       };
     }),
   };

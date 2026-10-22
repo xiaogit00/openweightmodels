@@ -19,7 +19,7 @@ import { logActivity, logJobEvent } from '../events';
 import { getCardById } from '../queries';
 import { enqueueRun, removeAutoSkip } from '../queue';
 import { conflict, forbidden, notFound, tooMany } from './errors';
-import { finalizeJob } from './jobs';
+import { finalizeJob, recordRunStatus } from './jobs';
 
 function clampEffort(value: number) {
   if (!Number.isInteger(value) || value < 1 || value > 3) {
@@ -189,7 +189,6 @@ export async function createComparison(
 
 export async function publishComparison(id: string, userId: string): Promise<ComparisonCard> {
   const db = getDb();
-  const existing = await getCardById(id);
   const [row] = await db
     .select()
     .from(comparisons)
@@ -199,8 +198,9 @@ export async function publishComparison(id: string, userId: string): Promise<Com
   if (!row) throw notFound('Comparison not found.');
   if (row.authorId !== userId) throw forbidden('Only the author can publish this comparison.');
   if (row.status === 'published') {
-    if (!existing) throw notFound('Comparison not found.');
-    return existing;
+    const card = await getCardById(id);
+    if (!card) throw notFound('Comparison not found.');
+    return card;
   }
   if (row.status !== 'ready') {
     throw conflict('not_ready', 'Wait until every response has finished or been skipped.');
@@ -221,10 +221,27 @@ export async function publishComparison(id: string, userId: string): Promise<Com
     throw conflict('no_done_responses', 'At least one challenger response is required.');
   }
 
-  await db
+  const [published] = await db
     .update(comparisons)
     .set({ status: 'published', publishedAt: new Date() })
-    .where(eq(comparisons.id, id));
+    .where(and(eq(comparisons.id, id), eq(comparisons.status, 'ready')))
+    .returning({ id: comparisons.id });
+
+  if (!published) {
+    // Another publish won the race. Treat it as success only if it really
+    // published; never report a half-applied transition as done.
+    const current = await getCardById(id);
+    const [latest] = await db
+      .select({ status: comparisons.status })
+      .from(comparisons)
+      .where(eq(comparisons.id, id))
+      .limit(1);
+    if (latest?.status === 'published') {
+      if (!current) throw notFound('Comparison not found.');
+      return current;
+    }
+    throw conflict('not_ready', 'Wait until every response has finished or been skipped.');
+  }
 
   const card = await getCardById(id);
   if (!card) throw notFound('Comparison not found.');
@@ -364,6 +381,13 @@ export async function retryRun(responseId: string, userId: string) {
       .where(eq(comparisons.id, comparison.id));
   }
 
+  if (response.jobId) {
+    await recordRunStatus(response, 'queued', {
+      tokens: 0,
+      attempt: response.attempt + 1,
+    });
+  }
+
   // A second failure should get a fresh 24-hour window, not inherit the
   // timer from the attempt that just failed.
   await enqueueRun(responseId);
@@ -388,7 +412,10 @@ export async function skipRun(responseId: string, userId: string) {
     .set({ status: 'skipped', finishedAt: new Date(), error: null })
     .where(eq(responses.id, responseId));
 
-  if (response.jobId) await finalizeJob(response.jobId);
+  if (response.jobId) {
+    await recordRunStatus(response, 'skipped');
+    await finalizeJob(response.jobId);
+  }
 }
 
 export async function requireOwnedComparison(id: string, userId: string) {

@@ -138,6 +138,15 @@ describe.skipIf(!available)('run lifecycle', () => {
       const queued = await getJobForAuthor(fixture.jobId, fixture.userId);
       expect(queued?.runs[0]).toMatchObject({ status: 'queued', attempt: 1, error: null });
 
+      const retryEvents = await jobEventsAfter(fixture.jobId, 0);
+      expect(
+        retryEvents.some(
+          (event) =>
+            event.responseId === fixture.runIds[0] &&
+            (event.payload as { status?: string }).status === 'queued',
+        ),
+      ).toBe(true);
+
       await processRun(fixture.runIds[0]!);
 
       const done = await getJobForAuthor(fixture.jobId, fixture.userId);
@@ -169,6 +178,14 @@ describe.skipIf(!available)('run lifecycle', () => {
       expect(bundle?.runs[0]?.status).toBe('skipped');
       expect(bundle?.job.status).toBe('ready');
       expect(bundle?.comparison.status).toBe('ready');
+      const events = await jobEventsAfter(fixture.jobId, 0);
+      expect(
+        events.some(
+          (event) =>
+            event.responseId === fixture.runIds[0] &&
+            (event.payload as { status?: string }).status === 'skipped',
+        ),
+      ).toBe(true);
       expect(
         (await getNotifications(fixture.userId)).filter((n) => n.kind === 'job.ready'),
       ).toHaveLength(1);

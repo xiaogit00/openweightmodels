@@ -204,7 +204,7 @@ Append-only per-Job replay log for the Job SSE stream.
 | `job_id` | uuid FK jobs | |
 | `response_id` | uuid null | |
 | `kind` | text | `job.scheduled`, `response.status`, `job.ready` |
-| `payload` | jsonb | status, tokens, latency, error |
+| `payload` | jsonb | status, tokens, latency, error, attempt; plus `modelName` where known |
 | `created_at` | timestamptz | |
 
 ### `notifications`
@@ -252,6 +252,7 @@ queued → calling → streaming → done
 
 - A retry increments `attempt` and reuses the same Response row.
 - `skip` is allowed only from `failed` or `queued`; it sets `skipped` and finalises the Job.
+- Retry and Skip emit a `response.status` Job event (`queued` / `skipped`) so open Job pages update in place; the worker's next `calling` event follows normally.
 - A 24-hour delayed BullMQ job (the default; `AUTO_SKIP_DELAY_MS`) auto-skips a Run that is still `failed`. The timer is scoped to the attempt, so a retry gets a fresh window.
 - A Job is `ready` when every Run belonging to it is `done` or `skipped`.
 
@@ -335,7 +336,7 @@ Cursors are opaque base64url JSON containing the sort, ID, score and timestamps.
 |---|---|---|
 | `POST` | `/responses/:id/retry` | author; failed only |
 | `POST` | `/responses/:id/skip` | author; failed/queued only; finalises the Job |
-| `GET` | `/jobs/:id` | author-only; job + Comparison + Base model/snippet + Runs |
+| `GET` | `/jobs/:id` | author-only; job + Comparison + Base model/snippet + first Challenger snippet + Runs |
 | `GET` | `/stream/jobs/:id` | author-only SSE |
 
 ### Annotations

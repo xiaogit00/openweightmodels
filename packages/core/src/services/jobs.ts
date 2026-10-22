@@ -11,6 +11,7 @@ import {
 import { logActivity, logJobEvent } from '../events';
 import { getProvider } from '../providers';
 import { enqueueAutoSkip } from '../queue';
+import type { ResponseStatus } from '../domain/types';
 
 function errorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -18,6 +19,37 @@ function errorMessage(error: unknown) {
     return error.message.slice(0, 1000);
   }
   return 'Unknown provider error';
+}
+
+type RunForEvent = {
+  id: string;
+  jobId: string | null;
+  modelId: string;
+  tokens: number;
+};
+
+/**
+ * Persist and publish a Run status change. Every transition the Job page can
+ * see goes through here, so the payload shape stays consistent.
+ */
+export async function recordRunStatus(
+  response: RunForEvent,
+  status: ResponseStatus,
+  extra: Record<string, unknown> = {},
+) {
+  if (!response.jobId) return;
+  await logJobEvent({
+    jobId: response.jobId,
+    responseId: response.id,
+    kind: 'response.status',
+    payload: {
+      responseId: response.id,
+      modelId: response.modelId,
+      status,
+      tokens: response.tokens,
+      ...extra,
+    },
+  });
 }
 
 export async function processRun(responseId: string) {
@@ -81,17 +113,9 @@ export async function processRun(responseId: string) {
   }
 
   if (response.jobId) {
-    await logJobEvent({
-      jobId: response.jobId,
-      responseId,
-      kind: 'response.status',
-      payload: {
-        responseId,
-        modelId: response.modelId,
-        modelName: model.displayName,
-        status: 'calling',
-        tokens: 0,
-      },
+    await recordRunStatus(response, 'calling', {
+      modelName: model.displayName,
+      tokens: 0,
     });
   }
 
@@ -119,17 +143,9 @@ export async function processRun(responseId: string) {
           .where(eq(responses.id, responseId));
 
         if (response.jobId) {
-          await logJobEvent({
-            jobId: response.jobId,
-            responseId,
-            kind: 'response.status',
-            payload: {
-              responseId,
-              modelId: response.modelId,
-              modelName: model.displayName,
-              status: 'streaming',
-              tokens,
-            },
+          await recordRunStatus(response, 'streaming', {
+            modelName: model.displayName,
+            tokens,
           });
         }
       },
@@ -150,18 +166,10 @@ export async function processRun(responseId: string) {
       .where(eq(responses.id, responseId));
 
     if (response.jobId) {
-      await logJobEvent({
-        jobId: response.jobId,
-        responseId,
-        kind: 'response.status',
-        payload: {
-          responseId,
-          modelId: response.modelId,
-          modelName: model.displayName,
-          status: 'done',
-          tokens: result.tokens,
-          latencyMs,
-        },
+      await recordRunStatus(response, 'done', {
+        modelName: model.displayName,
+        tokens: result.tokens,
+        latencyMs,
       });
     }
   } catch (error) {
@@ -179,19 +187,11 @@ export async function processRun(responseId: string) {
       .where(eq(responses.id, responseId));
 
     if (response.jobId) {
-      await logJobEvent({
-        jobId: response.jobId,
-        responseId,
-        kind: 'response.status',
-        payload: {
-          responseId,
-          modelId: response.modelId,
-          modelName: model.displayName,
-          status: 'failed',
-          tokens,
-          latencyMs,
-          error: message,
-        },
+      await recordRunStatus(response, 'failed', {
+        modelName: model.displayName,
+        tokens,
+        latencyMs,
+        error: message,
       });
       await enqueueAutoSkip(responseId, response.attempt);
     }
@@ -298,5 +298,8 @@ export async function autoSkipRun(responseId: string) {
     .set({ status: 'skipped', error: null, finishedAt: new Date() })
     .where(eq(responses.id, responseId));
 
-  if (response.jobId) await finalizeJob(response.jobId);
+  if (response.jobId) {
+    await recordRunStatus(response, 'skipped');
+    await finalizeJob(response.jobId);
+  }
 }

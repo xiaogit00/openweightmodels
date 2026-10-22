@@ -102,7 +102,7 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 - `app/page.tsx` + `BoardClient`: sticky header, search with `/` shortcut, ticker, category/model/effort sidebar, sort tabs, active chips, queued-arrivals pill, responsive card grid, empty state, live SSE arrival animation.
 - `app/comparisons/[id]/page.tsx` + `ComparisonView`: meta row, prompt disclosure, sticky toolbar, annotation toggle and kind filters, base pane, Challenger tabs, markdown rendering, selection → Annotate → new Annotation popover, thread popover with votes/replies, Discussion composer/filters/replies/votes, Copy link.
 - `app/new/page.tsx` + `NewComparisonClient`: drag/drop upload with inline validation, front-matter prompt/title/model auto-fill, Base select, up to four Challenger tiles, Category/Effort controls, live "ON THE BOARD" draft preview, multipart submit and redirect to the Job summary.
-- `app/comparisons/[id]/job/page.tsx` + `JobSummary`: author-only snapshot with the four-stage strip, Base row, per-Run status/progress, ready panel and draft preview. Live SSE updates, Retry/Skip and Publish remain for ticket 03.
+- `app/comparisons/[id]/job/page.tsx` + `JobSummary`: author-only Job page. Subscribes to `/api/stream/jobs/:id`, applies `response.status` events in place, resyncs after a reconnect, shows Live/Connecting/Reconnecting, Retry/Skip on failed rows, the four-stage strip, per-Run progress and the ready banner with Publish/Review. Publishes atomically and navigates to the Comparison.
 - Shared components: logo, avatar, site header, Comparison card, markdown renderer.
 - Tailwind theme and component classes in `globals.css` (2px radii, lime tokens, danger token, reduced-motion rules).
 - Dev identity seam: `getCurrentUser()`; no real auth yet.
@@ -110,12 +110,12 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 ### Verification
 
 - `pnpm typecheck` — **passes** (core, web, worker).
-- `pnpm test` — **passes**: 7 core lifecycle tests, 16 New Comparison rule tests and 3 worker dispatch/consumption tests.
+- `pnpm test` — **passes**: 28 core tests (run lifecycle, job events, publish/visibility, New Comparison rules) and 3 worker dispatch/consumption tests.
 - `pnpm db:migrate` — `0001_fuzzy_tag.sql` applied; re-running is a no-op.
 - `pnpm db:seed` — **passes**; counts above.
 - `pnpm dev:worker` — boots and logs `consuming owm-runs with concurrency 4`.
 - A real queue round-trip is covered by the worker integration test: enqueue → done → Job ready → one notification.
-- `pnpm build` — **passes**; `/new` and `/comparisons/[id]/job` are in the route manifest.
+- `pnpm build` — **passes**; `/new` and `/comparisons/[id]/job` are in the route manifest. The Job page is now a client component that renders `SiteHeader`, so the earlier `@phosphor-icons/react/dist/ssr` risk is verified by the build; `next.config.ts`'s `experimental.serverActions` also compiles on Next 16.4.2.
 
 ---
 
@@ -123,17 +123,13 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 ### Blocking the vertical slice
 
-1. **Job page interactivity** — the summary is built, but not yet live.
-   - SSE subscription to `/api/stream/jobs/:id`, reconnect/`Last-Event-ID`.
-   - Retry/Skip on failed rows, an in-place progress update and the ready banner's Publish action.
-2. **End-to-end smoke** — schedule with mock provider, watch SSE, ready, publish, Board arrival, open Comparison, annotate, comment, vote.
+1. **Annotation and discussion smoke** — the create → live Job → publish → Board → anonymous Comparison read path is smoke-tested. Annotate → thread → comment → vote still needs an end-to-end pass.
 
 ### Other missing pieces
 
 - Docker Compose + Dockerfiles (`web`, `worker`, Postgres, Redis, Mailpit) — package scripts assume it.
 - Vitest unit tests for offsets, cursor, filters, upload parsing, votes/self-vote.
 - Playwright create → publish → read and annotate → thread.
-- `next build` verification and any Next 16 config fixes.
 - Admin UI (model enable/disable, takedown).
 - Better Auth magic-link integration + auth tables + handle onboarding.
 - Notification bell UI (API exists).
@@ -151,27 +147,23 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 1. **Client/server imports**: client components must import from `@owm/core/client` (pure domain only). Server components/routes import `@owm/core`. Do not import `@owm/core` from a client component or `postgres`/`ioredis` enters the browser bundle.
 2. `packages/core/src/services/votes.ts` has a stray `voteTargetTables` export and an unused `annotationMessages` import. Harmless; remove.
 3. `packages/core/src/services/comparisons.ts` has an unused `sql` import and a stray `comparisonSql` export. Harmless; remove.
-4. `apps/web/src/components/site-header.tsx` imports icons from `@phosphor-icons/react/dist/ssr`; verify in `next build` when the header is pulled into a client component. If it fails, use the main package.
-5. `next.config.ts` uses `experimental.serverActions.bodySizeLimit`; verify against Next 16.4.2 during build.
-6. `BoardClient` holds up to 100 Comparisons and filters client-side. This is acceptable for M1 but contradicts the accepted pagination policy; fix in M2.
-7. The Board ticker reconnects whenever `sort` changes because the SSE effect depends on `sort`; it dedupes cards but can duplicate ticker lines. Refactor to a stable effect with a ref in M2.
-8. `postComment` now supports one-level replies; verify the server re-parenting when replying to a reply (the UI only exposes Reply on top-level comments).
-9. Front-matter `model:` now preselects the Base model in the form; unknown values are ignored with a prompt to choose.
-10. The Job summary consumes `getJobForComparisonForAuthor`; SSE, Retry/Skip and Publish are still missing (ticket 03).
-11. A worker crash between `calling` and a terminal Run status leaves that Run stranded; re-enqueueing non-terminal Runs from Postgres (BACKEND.md §5) is not implemented yet.
-12. The `db:*` scripts, the worker and `next dev`/`next build` now load the repo-root `.env`.
-13. No `.DS_Store` cleanup; it is ignored but present under `apps/` and `docs/`.
+4. `BoardClient` holds up to 100 Comparisons and filters client-side. This is acceptable for M1 but contradicts the accepted pagination policy; fix in M2.
+5. The Board ticker reconnects whenever `sort` changes because the SSE effect depends on `sort`; it dedupes cards but can duplicate ticker lines. Refactor to a stable effect with a ref in M2.
+6. `postComment` now supports one-level replies; verify the server re-parenting when replying to a reply (the UI only exposes Reply on top-level comments).
+7. Front-matter `model:` now preselects the Base model in the form; unknown values are ignored with a prompt to choose.
+8. A worker crash between `calling` and a terminal Run status leaves that Run stranded; re-enqueueing non-terminal Runs from Postgres (BACKEND.md §5) is not implemented yet.
+9. The `db:*` scripts, the worker and `next dev`/`next build` now load the repo-root `.env`.
+10. No `.DS_Store` cleanup; it is ignored but present under `apps/` and `docs/`.
 
 ---
 
 ## 5. Suggested next order
 
-1. Job page live updates, Retry/Skip and Publish (ticket 03).
-2. Full smoke test of the create → publish → read journey.
-3. Docker Compose.
-4. Vitest offset/upload/cursor tests.
-5. Playwright happy path.
-6. M2: auth, admin, add-model UI, edit/delete UI, notifications, pagination.
+1. Full smoke test of the annotate → thread → comment → vote half of the journey (ticket 04).
+2. Docker Compose.
+3. Vitest offset/upload/cursor tests.
+4. Playwright happy path.
+5. M2: auth, admin, add-model UI, edit/delete UI, notifications, pagination.
 
 ---
 

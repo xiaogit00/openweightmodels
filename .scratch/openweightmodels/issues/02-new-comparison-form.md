@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] Drag-and-drop or browse accepts `.md`, `.markdown` and `.txt` up to 1 MB and rejects invalid type, size, encoding or empty body with a specific inline error.
 - [x] Prompt auto-fills from YAML front matter and title auto-fills from the sample or filename; both remain editable.

@@ -105,6 +105,18 @@ export type JobRunState = {
   progress: number;
 };
 
+/**
+ * Progress shown on the Job page. Shared by the server snapshot and the live
+ * SSE updates so a reconnecting client never jumps backwards.
+ */
+export function runProgress(status: ResponseStatus, tokens: number): number {
+  if (status === 'done' || status === 'skipped') return 100;
+  if (status === 'streaming') return Math.min(95, Math.max(6, Math.round((tokens / 900) * 100)));
+  if (status === 'failed') return 45;
+  if (status === 'calling') return 6;
+  return 0;
+}
+
 export type PublicUser = {
   id: string;
   handle: string;
