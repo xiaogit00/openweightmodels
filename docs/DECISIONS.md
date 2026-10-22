@@ -68,7 +68,7 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 |---|---|---|
 | 27 | **Postgres is canonical**; Redis is transport/pub-sub only | Job state, retries, visibility and 24h auto-skip all need transactional queries. |
 | 28 | **BullMQ**, one queue job per **Run** | Retry/skip act on one unit; no long-lived worker fan-out. |
-| 29 | A delayed BullMQ job auto-skips a still-failed Run after 24h | Bounds orphaned Jobs. |
+| 29 | A delayed BullMQ job auto-skips a still-failed Run after 24h (`AUTO_SKIP_DELAY_MS`) | Bounds orphaned Jobs. |
 | 30 | **UUIDv7** primary keys; Model **slugs** in filters/pickers; Comparison URLs use UUIDs | Time-ordered, non-enumerable, stable model identifiers. |
 | 31 | Opaque **keyset cursors**; `total` in the list response | Correct pagination under live inserts; tolerate scale before a separate count endpoint. |
 | 32 | **Votes table is the only truth**; remove `votes int` from comments/annotations | Two writers would drift; per-user toggle needs rows. Only Board counters are denormalised. |
@@ -78,6 +78,8 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 | 36 | Identical generation params across Challengers: temperature 0.7, max_tokens 4096, 120s timeout | Fair comparisons. |
 | 37 | **Cost tracking**: `responses.cost_usd`, nullable | Production spend must be observable even without billing. |
 | 38 | Quotas: 10 Jobs/hour, 50 Runs/day, 4 concurrent provider calls, 4 Challengers | Bounds abuse and spend; env-configurable. |
+| 39 | Auto-skip jobs are **attempt-scoped**, and `queued → calling` is an atomic claim | A retry gets a fresh 24h window; a duplicate delivery cannot call the provider twice. |
+| 40 | `job.ready` is unique per Author per Job via a partial unique index | Concurrent finalisation must not create duplicate notifications. |
 | 39 | Duplicate model runs in one Comparison are rejected by a unique index | Prevents accidental double spend and ambiguous tabs. |
 
 **Rejected**: Redis as source of truth; one BullMQ job per Comparison; Postgres-only `pg-boss` queue; serial IDs; slug-based Comparison URLs; offset pagination; integer vote columns as truth; one hard-coded provider; per-model generation params; billing/credits in v1; unlimited generations.

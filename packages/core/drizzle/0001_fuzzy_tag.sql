@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "notifications_job_ready_unique" ON "notifications" USING btree ("user_id","kind",("payload"->>'jobId')) WHERE "notifications"."kind" = 'job.ready';

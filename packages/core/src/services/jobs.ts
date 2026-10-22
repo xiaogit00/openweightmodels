@@ -28,7 +28,7 @@ export async function processRun(responseId: string) {
     .where(eq(responses.id, responseId))
     .limit(1);
 
-  if (!response || response.isBase || response.status !== 'queued') return;
+  if (!response || response.isBase) return;
 
   const [comparison] = await db
     .select()
@@ -46,10 +46,22 @@ export async function processRun(responseId: string) {
     await db
       .update(responses)
       .set({ status: 'failed', error: 'Unknown model', finishedAt: new Date() })
-      .where(eq(responses.id, responseId));
-    if (response.jobId) await finalizeJob(response.jobId);
+      .where(and(eq(responses.id, responseId), eq(responses.status, 'queued')));
+    if (response.jobId) {
+      await enqueueAutoSkip(responseId, response.attempt);
+      await finalizeJob(response.jobId);
+    }
     return;
   }
+
+  // Claim the Run atomically: two workers holding the same BullMQ job (or a
+  // retry racing the previous attempt) must not both call the provider.
+  const [claimed] = await db
+    .update(responses)
+    .set({ status: 'calling', error: null })
+    .where(and(eq(responses.id, responseId), eq(responses.status, 'queued')))
+    .returning({ id: responses.id });
+  if (!claimed) return;
 
   if (response.jobId) {
     await db
@@ -68,11 +80,6 @@ export async function processRun(responseId: string) {
       .where(eq(comparisons.id, comparison.id));
   }
 
-  await db
-    .update(responses)
-    .set({ status: 'calling', error: null })
-    .where(eq(responses.id, responseId));
-
   if (response.jobId) {
     await logJobEvent({
       jobId: response.jobId,
@@ -88,13 +95,13 @@ export async function processRun(responseId: string) {
     });
   }
 
-  const provider = getProvider(model);
   const startedAt = Date.now();
   let text = '';
   let tokens = 0;
   let lastUpdate = 0;
 
   try {
+    const provider = getProvider(model);
     const result = await provider.generate({
       model,
       prompt: comparison.prompt,
@@ -186,7 +193,7 @@ export async function processRun(responseId: string) {
           error: message,
         },
       });
-      await enqueueAutoSkip(responseId);
+      await enqueueAutoSkip(responseId, response.attempt);
     }
   } finally {
     if (response.jobId) await finalizeJob(response.jobId);
@@ -234,11 +241,16 @@ export async function finalizeJob(jobId: string) {
     }
 
     if (comparison) {
-      await tx.insert(notifications).values({
-        userId: comparison.authorId,
-        kind: 'job.ready',
-        payload: { jobId, comparisonId: comparison.id },
-      });
+      await tx
+        .insert(notifications)
+        .values({
+          userId: comparison.authorId,
+          kind: 'job.ready',
+          payload: { jobId, comparisonId: comparison.id },
+        })
+        // Backed by notifications_job_ready_unique: the only unique constraint
+        // this insert can hit.
+        .onConflictDoNothing();
     }
 
     return { comparison, runs };

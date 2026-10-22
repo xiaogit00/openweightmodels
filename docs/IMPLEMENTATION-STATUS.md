@@ -10,7 +10,7 @@ Snapshot for resuming work after a context clear. `BACKEND.md` is the contract; 
 - **No Docker CLI on this machine.** Local services were installed with Homebrew:
   - PostgreSQL **17.11** (`brew services start postgresql@17`)
   - Redis **8.10** (`brew services start redis`)
-- Database `openweightmodels` exists; migration `0000_marvelous_paladin.sql` is applied.
+- Database `openweightmodels` exists; migrations `0000_marvelous_paladin.sql` and `0001_fuzzy_tag.sql` are applied.
 - `.env` is present locally and ignored by git:
   - `DATABASE_URL=postgres://localhost:5432/openweightmodels`
   - `REDIS_URL=redis://localhost:6379`
@@ -25,8 +25,8 @@ brew services start postgresql@17
 brew services start redis
 pnpm db:migrate
 pnpm db:seed
-pnpm dev:web          # http://localhost:3000
-# worker entrypoint is not written yet, so jobs will stay queued
+pnpm dev              # web on :3000 and the generation worker
+# or separately: pnpm dev:web / pnpm dev:worker
 ```
 
 The seeded dev identity defaults to `@mira` via `DEV_DEFAULT_USER`; `POST /api/dev/user { "handle": "kev" }` switches it in development.
@@ -40,7 +40,7 @@ The seeded dev identity defaults to `@mira` via `DEV_DEFAULT_USER`; `POST /api/d
 ```
 package.json, pnpm-workspace.yaml, tsconfig.base.json, .env.example
 apps/web       Next.js 16.4.2, React 19.3.1, Tailwind 4.3.3
-apps/worker    BullMQ consumer package (entrypoint missing)
+apps/worker    BullMQ consumer: run + auto-skip handlers, graceful shutdown
 packages/core  Drizzle schema, domain, queries, providers, services, seed
 docs/          ADRs + decision log + this file
 GLOSSARY.md, BACKEND.md
@@ -107,12 +107,13 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 ### Verification
 
-- `pnpm --filter @owm/core typecheck` — **passes**.
-- `pnpm --filter @owm/web typecheck` — **passes**.
+- `pnpm typecheck` — **passes** (core, web, worker).
+- `pnpm test` — **passes**: 6 core lifecycle tests and 3 worker dispatch/consumption tests.
+- `pnpm db:migrate` — `0001_fuzzy_tag.sql` applied; re-running is a no-op.
 - `pnpm db:seed` — **passes**; counts above.
+- `pnpm dev:worker` — boots and logs `consuming owm-runs with concurrency 4`.
+- A real queue round-trip is covered by the worker integration test: enqueue → done → Job ready → one notification.
 - `pnpm build` — **not run yet**.
-- No tests written yet.
-- No end-to-end run yet (worker missing).
 
 ---
 
@@ -120,25 +121,19 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 ### Blocking the vertical slice
 
-1. **Worker entrypoint** — `apps/worker/src/index.ts` does not exist.
-   - Needs a BullMQ `Worker` for queue `owm-runs`.
-   - Handles `run` with `processRun(responseId)` and `auto-skip` with `autoSkipRun(responseId)`.
-   - Needs `dotenv/config`, Redis connection, concurrency `PROVIDER_CONCURRENCY`, graceful shutdown.
-   - Without it, scheduling a Comparison creates queued Runs that never move.
-2. **New Comparison page** — `app/new/page.tsx` + client form.
+1. **New Comparison page** — `app/new/page.tsx` + client form.
    - Upload/drop zone, front-matter prompt/title auto-fill, base select, Challenger tiles (max 4), categories, effort.
    - Sticky "ON THE BOARD" draft card preview.
    - POST multipart and redirect to the Job page.
-3. **Job page** — `app/comparisons/[id]/job/page.tsx` + client view.
+2. **Job page** — `app/comparisons/[id]/job/page.tsx` + client view.
    - 4-stage strip, per-Run rows/progress, Retry/Skip, ready banner, Publish.
    - SSE subscription to `/api/stream/jobs/:id`, reconnect/`Last-Event-ID`.
-4. **End-to-end smoke** — schedule with mock provider, watch SSE, ready, publish, Board arrival, open Comparison, annotate, comment, vote.
+3. **End-to-end smoke** — schedule with mock provider, watch SSE, ready, publish, Board arrival, open Comparison, annotate, comment, vote.
 
 ### Other missing pieces
 
 - Docker Compose + Dockerfiles (`web`, `worker`, Postgres, Redis, Mailpit) — package scripts assume it.
-- Vitest tests for offsets, cursor, filters, upload parsing, votes/self-vote.
-- Integration test for job transitions with the mock provider.
+- Vitest unit tests for offsets, cursor, filters, upload parsing, votes/self-vote.
 - Playwright create → publish → read and annotate → thread.
 - `next build` verification and any Next 16 config fixes.
 - Admin UI (model enable/disable, takedown).
@@ -165,19 +160,20 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 8. `postComment` now supports one-level replies; verify the server re-parenting when replying to a reply (the UI only exposes Reply on top-level comments).
 9. Front-matter `model:` is parsed but ignored; the form's `base_model_id` wins. Tracked as an open question.
 10. `getJobForAuthor`/job routes exist, but no UI consumes them yet.
-11. No `.DS_Store` cleanup; it is ignored but present under `apps/` and `docs/`.
+11. A worker crash between `calling` and a terminal Run status leaves that Run stranded; re-enqueueing non-terminal Runs from Postgres (BACKEND.md §5) is not implemented yet.
+12. The `db:*` scripts and the worker load the repo-root `.env`; `next dev` still needs its own verified env path.
+13. No `.DS_Store` cleanup; it is ignored but present under `apps/` and `docs/`.
 
 ---
 
 ## 5. Suggested next order
 
-1. Worker entrypoint; run one mock Job end-to-end.
-2. New Comparison page + Job page.
-3. Full smoke test, then `pnpm build`.
-4. Docker Compose.
-5. Vitest offset/upload/cursor tests.
-6. Playwright happy path.
-7. M2: auth, admin, add-model UI, edit/delete UI, notifications, pagination.
+1. New Comparison page + Job page.
+2. Full smoke test, then `pnpm build`.
+3. Docker Compose.
+4. Vitest offset/upload/cursor tests.
+5. Playwright happy path.
+6. M2: auth, admin, add-model UI, edit/delete UI, notifications, pagination.
 
 ---
 

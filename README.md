@@ -4,7 +4,7 @@ A forum where people publish side-by-side comparisons of open-weight model outpu
 
 This repository is the production-intended implementation of the design handoff in `design_handoff_openweightmodels/`. The `v2` HTML files are the visual source of truth; `designs/styles.css` is only the prototype's base sheet and its tokens are overridden by every v2 screen.
 
-**Status: Milestone 1 in progress.** The Board and Comparison screens and the backend API exist; the worker entrypoint, New Comparison page, Job page and Docker Compose are not built yet. See `docs/IMPLEMENTATION-STATUS.md` for an exact snapshot.
+**Status: Milestone 1 in progress.** The Board and Comparison screens, the backend API and the generation worker exist; the New Comparison page, Job page and Docker Compose are not built yet. See `docs/IMPLEMENTATION-STATUS.md` for an exact snapshot.
 
 ## Stack
 
@@ -33,8 +33,10 @@ cp .env.example .env        # then set DATABASE_URL/REDIS_URL if needed
 pnpm install
 pnpm db:migrate
 pnpm db:seed
+pnpm dev                    # web + worker
+# or run them separately:
 pnpm dev:web
-pnpm dev:worker             # once apps/worker/src/index.ts exists
+pnpm dev:worker
 ```
 
 Open <http://localhost:3000>. The development identity defaults to `@mira`; `POST /api/dev/user` with `{ "handle": "kev" }` switches it. The endpoint is disabled in production.
@@ -42,9 +44,8 @@ Open <http://localhost:3000>. The development identity defaults to `@mira`; `POS
 ### Checks
 
 ```bash
-pnpm --filter @owm/core typecheck
-pnpm --filter @owm/web typecheck
-pnpm test                    # tests are not written yet
+pnpm typecheck
+pnpm test                    # core lifecycle + worker integration tests (needs Postgres and Redis)
 pnpm build
 ```
 
@@ -53,11 +54,12 @@ pnpm build
 | Script | Purpose |
 |---|---|
 | `pnpm dev:web` | Next.js dev server |
-| `pnpm dev:worker` | BullMQ worker (entrypoint pending) |
+| `pnpm dev:worker` | BullMQ worker consuming the generation queue |
 | `pnpm db:generate` | Generate Drizzle SQL from schema |
 | `pnpm db:migrate` | Apply migrations |
 | `pnpm db:seed` | Reset and seed dev data |
 | `pnpm db:reset` | Drop and recreate the public schema (refuses production) |
+| `pnpm test` | Run the core and worker test suites |
 | `pnpm typecheck` | Typecheck all workspace packages |
 | `pnpm build` | Build all packages |
 
@@ -75,7 +77,7 @@ pnpm build
 
 ```
 apps/web                 Next.js app, API routes, UI
-apps/worker              BullMQ consumer (entrypoint pending)
+apps/worker              BullMQ consumer for queued Runs
 packages/core            Drizzle schema, domain logic, queries, services, seed
 packages/core/drizzle    Generated SQL migrations
 docs/                    ADRs, decision log, implementation status

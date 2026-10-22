@@ -8,7 +8,9 @@
     "./client": "./src/client.ts",
     "./schema": "./src/db/schema.ts",
     "./upload": "./src/domain/upload.ts",
-    "./markdown": "./src/domain/markdown.ts"
+    "./markdown": "./src/domain/markdown.ts",
+    "./env": "./src/load-env.ts",
+    "./testing": "./test/index.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

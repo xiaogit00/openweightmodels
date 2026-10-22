@@ -1,5 +1,6 @@
 import { uuidv7 } from 'uuidv7';
-import { getDb, getSql, closeDb } from './db/client';
+import { closeDb, getDb, getSql } from './db/client';
+import { loadEnv } from './load-env';
 import {
   activityEvents,
   annotationMessages,
@@ -12,6 +13,8 @@ import {
   votes,
 } from './db/schema';
 import { estimateTokens } from './domain/upload';
+
+loadEnv();
 
 const now = Date.now();
 const ago = (minutes: number) => new Date(now - minutes * 60_000);

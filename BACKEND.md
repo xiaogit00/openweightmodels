@@ -218,7 +218,7 @@ Append-only per-Job replay log for the Job SSE stream.
 | `read_at` | timestamptz null | |
 | `created_at` | timestamptz | |
 
-In-app only. No email notifications in v1.
+In-app only. No email notifications in v1. A `job.ready` row is unique per Author per Job, enforced by a partial unique index on `(user_id, kind, payload->>'jobId') WHERE kind = 'job.ready'`.
 
 ---
 
@@ -252,7 +252,7 @@ queued → calling → streaming → done
 
 - A retry increments `attempt` and reuses the same Response row.
 - `skip` is allowed only from `failed` or `queued`; it sets `skipped` and finalises the Job.
-- A 24-hour delayed BullMQ job auto-skips a Run that is still `failed`.
+- A 24-hour delayed BullMQ job (the default; `AUTO_SKIP_DELAY_MS`) auto-skips a Run that is still `failed`. The timer is scoped to the attempt, so a retry gets a fresh window.
 - A Job is `ready` when every Run belonging to it is `done` or `skipped`.
 
 ### Add-model behaviour
@@ -400,14 +400,14 @@ Both use `text/event-stream`, monotonic `id:` values, `Last-Event-ID` replay fro
 
 1. **Schedule.** `POST /comparisons` validates the upload and quota, writes the Comparison (`generating`), Base Response (`done`), Job (`scheduled`) and one queued Response per Challenger in one transaction. It then enqueues **one BullMQ job per Run** and logs `job.scheduled`.
 2. **Resolve.** The model registry row is loaded at write time. Disabled or unknown models are rejected before a Job exists; an unknown model at run time is marked `failed`.
-3. **Run.** Each worker sets the Job to `running`, the Response to `calling`, calls the provider with:
+3. **Run.** Each worker claims the Response with an atomic `queued → calling` update (a duplicate delivery then no-ops), sets the Job to `running`, and calls the provider with:
    - a single user message containing the Prompt,
    - `temperature: 0.7`,
    - `max_tokens: 4096`,
    - `stream: true`,
    - a 120-second timeout.
 4. **Stream.** The worker appends chunks, updates `tokens` and `response.status` at most every 500 ms, and emits `response.status` job events.
-5. **Finish.** On success it stores `content_md`, final tokens, latency and provider cost, sets `done`, then attempts to finalise the Job. On failure it stores the error, sets `failed`, schedules the 24-hour auto-skip, then attempts to finalise.
+5. **Finish.** On success it stores `content_md`, final tokens, latency and provider cost, sets `done`, then attempts to finalise the Job. On failure it stores the error, sets `failed`, schedules the attempt-scoped 24-hour auto-skip, then attempts to finalise.
 6. **Finalise.** `finalizeJob` locks the Job row, checks every Run; if all are `done`/`skipped`, it sets the Job `ready`, moves a `generating` Comparison to `ready`, inserts a `job.ready` notification for the Author, emits `job.ready`, and writes `run.finished` activity only if the Comparison is already published.
 7. **Publish.** Explicit `POST /publish` sets `published_at`, `status = published`, and emits `comparison.published` with the full card payload.
 

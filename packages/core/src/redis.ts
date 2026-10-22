@@ -43,3 +43,10 @@ export async function publish(channel: string, message: unknown) {
     console.error('[redis] publish failed', error);
   }
 }
+
+export async function closeRedis() {
+  const redis = globalForRedis.__owmRedis;
+  if (!redis) return;
+  globalForRedis.__owmRedis = undefined;
+  await redis.quit().catch(() => redis.disconnect());
+}

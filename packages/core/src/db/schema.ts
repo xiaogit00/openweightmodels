@@ -272,7 +272,14 @@ export const notifications = pgTable(
     readAt: timestamp('read_at', { withTimezone: true, mode: 'date' }),
     createdAt: createdAt(),
   },
-  (t) => [index('notifications_user_idx').on(t.userId, t.readAt)],
+  (t) => [
+    index('notifications_user_idx').on(t.userId, t.readAt),
+    // One job-ready notification per Author per Job, even if two workers
+    // finalise the same Job at the same moment.
+    uniqueIndex('notifications_job_ready_unique')
+      .on(t.userId, t.kind, sql`(${t.payload}->>'jobId')`)
+      .where(sql`${t.kind} = 'job.ready'`),
+  ],
 );
 
 export const schema = {

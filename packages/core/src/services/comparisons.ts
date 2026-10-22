@@ -16,7 +16,7 @@ import {
 } from '../domain/upload';
 import { logActivity, logJobEvent } from '../events';
 import { getCardById } from '../queries';
-import { enqueueRun } from '../queue';
+import { enqueueRun, removeAutoSkip } from '../queue';
 import { conflict, forbidden, notFound, tooMany } from './errors';
 import { finalizeJob } from './jobs';
 
@@ -365,7 +365,10 @@ export async function retryRun(responseId: string, userId: string) {
       .where(eq(comparisons.id, comparison.id));
   }
 
+  // A second failure should get a fresh 24-hour window, not inherit the
+  // timer from the attempt that just failed.
   await enqueueRun(responseId);
+  await removeAutoSkip(responseId, response.attempt);
 }
 
 export async function skipRun(responseId: string, userId: string) {

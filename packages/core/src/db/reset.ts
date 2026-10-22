@@ -1,4 +1,7 @@
 import { getSql, closeDb } from './client';
+import { loadEnv } from '../load-env';
+
+loadEnv();
 
 async function main() {
   if (process.env.NODE_ENV === 'production') {
