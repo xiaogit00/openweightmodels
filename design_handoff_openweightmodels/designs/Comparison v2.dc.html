@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+:root{--color-bg:#0a0c0b;--color-surface:#121513;--color-text:#e8ebe8;--color-accent:#a3e635;
+--color-accent-100:#ecfccb;--color-accent-200:#d9f99d;--color-accent-300:#bef264;--color-accent-400:#a3e635;--color-accent-500:#84cc16;--color-accent-600:#65a30d;--color-accent-700:#3f6212;--color-accent-800:#263c0f;--color-accent-900:#17240b;
+--color-neutral-100:#ececec;--color-neutral-200:#d4d6d4;--color-neutral-300:#a9ada9;--color-neutral-400:#858a86;--color-neutral-500:#646966;--color-neutral-600:#4a4f4c;--color-neutral-700:#2e3330;--color-neutral-800:#1d211f;--color-neutral-900:#141715;
+--font-heading:"Space Grotesk",system-ui,sans-serif;--font-body:"JetBrains Mono",ui-monospace,Menlo,monospace;
+--shadow-md:0 0 0 1px #2e3330,0 8px 24px rgba(0,0,0,.5);--shadow-lg:0 0 0 1px #2e3330,0 16px 40px rgba(0,0,0,.6)}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);-webkit-font-smoothing:antialiased}
+a{color:var(--color-accent-300);text-decoration:none}a:hover{color:var(--color-accent-200)}
+*:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+input::placeholder,textarea::placeholder{color:var(--color-neutral-500)}
+::selection{background:var(--color-accent-700)}
+@keyframes pop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes shimmer{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;display:flex;flex-direction:column">
+<header style="position:sticky;top:0;z-index:20;background:var(--color-bg);border-bottom:1px solid var(--color-neutral-800);display:flex;align-items:center;gap:16px;padding:10px 20px">
+<a href="Board v2.dc.html" style="display:flex;align-items:center;gap:8px;color:var(--color-text)"><span style="width:22px;height:22px;border-radius:2px;border:1.5px solid var(--color-accent);display:grid;place-items:center"><span style="width:8px;height:12px;border-right:1.5px solid var(--color-accent)"></span></span><span style="font:500 14px/1 var(--font-heading);letter-spacing:-.01em">OpenWeightModels</span></a>
+<a href="Board v2.dc.html" style="display:flex;align-items:center;gap:5px;font:500 12px var(--font-body);color:var(--color-neutral-400)" style-hover="color:var(--color-text)"><i class="ph ph-arrow-left" style="font-size:13px"></i>Board</a>
+<div style="flex:1"></div>
+<a href="New Comparison v2.dc.html" style="display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border:1px solid var(--color-accent);border-radius:2px;color:var(--color-bg);background:var(--color-accent);font-weight:600;font:500 12px var(--font-body);white-space:nowrap;flex:none" style-hover="background:var(--color-accent-300)"><i class="ph ph-plus" style="font-size:14px"></i>New comparison</a>
+<span style="width:28px;height:28px;border-radius:2px;background:var(--color-neutral-700);display:grid;place-items:center;font:500 11px var(--font-body);color:var(--color-neutral-200);flex:none">MR</span>
+</header>
+
+<main style="padding:18px 20px 48px;display:flex;flex-direction:column;gap:16px;max-width:1480px;width:100%;box-sizing:border-box">
+
+<div style="display:flex;flex-direction:column;gap:8px;max-width:860px">
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font:400 12px var(--font-body);color:var(--color-neutral-400)">
+<span style="height:20px;padding:0 7px;display:flex;align-items:center;border-radius:2px;background:var(--color-neutral-800);color:var(--color-neutral-200);font-weight:500">Coding</span>
+<span style="height:20px;padding:0 7px;display:flex;align-items:center;border-radius:2px;background:var(--color-neutral-800);color:var(--color-neutral-200);font-weight:500">Go</span>
+<span style="display:flex;align-items:flex-end;gap:2px;height:10px"><span style="width:3px;height:5px;border-radius:1px;background:var(--color-accent)"></span><span style="width:3px;height:7px;border-radius:1px;background:var(--color-accent)"></span><span style="width:3px;height:10px;border-radius:1px;background:var(--color-neutral-700)"></span></span><span>Med effort</span>
+<span>·</span><span style="width:14px;height:14px;border-radius:2px;background:var(--color-neutral-700)"></span><span style="color:var(--color-neutral-200)">@mira</span><span>· 2h ago</span>
+</div>
+<h1 style="margin:0;font:500 20px/1.2 var(--font-heading);letter-spacing:-.015em;text-wrap:pretty">Rate limiter in Go with sliding windows</h1>
+<button onClick="{{ togglePrompt }}" style="align-self:flex-start;display:flex;align-items:center;gap:6px;background:none;border:0;padding:0;color:var(--color-neutral-400);font:500 12px var(--font-body);cursor:pointer" style-hover="color:var(--color-text)"><i class="ph {{ promptIcon }}" style="font-size:12px"></i>Prompt</button>
+<sc-if value="{{ promptOpen }}" hint-placeholder-val="{{ true }}">
+<div style="padding:10px 12px;border-radius:2px;background:var(--color-surface);font:400 12px/1.55 var(--font-body);color:var(--color-neutral-200);text-wrap:pretty">Write a thread-safe sliding-window rate limiter in Go. It should allow N requests per window per key, and explain the trade-offs of your approach.</div>
+</sc-if>
+</div>
+
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;position:sticky;top:53px;z-index:15;background:var(--color-bg);padding:8px 0;border-bottom:1px solid var(--color-neutral-800)">
+<button onClick="{{ toggleAnn }}" style="display:flex;align-items:center;gap:6px;height:30px;padding:0 10px;border-radius:2px;border:1px solid {{ annBd }};background:{{ annBg }};color:{{ annFg }};font:500 12px var(--font-body);cursor:pointer;white-space:nowrap"><i class="ph ph-highlighter" style="font-size:14px"></i>Annotations<span style="min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;border-radius:2px;background:var(--color-neutral-800);color:var(--color-neutral-200);font:500 10px/18px var(--font-body);text-align:center">{{ annCount }}</span></button>
+<sc-if value="{{ annOn }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;gap:2px;padding:2px;background:var(--color-surface);border-radius:2px">
+<sc-for list="{{ kindFilters }}" as="k" hint-placeholder-count="5">
+<button onClick="{{ k.pick }}" style="display:flex;align-items:center;gap:4px;height:24px;padding:0 8px;border:0;border-radius:2px;background:{{ k.bg }};color:{{ k.fg }};font:500 11px var(--font-body);cursor:pointer;white-space:nowrap"><i class="ph {{ k.icon }}" style="font-size:12px"></i>{{ k.n }}</button>
+</sc-for>
+</div>
+<span style="font:400 12px var(--font-body);color:var(--color-neutral-500)">Select any text to annotate it</span>
+</sc-if>
+<div style="flex:1"></div>
+<button onClick="{{ noop }}" style="display:flex;align-items:center;gap:5px;height:30px;padding:0 10px;border:0;border-radius:2px;background:transparent;color:var(--color-neutral-300);font:500 12px var(--font-body);cursor:pointer" style-hover="background:var(--color-surface)"><i class="ph ph-link" style="font-size:14px"></i>Copy link</button>
+</div>
+
+<div ref="{{ gridRef }}" onMouseUp="{{ onMouseUp }}" style="position:relative;display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:12px;align-items:start">
+
+<section style="border-radius:2px;background:var(--color-surface);display:flex;flex-direction:column;min-width:0">
+<div style="display:flex;align-items:center;gap:8px;height:42px;padding:0 14px;border-bottom:1px solid var(--color-neutral-800)">
+<span style="font:600 9px/1 var(--font-body);letter-spacing:.08em;color:var(--color-accent-200);padding:4px 6px;border:1px solid var(--color-accent-700);border-radius:2px">BASE</span>
+<span style="width:18px;height:18px;border-radius:2px;background:var(--color-accent-800);display:grid;place-items:center;font:600 9px var(--font-body);color:var(--color-accent-100)">{{ base.mono }}</span>
+<span style="font:500 12px var(--font-body)">{{ base.name }}</span>
+<div style="flex:1"></div>
+<span style="font:400 11px var(--font-body);color:var(--color-neutral-500);white-space:nowrap">{{ base.meta }}</span>
+</div>
+<div style="padding:14px 16px 18px;display:flex;flex-direction:column;gap:12px">
+<sc-for list="{{ base.blocks }}" as="b" hint-placeholder-count="4">
+<sc-if value="{{ b.isP }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font:400 12.5px/1.65 var(--font-body);color:var(--color-neutral-100);text-wrap:pretty"><sc-for list="{{ b.segs }}" as="s" hint-placeholder-count="1"><span data-seg="{{ s.key }}" onClick="{{ s.click }}" style="background:{{ s.bg }};box-shadow:{{ s.ul }};cursor:{{ s.cur }};border-radius:2px">{{ s.t }}</span></sc-for></p></sc-if>
+<sc-if value="{{ b.isCode }}" hint-placeholder-val="{{ false }}"><pre style="margin:0;padding:12px;border-radius:2px;background:var(--color-bg);font:400 12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--color-neutral-200);overflow-x:auto;white-space:pre"><sc-for list="{{ b.segs }}" as="s" hint-placeholder-count="1"><span data-seg="{{ s.key }}" onClick="{{ s.click }}" style="background:{{ s.bg }};box-shadow:{{ s.ul }};cursor:{{ s.cur }};border-radius:2px">{{ s.t }}</span></sc-for></pre></sc-if>
+</sc-for>
+</div>
+</section>
+
+<section style="border-radius:2px;background:var(--color-surface);display:flex;flex-direction:column;min-width:0;position:relative">
+<div style="display:flex;align-items:stretch;height:42px;padding:0 6px;border-bottom:1px solid var(--color-neutral-800);gap:2px;min-width:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none">
+<sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
+<button onClick="{{ t.pick }}" style="display:flex;align-items:center;gap:6px;padding:0 10px;border:0;border-bottom:2px solid {{ t.bd }};background:transparent;color:{{ t.fg }};font:500 12px var(--font-body);cursor:pointer;white-space:nowrap;margin-bottom:-1px;flex:none" style-hover="color:var(--color-text)"><span style="width:18px;height:18px;border-radius:2px;background:var(--color-neutral-700);display:grid;place-items:center;font:600 9px var(--font-body);color:var(--color-neutral-100)">{{ t.mono }}</span>{{ t.name }}<i class="ph ph-circle-notch" style="font-size:12px;color:var(--color-accent-300);animation:spin 1s linear infinite;display:{{ t.spin }}"></i></button>
+</sc-for>
+<button onClick="{{ toggleMenu }}" style="display:flex;align-items:center;gap:5px;padding:0 10px;border:0;background:transparent;color:var(--color-neutral-400);font:500 12px var(--font-body);cursor:pointer;white-space:nowrap;flex:none" style-hover="color:var(--color-accent-200)"><i class="ph ph-plus" style="font-size:13px"></i>Add model</button>
+</div>
+<sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;top:44px;left:12px;z-index:10;width:240px;padding:6px;border-radius:2px;background:var(--color-neutral-800);border:1px solid var(--color-neutral-700);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:2px;animation:pop .15s ease-out">
+<span style="font:500 10px var(--font-body);letter-spacing:.06em;color:var(--color-neutral-500);padding:6px 8px 4px">GENERATE ANOTHER RESPONSE</span>
+<sc-for list="{{ extra }}" as="x" hint-placeholder-count="3">
+<button onClick="{{ x.add }}" style="display:flex;align-items:center;gap:8px;height:32px;padding:0 8px;border:0;border-radius:2px;background:transparent;color:var(--color-text);font:500 12px var(--font-body);cursor:pointer;text-align:left" style-hover="background:var(--color-neutral-700)"><span style="width:18px;height:18px;border-radius:2px;background:var(--color-neutral-700);display:grid;place-items:center;font:600 9px var(--font-body)">{{ x.mono }}</span><span style="flex:1">{{ x.name }}</span><span style="font:400 11px var(--font-body);color:var(--color-neutral-400)">{{ x.eta }}</span></button>
+</sc-for>
+<span style="font:400 11px/1.4 var(--font-body);color:var(--color-neutral-500);padding:6px 8px">Runs the same prompt through the model's hosted API.</span>
+</div>
+</sc-if>
+<sc-if value="{{ active.ready }}" hint-placeholder-val="{{ true }}">
+<div style="padding:14px 16px 18px;display:flex;flex-direction:column;gap:12px">
+<span style="font:400 11px var(--font-body);color:var(--color-neutral-500);margin-bottom:-4px">{{ active.meta }}</span>
+<sc-for list="{{ active.blocks }}" as="b" hint-placeholder-count="4">
+<sc-if value="{{ b.isP }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font:400 12.5px/1.65 var(--font-body);color:var(--color-neutral-100);text-wrap:pretty"><sc-for list="{{ b.segs }}" as="s" hint-placeholder-count="1"><span data-seg="{{ s.key }}" onClick="{{ s.click }}" style="background:{{ s.bg }};box-shadow:{{ s.ul }};cursor:{{ s.cur }};border-radius:2px">{{ s.t }}</span></sc-for></p></sc-if>
+<sc-if value="{{ b.isCode }}" hint-placeholder-val="{{ false }}"><pre style="margin:0;padding:12px;border-radius:2px;background:var(--color-bg);font:400 12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--color-neutral-200);overflow-x:auto;white-space:pre"><sc-for list="{{ b.segs }}" as="s" hint-placeholder-count="1"><span data-seg="{{ s.key }}" onClick="{{ s.click }}" style="background:{{ s.bg }};box-shadow:{{ s.ul }};cursor:{{ s.cur }};border-radius:2px">{{ s.t }}</span></sc-for></pre></sc-if>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ active.generating }}" hint-placeholder-val="{{ false }}">
+<div style="padding:16px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:8px;font:500 12px var(--font-body);color:var(--color-accent-200)"><i class="ph ph-circle-notch" style="font-size:14px;animation:spin 1s linear infinite"></i>Calling {{ active.name }} hosted API…</div>
+<div style="height:8px;width:92%;border-radius:2px;background:var(--color-neutral-800);animation:shimmer 1.2s infinite"></div>
+<div style="height:8px;width:78%;border-radius:2px;background:var(--color-neutral-800);animation:shimmer 1.2s .15s infinite"></div>
+<div style="height:64px;border-radius:2px;background:var(--color-bg);animation:shimmer 1.2s .3s infinite"></div>
+<div style="height:8px;width:64%;border-radius:2px;background:var(--color-neutral-800);animation:shimmer 1.2s .45s infinite"></div>
+</div>
+</sc-if>
+</section>
+
+<sc-if value="{{ hasSelBtn }}" hint-placeholder-val="{{ false }}">
+<button onMouseDown="{{ startNew }}" style="position:absolute;top:{{ selBtn.y }}px;left:{{ selBtn.x }}px;z-index:12;display:flex;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:2px;border:1px solid var(--color-accent);background:var(--color-neutral-800);color:var(--color-accent-200);font:500 12px var(--font-body);cursor:pointer;box-shadow:var(--shadow-md);white-space:nowrap;animation:pop .12s ease-out"><i class="ph ph-highlighter" style="font-size:13px"></i>Annotate</button>
+</sc-if>
+
+<sc-if value="{{ hasPop }}" hint-placeholder-val="{{ false }}">
+<div onMouseUp="{{ stop }}" style="position:absolute;top:{{ pop.y }}px;left:{{ pop.x }}px;z-index:12;width:300px;border-radius:2px;background:var(--color-neutral-800);border:1px solid var(--color-neutral-700);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;animation:pop .15s ease-out">
+<div style="display:flex;align-items:center;gap:6px;padding:10px 12px 0">
+<sc-if value="{{ pop.isThread }}" hint-placeholder-val="{{ true }}"><span style="display:flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:2px;border:1px solid var(--color-accent-700);color:var(--color-accent-200);font:500 11px var(--font-body)"><i class="ph {{ pop.icon }}" style="font-size:12px"></i>{{ pop.kind }}</span><span style="font:400 11px var(--font-body);color:var(--color-neutral-400)">{{ pop.people }}</span></sc-if>
+<sc-if value="{{ pop.isNew }}" hint-placeholder-val="{{ false }}"><span style="font:500 12px var(--font-body)">New annotation</span></sc-if>
+<div style="flex:1"></div>
+<button onClick="{{ closePop }}" style="width:24px;height:24px;display:grid;place-items:center;border:0;border-radius:2px;background:transparent;color:var(--color-neutral-400);cursor:pointer" style-hover="background:var(--color-neutral-700)"><i class="ph ph-x" style="font-size:13px"></i></button>
+</div>
+<div style="margin:8px 12px 0;padding-left:8px;border-left:2px solid var(--color-accent);font:400 11.5px/1.45 ui-monospace,Menlo,monospace;color:var(--color-neutral-300);max-height:52px;overflow:hidden">{{ pop.quote }}</div>
+<sc-if value="{{ pop.isThread }}" hint-placeholder-val="{{ true }}">
+<div style="padding:10px 12px 0;display:flex;flex-direction:column;gap:10px;max-height:220px;overflow:auto">
+<sc-for list="{{ pop.thread }}" as="m" hint-placeholder-count="2">
+<div style="display:flex;gap:8px"><span style="width:20px;height:20px;border-radius:2px;background:var(--color-neutral-600);flex:none;display:grid;place-items:center;font:500 8px var(--font-body)">{{ m.ini }}</span><div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font:400 11px var(--font-body);color:var(--color-neutral-400)"><span style="color:var(--color-neutral-100);font-weight:500">{{ m.by }}</span> · {{ m.ago }}</span><span style="font:400 12.5px/1.45 var(--font-body);color:var(--color-neutral-100);text-wrap:pretty">{{ m.t }}</span></div></div>
+</sc-for>
+</div>
+<div style="display:flex;align-items:center;gap:6px;padding:10px 12px">
+<button onClick="{{ votePop }}" style="display:flex;align-items:center;gap:4px;height:28px;padding:0 8px;border-radius:2px;border:1px solid var(--color-neutral-700);background:{{ pop.voteBg }};color:var(--color-neutral-200);font:500 11px var(--font-body);cursor:pointer"><i class="ph ph-arrow-fat-up" style="font-size:12px"></i>{{ pop.votes }}</button>
+<input value="{{ replyDraft }}" onChange="{{ onReply }}" onKeyDown="{{ replyKey }}" placeholder="Reply…" style="flex:1;min-width:0;height:28px;padding:0 8px;border-radius:2px;border:1px solid var(--color-neutral-700);background:var(--color-bg);color:var(--color-text);font:400 12px var(--font-body);outline:0">
+<button onClick="{{ sendReply }}" style="width:28px;height:28px;display:grid;place-items:center;border-radius:2px;border:1px solid var(--color-accent);background:transparent;color:var(--color-accent-200);cursor:pointer"><i class="ph ph-paper-plane-right" style="font-size:13px"></i></button>
+</div>
+</sc-if>
+<sc-if value="{{ pop.isNew }}" hint-placeholder-val="{{ false }}">
+<div style="padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;gap:4px;flex-wrap:wrap">
+<sc-for list="{{ newKinds }}" as="k" hint-placeholder-count="4">
+<button onClick="{{ k.pick }}" style="display:flex;align-items:center;gap:4px;height:24px;padding:0 8px;border-radius:2px;border:1px solid {{ k.bd }};background:transparent;color:{{ k.fg }};font:500 11px var(--font-body);cursor:pointer"><i class="ph {{ k.icon }}" style="font-size:12px"></i>{{ k.n }}</button>
+</sc-for>
+</div>
+<textarea value="{{ newDraft }}" onChange="{{ onNewDraft }}" placeholder="What stands out here?" rows="3" style="resize:none;padding:8px;border-radius:2px;border:1px solid var(--color-neutral-700);background:var(--color-bg);color:var(--color-text);font:400 12.5px/1.45 var(--font-body);outline:0"></textarea>
+<button onClick="{{ saveNew }}" style="align-self:flex-start;height:28px;padding:0 12px;border-radius:2px;border:1px solid var(--color-accent);background:transparent;color:var(--color-accent-200);font:500 12px var(--font-body);cursor:pointer" style-hover="background:var(--color-accent-900)">Add annotation</button>
+</div>
+</sc-if>
+</div>
+</sc-if>
+</div>
+
+<section style="display:flex;flex-direction:column;gap:14px;max-width:860px;padding-top:18px">
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<h2 style="margin:0;font:500 16px var(--font-heading)">Discussion</h2>
+<span style="font:400 12px var(--font-body);color:var(--color-neutral-500)">{{ commentCount }}</span>
+<div style="flex:1"></div>
+<div style="display:flex;gap:2px;padding:2px;background:var(--color-surface);border-radius:2px">
+<sc-for list="{{ commentFilters }}" as="f" hint-placeholder-count="4">
+<button onClick="{{ f.pick }}" style="height:24px;padding:0 9px;border:0;border-radius:2px;background:{{ f.bg }};color:{{ f.fg }};font:500 11px var(--font-body);cursor:pointer;white-space:nowrap">{{ f.n }}</button>
+</sc-for>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:2px;background:var(--color-surface)">
+<textarea value="{{ draft }}" onChange="{{ onDraft }}" placeholder="Share what you noticed across the outputs…" rows="2" style="resize:vertical;padding:4px 2px;border:0;background:transparent;color:var(--color-text);font:400 12px/1.5 var(--font-body);outline:0"></textarea>
+<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+<span style="font:400 11px var(--font-body);color:var(--color-neutral-500)">About</span>
+<sc-for list="{{ aboutOpts }}" as="o" hint-placeholder-count="4">
+<button onClick="{{ o.pick }}" style="height:22px;padding:0 8px;border-radius:2px;border:1px solid {{ o.bd }};background:transparent;color:{{ o.fg }};font:500 11px var(--font-body);cursor:pointer;white-space:nowrap">{{ o.n }}</button>
+</sc-for>
+<div style="flex:1"></div>
+<button onClick="{{ post }}" style="height:30px;padding:0 14px;border-radius:2px;border:1px solid var(--color-accent);background:transparent;color:var(--color-accent-200);font:500 12px var(--font-body);cursor:pointer" style-hover="background:var(--color-accent-900)">Post</button>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column">
+<sc-for list="{{ comments }}" as="c" hint-placeholder-count="3">
+<div style="display:flex;gap:10px;padding:14px 0;border-bottom:1px solid var(--color-neutral-800)">
+<span style="width:28px;height:28px;border-radius:2px;background:var(--color-neutral-700);flex:none;display:grid;place-items:center;font:500 10px var(--font-body);color:var(--color-neutral-200)">{{ c.ini }}</span>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font:400 12px var(--font-body);color:var(--color-neutral-400)"><span style="color:var(--color-neutral-100);font-weight:500">{{ c.by }}</span><span>{{ c.ago }}</span><sc-if value="{{ c.hasOn }}" hint-placeholder-val="{{ false }}"><span style="height:18px;padding:0 6px;display:flex;align-items:center;border-radius:2px;border:1px solid var(--color-neutral-700);font:500 10px var(--font-body);color:var(--color-neutral-200)">on {{ c.on }}</span></sc-if></div>
+<div style="font:400 12.5px/1.55 var(--font-body);color:var(--color-neutral-100);text-wrap:pretty">{{ c.t }}</div>
+<div style="display:flex;align-items:center;gap:12px;font:500 11px var(--font-body);color:var(--color-neutral-400)">
+<button onClick="{{ c.vote }}" style="display:flex;align-items:center;gap:4px;border:0;background:none;padding:0;color:{{ c.voteFg }};font:inherit;cursor:pointer"><i class="ph {{ c.voteIcon }}" style="font-size:13px"></i>{{ c.votes }}</button>
+<button onClick="{{ c.reply }}" style="display:flex;align-items:center;gap:4px;border:0;background:none;padding:0;color:inherit;font:inherit;cursor:pointer" style-hover="color:var(--color-text)"><i class="ph ph-arrow-bend-up-left" style="font-size:13px"></i>Reply</button>
+</div>
+<sc-for list="{{ c.replies }}" as="r" hint-placeholder-count="0">
+<div style="display:flex;gap:8px;margin-top:4px;padding-left:12px;border-left:1px solid var(--color-neutral-700)"><span style="width:20px;height:20px;border-radius:2px;background:var(--color-neutral-700);flex:none;display:grid;place-items:center;font:500 8px var(--font-body)">{{ r.ini }}</span><div style="display:flex;flex-direction:column;gap:2px"><span style="font:400 11px var(--font-body);color:var(--color-neutral-400)"><span style="color:var(--color-neutral-100);font-weight:500">{{ r.by }}</span> · {{ r.ago }}</span><span style="font:400 12px/1.5 var(--font-body);color:var(--color-neutral-100)">{{ r.t }}</span></div></div>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;annotationsOn&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Annotations&quot;}}">
+const KINDS = [['Bug','ph-bug'],['Hallucination','ph-ghost'],['Good','ph-thumbs-up'],['Question','ph-question']];
+const KI = Object.fromEntries(KINDS);
+const P = (...segs) => ({k:'p', segs: segs.map(s => typeof s==='string' ? {t:s} : {t:s[0], a:s[1]})});
+const C = (...segs) => ({k:'code', segs: segs.map(s => typeof s==='string' ? {t:s} : {t:s[0], a:s[1]})});
+const RESP = {
+  llama:{name:'Llama 3.3 70B', mono:'L3', meta:'1,204 tok · 8.4s', blocks:[
+    P('Here\u2019s a sliding-window rate limiter that tracks request timestamps per key. It\u2019s safe for concurrent use and evicts old entries lazily on each call.'),
+    C('type Limiter struct {\n  mu     sync.Mutex\n  window time.Duration\n  limit  int\n  hits   map[string][]time.Time\n}\n\nfunc (l *Limiter) Allow(key string) bool {\n  l.mu.Lock(); defer l.mu.Unlock()\n  now, h := time.Now(), l.hits[key]\n  cut := 0\n  for cut < len(h) && ', ['now.Sub(h[cut]) > l.window','a1'], ' { cut++ }\n  h = h[cut:]\n  if len(h) >= l.limit { return false }\n  l.hits[key] = append(h, now)\n  return true\n}'),
+    P('Memory grows with the number of distinct keys, so ', ['pair it with a periodic sweep','a2'], ' if keys are user-supplied.'),
+    P('For distributed setups, swap the map for Redis sorted sets using ', ['the ratelimit/v9 package\u2019s ZWindow helper','a3'], '.'),
+  ]},
+  qwen:{name:'Qwen2.5 72B', mono:'Q2', meta:'982 tok · 6.1s', blocks:[
+    P('A sliding-window log is exact but stores every timestamp. ', ['A ring buffer of size limit gives O(1) checks and bounded memory','a4'], ':'),
+    C('type Limiter struct {\n  mu  sync.Mutex\n  buf []time.Time\n  i   int\n  win time.Duration\n}\n\nfunc (l *Limiter) Allow() bool {\n  l.mu.Lock(); defer l.mu.Unlock()\n  now := time.Now()\n  if now.Sub(l.buf[l.i]) < l.win { return false }\n  l.buf[l.i] = now\n  l.i = (l.i + 1) % len(l.buf)\n  return true\n}'),
+    P('This version is per-limiter, not per-key \u2014 ', ['wrap it in a sync.Map if you need one per client','a5'], '.'),
+  ]},
+  deepseek:{name:'DeepSeek V3', mono:'DS', meta:'1,388 tok · 9.0s', blocks:[
+    P('Two common approaches: a sliding log (exact, O(n) memory) and a sliding window counter (approximate, O(1) memory). I\u2019ll show the counter, which weights the previous window by how much of it still overlaps:'),
+    C('elapsed := now.Sub(windowStart)\nweight  := 1 - float64(elapsed)/float64(window)\nrate    := float64(prev)*weight + float64(curr)\nif rate >= float64(limit) { return false }\ncurr++'),
+    P(['The approximation error stays small under uniform traffic','a6'], ', but bursts right at a boundary can briefly exceed the limit. Use the log version if you need hard guarantees.'),
+  ]},
+  mistral:{name:'Mistral Large', mono:'MI', meta:'764 tok · 5.2s', blocks:[
+    P('The simplest correct approach is golang.org/x/time/rate, but that\u2019s a token bucket, not a sliding window. Here\u2019s a minimal sliding log:'),
+    C('func (l *Limiter) Allow() bool {\n  l.mu.Lock(); defer l.mu.Unlock()\n  cutoff := time.Now().Add(-l.window)\n  for len(l.log) > 0 && l.log[0].Before(cutoff) {\n    l.log = l.log[1:]\n  }\n  if len(l.log) >= l.limit { return false }\n  l.log = append(l.log, time.Now())\n  return true\n}'),
+    P('Reslicing keeps the backing array alive; copy periodically if the limiter is long-lived.'),
+  ]},
+};
+const EXTRA = {
+  gemma:{name:'Gemma 2 27B', mono:'G2', eta:'~7s', meta:'1,020 tok · 7.3s'},
+  phi:{name:'Phi-4', mono:'P4', eta:'~4s', meta:'690 tok · 4.1s'},
+  codestral:{name:'Codestral', mono:'CS', eta:'~5s', meta:'840 tok · 5.0s'},
+};
+const ANNS = {
+  a1:{kind:'Bug', resp:'llama', votes:9, thread:[{by:'@kev',ago:'1h',t:'Off-by-one: a hit exactly one window old is kept. Should be >= here.'},{by:'@ana',ago:'52m',t:'Confirmed \u2014 fails the boundary test at exactly 60s.'}]},
+  a2:{kind:'Good', resp:'llama', votes:4, thread:[{by:'@sam',ago:'40m',t:'Nice that it calls out the unbounded-keys problem without being asked.'}]},
+  a3:{kind:'Hallucination', resp:'llama', votes:11, thread:[{by:'@mira',ago:'1h',t:'There\u2019s no ratelimit/v9 with a ZWindow helper. Made up.'},{by:'@dev',ago:'45m',t:'Probably blending go-redis and a Python lib.'}]},
+  a4:{kind:'Good', resp:'qwen', votes:7, thread:[{by:'@kev',ago:'58m',t:'This is the cleanest answer here. Bounded memory and no edge bug.'}]},
+  a5:{kind:'Question', resp:'qwen', votes:2, thread:[{by:'@lin',ago:'30m',t:'Would sync.Map actually be the right choice, or a sharded map with mutexes?'}]},
+  a6:{kind:'Question', resp:'deepseek', votes:3, thread:[{by:'@pq',ago:'22m',t:'How small? Would love a number or a source here.'}]},
+};
+const COMMENTS = [
+  {id:1, by:'@kev', ago:'1h', on:'llama', votes:12, t:'Llama has the classic edge bug \u2014 a request exactly at the window length still counts. Qwen\u2019s ring buffer avoids it entirely.', replies:[{by:'@mira', ago:'50m', t:'Fair. I\u2019ll note it as a known issue in the prompt.'}]},
+  {id:2, by:'@ana', ago:'48m', on:'deepseek', votes:8, t:'Only one that explained the trade-off before writing code. That\u2019s what I\u2019d want in a review.', replies:[]},
+  {id:3, by:'@sam', ago:'20m', on:null, votes:3, t:'Would be great to rerun with a stricter prompt \u2014 \u201cper-key, bounded memory\u201d. Effort should probably be High.', replies:[]},
+];
+const ini = by => by.replace('@','').slice(0,2).toUpperCase();
+const clone = o => JSON.parse(JSON.stringify(o));
+
+class Component extends DCLogic {
+  gridRef = React.createRef();
+  state = {
+    resp: clone(RESP), anns: clone(ANNS), comments: clone(COMMENTS),
+    tabs: ['qwen','deepseek','mistral'], tab:'qwen', gen:{},
+    annOn: this.props.annotationsOn ?? false, kind:'All', promptOpen:false, menuOpen:false,
+    pop:null, selBtn:null, replyDraft:'', newDraft:'', newKind:'Bug', voted:{},
+    draft:'', about:null, filter:'All', cvoted:{}, nextId:100,
+  };
+  componentWillUnmount(){ Object.values(this.timers||{}).forEach(clearTimeout); }
+  rel(rect){
+    const g = this.gridRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(rect.left - g.left, g.width - 304));
+    return {x, y: rect.bottom - g.top + 6};
+  }
+  openThread(id, e){
+    e.stopPropagation();
+    const r = e.currentTarget.getBoundingClientRect();
+    this.setState({pop:{mode:'thread', id, ...this.rel(r)}, selBtn:null, replyDraft:''});
+  }
+  onMouseUp = () => {
+    if (!this.state.annOn) return;
+    setTimeout(() => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) { if (this.state.selBtn) this.setState({selBtn:null}); return; }
+      const an = sel.anchorNode, fn = sel.focusNode;
+      if (an !== fn || an.nodeType !== 3) return;
+      const el = an.parentElement, key = el && el.getAttribute('data-seg');
+      if (!key) return;
+      const [rid, bi, si] = key.split('|');
+      const seg = this.state.resp[rid].blocks[+bi].segs[+si];
+      if (seg.a) return;
+      const start = Math.min(sel.anchorOffset, sel.focusOffset), end = Math.max(sel.anchorOffset, sel.focusOffset);
+      if (!seg.t.slice(start, end).trim()) return;
+      const r = sel.getRangeAt(0).getBoundingClientRect();
+      const g = this.gridRef.current.getBoundingClientRect();
+      this.setState({selBtn:{rid, bi:+bi, si:+si, start, end, quote:seg.t.slice(start,end), x:Math.max(0, r.left - g.left), y:r.top - g.top - 34, r}, pop:null});
+    }, 0);
+  };
+  startNew = e => {
+    e.preventDefault();
+    const s = this.state.selBtn;
+    this.setState({pop:{mode:'new', ...s, ...this.rel(s.r)}, selBtn:null, newDraft:''});
+    window.getSelection().removeAllRanges();
+  };
+  saveNew = () => {
+    const p = this.state.pop; if (!p) return;
+    const id = 'n' + this.state.nextId;
+    this.setState(st => {
+      const resp = clone(st.resp);
+      const segs = resp[p.rid].blocks[p.bi].segs, seg = segs[p.si];
+      const parts = [{t:seg.t.slice(0,p.start)}, {t:seg.t.slice(p.start,p.end), a:id}, {t:seg.t.slice(p.end)}].filter(x=>x.t);
+      segs.splice(p.si, 1, ...parts);
+      const thread = st.newDraft.trim() ? [{by:'@mira', ago:'now', t:st.newDraft.trim()}] : [];
+      return { resp, anns:{...st.anns, [id]:{kind:st.newKind, resp:p.rid, votes:0, thread}}, nextId:st.nextId+1,
+        pop:{mode:'thread', id, x:p.x, y:p.y}, newDraft:'' };
+    });
+  };
+  sendReply = () => {
+    const t = this.state.replyDraft.trim(), p = this.state.pop; if (!t || !p) return;
+    this.setState(st => { const a = clone(st.anns); a[p.id].thread.push({by:'@mira', ago:'now', t}); return {anns:a, replyDraft:''}; });
+  };
+  addModel(k){
+    this.setState(st => ({tabs:[...st.tabs, k], tab:k, gen:{...st.gen, [k]:true}, menuOpen:false}));
+    this.timers = this.timers || {};
+    this.timers[k] = setTimeout(() => this.setState(st => {
+      const e = EXTRA[k];
+      return { gen:{...st.gen, [k]:false}, resp:{...st.resp, [k]:{name:e.name, mono:e.mono, meta:e.meta, blocks:[
+        P('A sliding window can be implemented as a log of timestamps per key. Each call drops entries older than the window and admits the request if the remaining count is under the limit.'),
+        C('func (l *Limiter) Allow(key string) bool {\n  l.mu.Lock(); defer l.mu.Unlock()\n  q := l.prune(key, time.Now())\n  if len(q) >= l.limit { return false }\n  l.m[key] = append(q, time.Now())\n  return true\n}'),
+        P('This is exact, but memory is O(limit) per active key.'),
+      ]}} };
+    }), 3600);
+  }
+  paneVals(rid){
+    const st = this.state, r = st.resp[rid];
+    if (!r) return null;
+    const blocks = r.blocks.map((b, bi) => ({ isP: b.k==='p', isCode: b.k==='code', segs: b.segs.map((s, si) => {
+      const a = s.a && st.anns[s.a];
+      const show = st.annOn && a && (st.kind==='All' || a.kind===st.kind);
+      const open = show && st.pop && st.pop.id === s.a;
+      return { t:s.t, key:`${rid}|${bi}|${si}`,
+        bg: open ? 'var(--color-accent-800)' : show ? 'var(--color-accent-900)' : 'transparent',
+        ul: show ? 'inset 0 -1.5px 0 var(--color-accent)' : 'none',
+        cur: show ? 'pointer' : 'auto',
+        click: show ? (e => this.openThread(s.a, e)) : undefined };
+    })}));
+    return { name:r.name, mono:r.mono, meta:r.meta, blocks };
+  }
+  renderVals(){
+    const st = this.state;
+    const base = this.paneVals('llama');
+    const generating = !!st.gen[st.tab];
+    const act = generating ? {name:EXTRA[st.tab].name, meta:'queued'} : this.paneVals(st.tab);
+    const allModels = {...RESP, ...EXTRA};
+    const visibleAnns = Object.values(st.anns).filter(a => st.kind==='All' || a.kind===st.kind);
+    let pop = null;
+    if (st.pop) {
+      if (st.pop.mode==='thread') {
+        const a = st.anns[st.pop.id];
+        const quote = (() => { for (const r of Object.values(st.resp)) for (const b of r.blocks) for (const s of b.segs) if (s.a===st.pop.id) return s.t; return ''; })();
+        const people = new Set(a.thread.map(m=>m.by)).size;
+        pop = { isThread:true, isNew:false, x:st.pop.x, y:st.pop.y, kind:a.kind, icon:KI[a.kind], quote,
+          people: people + (people===1?' person':' people'), votes: a.votes + (st.voted[st.pop.id]?1:0),
+          voteBg: st.voted[st.pop.id] ? 'var(--color-accent-900)' : 'transparent',
+          thread: a.thread.map(m => ({...m, ini:ini(m.by)})) };
+      } else pop = { isThread:false, isNew:true, x:st.pop.x, y:st.pop.y, quote:st.pop.quote, thread:[] };
+    }
+    const commentsAll = st.comments.filter(c => st.filter==='All' || (st.filter==='General' ? !c.on : c.on===st.filter));
+    return {
+      noop: () => {}, stop: e => e.stopPropagation(),
+      promptOpen: st.promptOpen, promptIcon: st.promptOpen ? 'ph-caret-down' : 'ph-caret-right',
+      togglePrompt: () => this.setState({promptOpen:!st.promptOpen}),
+      annOn: st.annOn, annCount: Object.keys(st.anns).length,
+      annBd: st.annOn ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+      annBg: st.annOn ? 'var(--color-accent-900)' : 'transparent',
+      annFg: st.annOn ? 'var(--color-accent-200)' : 'var(--color-neutral-200)',
+      toggleAnn: () => this.setState({annOn:!st.annOn, pop:null, selBtn:null}),
+      kindFilters: [['All','ph-stack'], ...KINDS].map(([n,icon]) => ({n, icon, pick:()=>this.setState({kind:n, pop:null}),
+        bg: st.kind===n ? 'var(--color-neutral-700)' : 'transparent', fg: st.kind===n ? 'var(--color-text)' : 'var(--color-neutral-400)'})),
+      gridRef: this.gridRef, onMouseUp: this.onMouseUp,
+      base,
+      tabs: st.tabs.map(k => ({ name: allModels[k].name, mono: allModels[k].mono, pick:()=>this.setState({tab:k, pop:null, menuOpen:false}),
+        bd: st.tab===k ? 'var(--color-accent)' : 'transparent', fg: st.tab===k ? 'var(--color-text)' : 'var(--color-neutral-400)',
+        spin: st.gen[k] ? 'inline-block' : 'none' })),
+      active: { ...(act||{}), ready: !generating, generating },
+      menuOpen: st.menuOpen, toggleMenu: () => this.setState({menuOpen:!st.menuOpen}),
+      extra: Object.keys(EXTRA).filter(k => !st.tabs.includes(k)).map(k => ({...EXTRA[k], add:()=>this.addModel(k)})),
+      hasSelBtn: !!st.selBtn, selBtn: st.selBtn || {x:0,y:0}, startNew: this.startNew,
+      hasPop: !!pop, pop: pop || {x:0,y:0,thread:[]}, closePop: () => this.setState({pop:null}),
+      votePop: () => this.setState({voted:{...st.voted, [st.pop.id]:!st.voted[st.pop.id]}}),
+      replyDraft: st.replyDraft, onReply: e => this.setState({replyDraft:e.target.value}),
+      replyKey: e => { if (e.key==='Enter') this.sendReply(); }, sendReply: this.sendReply,
+      newKinds: KINDS.map(([n,icon]) => ({n, icon, pick:()=>this.setState({newKind:n}),
+        bd: st.newKind===n ? 'var(--color-accent)' : 'var(--color-neutral-700)', fg: st.newKind===n ? 'var(--color-accent-200)' : 'var(--color-neutral-300)'})),
+      newDraft: st.newDraft, onNewDraft: e => this.setState({newDraft:e.target.value}), saveNew: this.saveNew,
+      commentCount: st.comments.length + st.comments.reduce((n,c)=>n+c.replies.length,0),
+      commentFilters: ['All','llama',...st.tabs.filter(k=>st.resp[k]),'General'].filter((v,i,a)=>a.indexOf(v)===i).map(k => {
+        const n = k==='All'||k==='General' ? k : allModels[k].name.split(' ')[0];
+        return {n, pick:()=>this.setState({filter:k}), bg: st.filter===k?'var(--color-neutral-700)':'transparent', fg: st.filter===k?'var(--color-text)':'var(--color-neutral-400)'};
+      }),
+      draft: st.draft, onDraft: e => this.setState({draft:e.target.value}),
+      aboutOpts: [null,'llama',...st.tabs.filter(k=>st.resp[k])].map(k => ({ n: k ? allModels[k].name : 'General',
+        pick:()=>this.setState({about:k}), bd: st.about===k?'var(--color-accent)':'var(--color-neutral-700)', fg: st.about===k?'var(--color-accent-200)':'var(--color-neutral-300)'})),
+      post: () => { const t = st.draft.trim(); if (!t) return;
+        this.setState({comments:[{id:st.nextId, by:'@mira', ago:'now', on:st.about, votes:0, t, replies:[]}, ...st.comments], draft:'', nextId:st.nextId+1}); },
+      comments: commentsAll.map(c => ({ ...c, ini:ini(c.by), hasOn: !!c.on, on: c.on ? allModels[c.on].name : '',
+        votes: c.votes + (st.cvoted[c.id]?1:0), voteIcon: st.cvoted[c.id] ? 'ph-fill ph-arrow-fat-up' : 'ph-arrow-fat-up',
+        voteFg: st.cvoted[c.id] ? 'var(--color-accent-200)' : 'var(--color-neutral-400)',
+        vote: () => this.setState({cvoted:{...st.cvoted, [c.id]:!st.cvoted[c.id]}}),
+        reply: () => this.setState({draft:c.by+' ', about:c.on}),
+        replies: c.replies.map(r => ({...r, ini:ini(r.by)})) })),
+    };
+  }
+}
+</script>
+</body>
+</html>

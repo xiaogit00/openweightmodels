@@ -1,0 +1,204 @@
+'use client';
+
+import type { AnnotationView, Block, Run } from '@owm/core/client';
+import { cn } from '@/lib/utils';
+
+type Props = {
+  responseId: string;
+  blocks: Block[];
+  annotations: AnnotationView[];
+  annOn: boolean;
+  kindFilter: string;
+  openId: string | null;
+  onOpen: (annotationId: string, event: React.MouseEvent) => void;
+};
+
+function runStyle(run: Run) {
+  return {
+    fontWeight: run.marks.bold ? 600 : undefined,
+    fontStyle: run.marks.italic ? 'italic' : undefined,
+    textDecoration: run.marks.href ? 'underline' : undefined,
+    color: run.marks.href ? 'var(--color-accent-300)' : undefined,
+  } as React.CSSProperties;
+}
+
+function RunText({
+  run,
+  responseId,
+  annotations,
+  annOn,
+  kindFilter,
+  openId,
+  onOpen,
+  code = false,
+}: Props & { run: Run; code?: boolean }) {
+  const marks = run.marks;
+  const visible = annOn && run.annotatable
+    ? annotations
+        .filter(
+          (annotation) =>
+            annotation.responseId === responseId &&
+            (kindFilter === 'All' || annotation.kind === kindFilter) &&
+            annotation.endOffset > run.start &&
+            annotation.startOffset < run.start + run.text.length,
+        )
+        .sort((a, b) => a.startOffset - b.startOffset)
+    : [];
+
+  const parts: React.ReactNode[] = [];
+  let cursor = 0;
+
+  for (const annotation of visible) {
+    const start = Math.max(0, annotation.startOffset - run.start);
+    const end = Math.min(run.text.length, annotation.endOffset - run.start);
+    if (end <= start) continue;
+    if (start > cursor) {
+      parts.push(
+        <span key={`${run.start}-${cursor}-plain`}>{run.text.slice(cursor, start)}</span>,
+      );
+    }
+    const open = openId === annotation.id;
+    parts.push(
+      <span
+        key={annotation.id}
+        data-annotation-span="1"
+        onClick={(event) => onOpen(annotation.id, event)}
+        style={{
+          background: open ? 'var(--color-accent-800)' : 'var(--color-accent-900)',
+          boxShadow: 'inset 0 -1.5px 0 var(--color-accent)',
+          cursor: 'pointer',
+          borderRadius: 2,
+        }}
+      >
+        {run.text.slice(start, end)}
+      </span>,
+    );
+    cursor = end;
+  }
+
+  if (cursor < run.text.length) {
+    parts.push(<span key={`${run.start}-${cursor}-tail`}>{run.text.slice(cursor)}</span>);
+  }
+
+  return (
+    <span
+      data-run="1"
+      data-response={responseId}
+      data-start={run.start}
+      data-annotatable={run.annotatable ? '1' : '0'}
+      style={runStyle(run)}
+      className={cn(
+        marks.code &&
+          !code &&
+          'rounded-[2px] bg-neutral-800 px-1 py-px text-[11.5px] text-neutral-200',
+        marks.code && code && 'text-neutral-200',
+      )}
+    >
+      {parts.length ? parts : run.text}
+    </span>
+  );
+}
+
+function Inline({
+  runs,
+  ...rest
+}: Props & { runs: Run[] }) {
+  return (
+    <>
+      {runs.map((run, index) => (
+        <RunText key={`${run.start}-${index}`} run={run} {...rest} />
+      ))}
+    </>
+  );
+}
+
+export function MarkdownView(props: Props) {
+  const { blocks } = props;
+
+  return (
+    <div className="flex flex-col gap-3">
+      {blocks.map((block, index) => {
+        if (block.type === 'paragraph') {
+          return (
+            <p
+              key={index}
+              className="m-0 text-[12.5px] font-normal leading-[1.65] text-neutral-100 [text-wrap:pretty]"
+            >
+              <Inline runs={block.runs} {...props} />
+            </p>
+          );
+        }
+        if (block.type === 'heading') {
+          return (
+            <p
+              key={index}
+              className={cn(
+                'm-0 font-heading font-medium text-text',
+                block.depth <= 2 ? 'text-[15px]' : 'text-[13.5px]',
+              )}
+            >
+              <Inline runs={block.runs} {...props} />
+            </p>
+          );
+        }
+        if (block.type === 'code') {
+          return (
+            <pre key={index} className="code-block">
+              {block.annotatable ? (
+                <RunText
+                  run={{
+                    text: block.text,
+                    start: block.start,
+                    annotatable: true,
+                    marks: {},
+                  }}
+                  {...props}
+                  code
+                />
+              ) : (
+                block.text
+              )}
+            </pre>
+          );
+        }
+        if (block.type === 'list') {
+          const Tag = block.ordered ? 'ol' : 'ul';
+          return (
+            <Tag
+              key={index}
+              className={cn(
+                'm-0 flex flex-col gap-1 pl-5 text-[12.5px] leading-[1.65] text-neutral-100',
+                block.ordered ? 'list-decimal' : 'list-disc',
+              )}
+            >
+              {block.items.map((item, itemIndex) => (
+                <li key={itemIndex}>
+                  <Inline runs={item} {...props} />
+                </li>
+              ))}
+            </Tag>
+          );
+        }
+        if (block.type === 'blockquote') {
+          return (
+            <blockquote
+              key={index}
+              className="m-0 border-l-2 border-neutral-700 pl-3 text-neutral-300"
+            >
+              <div className="flex flex-col gap-2">
+                {block.blocks.map((inner, innerIndex) =>
+                  inner.type === 'paragraph' ? (
+                    <p key={innerIndex} className="m-0 text-[12.5px] leading-[1.65]">
+                      <Inline runs={inner.runs} {...props} />
+                    </p>
+                  ) : null,
+                )}
+              </div>
+            </blockquote>
+          );
+        }
+        return <hr key={index} className="m-0 border-neutral-700" />;
+      })}
+    </div>
+  );
+}

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+:root{--color-bg:#0a0c0b;--color-surface:#121513;--color-text:#e8ebe8;--color-accent:#a3e635;
+--color-accent-100:#ecfccb;--color-accent-200:#d9f99d;--color-accent-300:#bef264;--color-accent-400:#a3e635;--color-accent-500:#84cc16;--color-accent-600:#65a30d;--color-accent-700:#3f6212;--color-accent-800:#263c0f;--color-accent-900:#17240b;
+--color-neutral-100:#ececec;--color-neutral-200:#d4d6d4;--color-neutral-300:#a9ada9;--color-neutral-400:#858a86;--color-neutral-500:#646966;--color-neutral-600:#4a4f4c;--color-neutral-700:#2e3330;--color-neutral-800:#1d211f;--color-neutral-900:#141715;
+--font-heading:"Space Grotesk",system-ui,sans-serif;--font-body:"JetBrains Mono",ui-monospace,Menlo,monospace;
+--shadow-md:0 0 0 1px #2e3330,0 8px 24px rgba(0,0,0,.5);--shadow-lg:0 0 0 1px #2e3330,0 16px 40px rgba(0,0,0,.6)}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);-webkit-font-smoothing:antialiased}
+a{color:var(--color-accent-300);text-decoration:none}a:hover{color:var(--color-accent-200)}
+*:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+input::placeholder,textarea::placeholder{color:var(--color-neutral-500)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;display:flex;flex-direction:column">
+<header style="position:sticky;top:0;z-index:20;background:var(--color-bg);border-bottom:1px solid var(--color-neutral-800);display:flex;align-items:center;gap:16px;padding:10px 20px">
+<a href="Board v2.dc.html" style="display:flex;align-items:center;gap:8px;color:var(--color-text)"><span style="width:22px;height:22px;border-radius:2px;border:1.5px solid var(--color-accent);display:grid;place-items:center"><span style="width:8px;height:12px;border-right:1.5px solid var(--color-accent)"></span></span><span style="font:500 14px/1 var(--font-heading);letter-spacing:-.01em">OpenWeightModels</span></a>
+<a href="Board v2.dc.html" style="display:flex;align-items:center;gap:5px;font:500 12px var(--font-body);color:var(--color-neutral-400)" style-hover="color:var(--color-text)"><i class="ph ph-arrow-left" style="font-size:13px"></i>Board</a>
+<div style="flex:1"></div>
+<span style="width:28px;height:28px;border-radius:2px;background:var(--color-neutral-700);display:grid;place-items:center;font:500 11px var(--font-body);color:var(--color-neutral-200)">MR</span>
+</header>
+
+<main style="padding:22px 20px 56px;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:32px;max-width:1120px;width:100%;box-sizing:border-box">
+
+<sc-if value="{{ isForm }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:26px;min-width:0">
+<div style="display:flex;flex-direction:column;gap:4px"><h1 style="margin:0;font:500 18px/1.2 var(--font-heading);letter-spacing:-.015em">New comparison</h1><span style="font:400 12px var(--font-body);color:var(--color-neutral-400)">Upload an output, pick who to compare it against. We'll run the same prompt through each model's hosted API.</span></div>
+
+<section style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:8px"><span style="width:20px;height:20px;border-radius:2px;border:1px solid {{ s1.bd }};display:grid;place-items:center;font:500 10px var(--font-body);color:{{ s1.fg }}">{{ s1.mark }}</span><span style="font:500 13px var(--font-heading)">Base output</span></div>
+<sc-if value="{{ noFile }}" hint-placeholder-val="{{ true }}">
+<label onDragOver="{{ onDragOver }}" onDragLeave="{{ onDragLeave }}" onDrop="{{ onDrop }}" style="display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:20px;border-radius:2px;border:1px dashed {{ dropBd }};background:{{ dropBg }};cursor:pointer" style-hover="border-color:var(--color-accent-700)">
+<input type="file" accept=".md,.markdown,.txt" onChange="{{ onFile }}" style="display:none">
+<i class="ph ph-file-arrow-up" style="font-size:22px;color:var(--color-accent-300)"></i>
+<span style="font:500 12px var(--font-body)">Drop a .md file, or <span style="color:var(--color-accent-300)">browse</span></span>
+<span style="font:400 12px var(--font-body);color:var(--color-neutral-500)">Front-matter <code style="font-family:ui-monospace,Menlo,monospace">prompt:</code> is read automatically</span>
+</label>
+<button onClick="{{ useSample }}" style="align-self:flex-start;background:none;border:0;padding:0;color:var(--color-neutral-400);font:500 12px var(--font-body);cursor:pointer" style-hover="color:var(--color-accent-200)">Use a sample file</button>
+</sc-if>
+<sc-if value="{{ hasFile }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:2px;background:var(--color-surface)">
+<div style="display:flex;align-items:center;gap:10px"><i class="ph ph-file-text" style="font-size:20px;color:var(--color-accent-300)"></i><div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0"><span style="font:500 12px var(--font-body)">{{ file.name }}</span><span style="font:400 11px var(--font-body);color:var(--color-neutral-500)">{{ file.size }}</span></div><button onClick="{{ removeFile }}" style="height:26px;padding:0 8px;border:0;border-radius:2px;background:transparent;color:var(--color-neutral-400);font:500 12px var(--font-body);cursor:pointer" style-hover="background:var(--color-neutral-800);color:var(--color-text)">Replace</button></div>
+<div style="display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);gap:10px">
+<label style="display:flex;flex-direction:column;gap:5px"><span style="font:500 11px var(--font-body);color:var(--color-neutral-400)">Generated by</span>
+<select value="{{ baseModel }}" onChange="{{ onBase }}" style="height:32px;padding:0 8px;border-radius:2px;border:1px solid {{ baseBd }};background:var(--color-bg);color:var(--color-text);font:500 12px var(--font-body);outline:0">
+<option value="">Select model…</option>
+<sc-for list="{{ modelOpts }}" as="m" hint-placeholder-count="8"><option value="{{ m.id }}">{{ m.name }}</option></sc-for>
+</select></label>
+<label style="display:flex;flex-direction:column;gap:5px"><span style="font:500 11px var(--font-body);color:var(--color-neutral-400)">Prompt · from front-matter</span>
+<textarea value="{{ prompt }}" onChange="{{ onPrompt }}" rows="2" style="resize:vertical;padding:7px 8px;border-radius:2px;border:1px solid var(--color-neutral-700);background:var(--color-bg);color:var(--color-text);font:400 12px/1.45 var(--font-body);outline:0"></textarea></label>
+</div>
+</div>
+</sc-if>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:8px"><span style="width:20px;height:20px;border-radius:2px;border:1px solid {{ s2.bd }};display:grid;place-items:center;font:500 10px var(--font-body);color:{{ s2.fg }}">{{ s2.mark }}</span><span style="font:500 13px var(--font-heading)">Compare against</span><div style="flex:1"></div><span style="font:400 12px var(--font-body);color:var(--color-neutral-500)">{{ pickedLabel }}</span></div>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px">
+<sc-for list="{{ tiles }}" as="t" hint-placeholder-count="8">
+<button onClick="{{ t.toggle }}" disabled="{{ t.disabled }}" style="display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:2px;border:1px solid {{ t.bd }};background:{{ t.bg }};color:var(--color-text);cursor:{{ t.cur }};opacity:{{ t.op }};text-align:left" style-hover="border-color:var(--color-accent-700)">
+<span style="width:24px;height:24px;border-radius:2px;background:{{ t.monoBg }};display:grid;place-items:center;font:600 10px var(--font-body);color:var(--color-neutral-100);flex:none">{{ t.mono }}</span>
+<span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0"><span style="font:500 12.5px var(--font-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.name }}</span><span style="font:400 11px var(--font-body);color:var(--color-neutral-500)">{{ t.sub }}</span></span>
+<span style="width:16px;height:16px;border-radius:2px;border:1px solid {{ t.cbBd }};background:{{ t.cbBg }};display:grid;place-items:center;flex:none"><i class="ph ph-check" style="font-size:11px;color:var(--color-bg);opacity:{{ t.cbOp }}"></i></span>
+</button>
+</sc-for>
+</div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px"><span style="width:20px;height:20px;border-radius:2px;border:1px solid {{ s3.bd }};display:grid;place-items:center;font:500 10px var(--font-body);color:{{ s3.fg }}">{{ s3.mark }}</span><span style="font:500 13px var(--font-heading)">Details</span></div>
+<label style="display:flex;flex-direction:column;gap:5px"><span style="font:500 11px var(--font-body);color:var(--color-neutral-400)">Title</span><input value="{{ title }}" onChange="{{ onTitle }}" placeholder="What's being compared?" style="height:34px;padding:0 10px;border-radius:2px;border:1px solid var(--color-neutral-700);background:var(--color-surface);color:var(--color-text);font:500 12px var(--font-body);outline:0"></label>
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px var(--font-body);color:var(--color-neutral-400)">Categories</span>
+<div style="display:flex;gap:5px;flex-wrap:wrap">
+<sc-for list="{{ catChips }}" as="c" hint-placeholder-count="6">
+<button onClick="{{ c.toggle }}" style="height:26px;padding:0 10px;border-radius:2px;border:1px solid {{ c.bd }};background:{{ c.bg }};color:{{ c.fg }};font:500 12px var(--font-body);cursor:pointer">{{ c.n }}</button>
+</sc-for>
+</div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px var(--font-body);color:var(--color-neutral-400)">Effort level</span>
+<div style="display:flex;gap:2px;padding:2px;background:var(--color-surface);border-radius:2px;align-self:flex-start">
+<sc-for list="{{ effortOpts }}" as="e" hint-placeholder-count="3">
+<button onClick="{{ e.pick }}" style="display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:6px 12px;border:0;border-radius:2px;background:{{ e.bg }};color:{{ e.fg }};cursor:pointer;text-align:left"><span style="font:500 12px var(--font-body)">{{ e.n }}</span><span style="font:400 10px var(--font-body);color:var(--color-neutral-500)">{{ e.sub }}</span></button>
+</sc-for>
+</div></div>
+</section>
+
+<div style="display:flex;align-items:center;gap:12px;padding-top:6px">
+<button onClick="{{ submit }}" disabled="{{ cantSubmit }}" style="display:flex;align-items:center;gap:6px;height:36px;padding:0 16px;border-radius:2px;border:1px solid var(--color-accent);color:var(--color-bg);background:var(--color-accent);font-weight:600;font:500 12px var(--font-body);cursor:pointer;opacity:{{ submitOp }}" style-hover="background:var(--color-accent-300)"><i class="ph ph-lightning" style="font-size:14px"></i>Schedule comparison</button>
+<span style="font:400 12px var(--font-body);color:var(--color-neutral-500)">{{ submitHint }}</span>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isJob }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:20px;min-width:0;animation:rise .25s ease-out">
+<div style="display:flex;flex-direction:column;gap:4px"><span style="font:500 11px var(--font-body);color:var(--color-neutral-500);letter-spacing:.04em">JOB #4821 · SCHEDULED {{ startedAt }}</span><h1 style="margin:0;font:500 18px/1.2 var(--font-heading);letter-spacing:-.015em">{{ titleOut }}</h1></div>
+
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px">
+<sc-for list="{{ stages }}" as="s" hint-placeholder-count="4">
+<div style="display:flex;flex-direction:column;gap:6px"><div style="height:3px;border-radius:2px;background:{{ s.bar }}"></div><span style="display:flex;align-items:center;gap:5px;font:500 11px var(--font-body);color:{{ s.fg }}"><i class="ph {{ s.icon }}" style="font-size:12px;animation:{{ s.anim }}"></i>{{ s.n }}</span></div>
+</sc-for>
+</div>
+
+<div style="display:flex;flex-direction:column;border-radius:2px;background:var(--color-surface)">
+<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--color-neutral-800)"><span style="font:600 9px/1 var(--font-body);letter-spacing:.08em;color:var(--color-accent-200);padding:4px 6px;border:1px solid var(--color-accent-700);border-radius:2px">BASE</span><span style="font:500 12px var(--font-body)">{{ baseName }}</span><div style="flex:1"></div><span style="display:flex;align-items:center;gap:4px;font:400 12px var(--font-body);color:var(--color-neutral-400)"><i class="ph ph-check-circle" style="font-size:13px"></i>Uploaded</span></div>
+<sc-for list="{{ jobRows }}" as="r" hint-placeholder-count="3">
+<div style="display:flex;flex-direction:column;gap:7px;padding:12px 14px;border-bottom:1px solid var(--color-neutral-800)">
+<div style="display:flex;align-items:center;gap:10px">
+<span style="width:22px;height:22px;border-radius:2px;background:var(--color-neutral-700);display:grid;place-items:center;font:600 9px var(--font-body);flex:none">{{ r.mono }}</span>
+<span style="font:500 12px var(--font-body)">{{ r.name }}</span>
+<div style="flex:1"></div>
+<span style="display:flex;align-items:center;gap:5px;font:500 12px var(--font-body);color:{{ r.fg }};white-space:nowrap"><i class="ph {{ r.icon }}" style="font-size:13px;animation:{{ r.anim }}"></i>{{ r.label }}</span>
+<sc-if value="{{ r.failed }}" hint-placeholder-val="{{ false }}"><button onClick="{{ r.retry }}" style="height:26px;padding:0 10px;border-radius:2px;border:1px solid var(--color-accent);background:transparent;color:var(--color-accent-200);font:500 12px var(--font-body);cursor:pointer">Retry</button><button onClick="{{ r.skip }}" style="height:26px;padding:0 10px;border-radius:2px;border:1px solid var(--color-neutral-700);background:transparent;color:var(--color-neutral-300);font:500 12px var(--font-body);cursor:pointer">Skip</button></sc-if>
+</div>
+<div style="height:3px;border-radius:2px;background:var(--color-neutral-800);overflow:hidden"><div style="height:3px;width:{{ r.pct }}%;background:{{ r.barBg }};transition:width .3s linear"></div></div>
+</div>
+</sc-for>
+</div>
+
+<sc-if value="{{ isReady }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;border-radius:2px;border:1px solid var(--color-accent);background:var(--color-accent-900);animation:rise .3s ease-out">
+<i class="ph ph-check-circle" style="font-size:20px;color:var(--color-accent-200)"></i>
+<div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:200px"><span style="font:500 13px var(--font-heading)">Your comparison is ready</span><span style="font:400 12px var(--font-body);color:var(--color-neutral-300)">{{ readySub }}</span></div>
+<a href="Comparison v2.dc.html" style="display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:2px;border:1px solid var(--color-neutral-600);color:var(--color-text);font:500 12px var(--font-body);white-space:nowrap;flex:none" style-hover="border-color:var(--color-accent)">Review first</a>
+<a href="Board v2.dc.html" style="display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:2px;border:1px solid var(--color-accent);color:var(--color-bg);background:var(--color-accent);font-weight:600;font:500 12px var(--font-body);white-space:nowrap;flex:none" style-hover="background:var(--color-accent-300)"><i class="ph ph-broadcast" style="font-size:13px"></i>Publish to board</a>
+</div>
+</sc-if>
+<sc-if value="{{ notReady }}" hint-placeholder-val="{{ true }}">
+<span style="display:flex;align-items:center;gap:6px;font:400 12px var(--font-body);color:var(--color-neutral-500)"><i class="ph ph-bell" style="font-size:13px"></i>You can leave this page — we'll notify you when it's done.</span>
+</sc-if>
+</div>
+</sc-if>
+
+<aside style="position:sticky;top:76px;align-self:start;display:flex;flex-direction:column;gap:10px">
+<span style="font:500 10px var(--font-body);letter-spacing:.06em;color:var(--color-neutral-500)">ON THE BOARD</span>
+<div style="display:flex;flex-direction:column;gap:9px;padding:11px 12px 10px;background:var(--color-surface);border:1px solid {{ cardBd }};border-radius:2px">
+<div style="display:flex;align-items:center;gap:6px;min-width:0">
+<span style="display:flex;align-items:center;gap:5px;height:20px;padding:0 7px 0 3px;border:1px solid var(--color-accent-700);border-radius:2px;font:500 11px var(--font-body);color:var(--color-accent-200);min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis"><span style="width:14px;height:14px;border-radius:2px;background:var(--color-accent-800);display:grid;place-items:center;font:600 8px var(--font-body);flex:none">{{ card.m0mono }}</span>{{ card.m0 }}</span>
+<span style="font:500 10px var(--font-body);color:var(--color-neutral-500)">vs</span>
+<span style="display:flex;align-items:center;gap:5px;height:20px;padding:0 7px 0 3px;border:1px solid var(--color-neutral-700);border-radius:2px;font:500 11px var(--font-body);color:var(--color-neutral-200);min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis"><span style="width:14px;height:14px;border-radius:2px;background:var(--color-neutral-700);display:grid;place-items:center;font:600 8px var(--font-body);flex:none">{{ card.m1mono }}</span>{{ card.m1 }}</span>
+<span style="font:500 11px var(--font-body);color:var(--color-neutral-400);flex:none">{{ card.more }}</span>
+</div>
+<div style="font:500 12px/1.3 var(--font-heading);color:{{ card.titleFg }}">{{ card.title }}</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--color-neutral-700);border-radius:2px;overflow:hidden">
+<div style="background:var(--color-bg);padding:6px 7px;font:400 10.5px/1.4 var(--font-body);color:var(--color-neutral-300)"><div style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">{{ card.s0 }}</div></div>
+<div style="background:var(--color-bg);padding:6px 7px;font:400 10.5px/1.4 var(--font-body);color:var(--color-neutral-500)"><div style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">{{ card.s1 }}</div></div>
+</div>
+<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font:400 11px var(--font-body);color:var(--color-neutral-400)">
+<sc-for list="{{ card.cats }}" as="c" hint-placeholder-count="1"><span style="height:18px;padding:0 6px;display:flex;align-items:center;border-radius:2px;background:var(--color-neutral-800);color:var(--color-neutral-200);font-weight:500">{{ c }}</span></sc-for>
+<span style="display:flex;align-items:flex-end;gap:2px;height:10px"><span style="width:3px;height:5px;border-radius:1px;background:var(--color-accent)"></span><span style="width:3px;height:7px;border-radius:1px;background:{{ card.e2 }}"></span><span style="width:3px;height:10px;border-radius:1px;background:{{ card.e3 }}"></span></span><span>{{ card.effort }}</span>
+</div>
+<div style="display:flex;align-items:center;gap:6px;font:400 11px var(--font-body);color:var(--color-neutral-500)"><span style="width:14px;height:14px;border-radius:2px;background:var(--color-neutral-700)"></span><span style="color:var(--color-neutral-300)">@mira</span><span>·</span><span style="display:flex;align-items:center;gap:4px;color:{{ card.statusFg }}"><span style="width:6px;height:6px;border-radius:2px;background:{{ card.statusFg }};animation:{{ card.statusAnim }}"></span>{{ card.status }}</span></div>
+</div>
+<span style="font:400 11px/1.45 var(--font-body);color:var(--color-neutral-500);text-wrap:pretty">{{ asideNote }}</span>
+</aside>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const MODELS = [
+  {id:'llama', name:'Llama 3.3 70B', mono:'L3', eta:8, prov:'Hosted · ~8s'},
+  {id:'qwen', name:'Qwen2.5 72B', mono:'Q2', eta:6, prov:'Hosted · ~6s'},
+  {id:'deepseek', name:'DeepSeek V3', mono:'DS', eta:9, prov:'Hosted · ~9s'},
+  {id:'mistral', name:'Mistral Large', mono:'MI', eta:5, prov:'Hosted · ~5s'},
+  {id:'gemma', name:'Gemma 2 27B', mono:'G2', eta:7, prov:'Hosted · ~7s'},
+  {id:'phi', name:'Phi-4', mono:'P4', eta:4, prov:'Hosted · ~4s'},
+  {id:'codestral', name:'Codestral', mono:'CS', eta:5, prov:'Hosted · ~5s'},
+  {id:'qcoder', name:'Qwen2.5 Coder', mono:'QC', eta:6, prov:'Hosted · ~6s'},
+];
+const M = Object.fromEntries(MODELS.map(m=>[m.id,m]));
+const CATS = ['Coding','Reasoning','Creative','Math','Long-context','Language'];
+const EFFORT = [['Low','Quick prompt'],['Med','Multi-step'],['High','Hard / long']];
+const SAMPLE = {name:'ratelimiter.md', size:'4.2 KB · 118 lines', prompt:'Write a thread-safe sliding-window rate limiter in Go. Allow N requests per window per key, and explain the trade-offs.', title:'Rate limiter in Go with sliding windows', snippet:'Here\u2019s a sliding-window rate limiter that tracks request timestamps per key. It\u2019s safe for concurrent use\u2026'};
+const MAX = 4;
+
+class Component extends DCLogic {
+  state = { phase:'form', file:null, baseModel:'', prompt:'', picked:[], title:'', cats:[], effort:1, drag:false, job:[], startedAt:'' };
+  componentWillUnmount(){ clearInterval(this.iv); }
+  loadFile(f){
+    const name = f ? f.name : SAMPLE.name;
+    const size = f ? (f.size/1024).toFixed(1)+' KB' : SAMPLE.size;
+    this.setState(s => ({ file:{name, size}, prompt: s.prompt || SAMPLE.prompt, title: s.title || (f ? name.replace(/\.(md|markdown|txt)$/,'').replace(/[-_]/g,' ') : SAMPLE.title), cats: s.cats.length ? s.cats : ['Coding'] }));
+  }
+  submit = () => {
+    const s = this.state; if (!this.ready()) return;
+    const t0 = Date.now();
+    const job = s.picked.map((id, i) => ({ id, start: 600 + i*500, dur: M[id].eta*450, failOnce: i===1, attempt:0, t0, state:'queued', progress:0, tok:0 }));
+    const d = new Date();
+    this.setState({ phase:'job', job, startedAt: d.toTimeString().slice(0,5) });
+    window.scrollTo({top:0});
+    this.iv = setInterval(this.tick, 200);
+  };
+  tick = () => this.setState(s => {
+    const now = Date.now();
+    const job = s.job.map(r => {
+      if (r.state==='done' || r.state==='failed' || r.state==='skipped') return r;
+      const el = now - r.t0 - r.start;
+      if (el < 0) return {...r, state:'queued'};
+      if (el < 700) return {...r, state:'calling', progress: 6};
+      const p = Math.min(1, (el-700)/r.dur);
+      if (r.failOnce && r.attempt===0 && p > .45) return {...r, state:'failed', progress:45};
+      if (p >= 1) return {...r, state:'done', progress:100, tok: Math.round(r.dur*0.22), secs: ((700+r.dur)/1000).toFixed(1)};
+      return {...r, state:'streaming', progress: 6 + p*94, tok: Math.round(p*r.dur*0.22)};
+    });
+    if (job.every(r => ['done','failed','skipped'].includes(r.state)) && !job.some(r=>r.state==='failed')) clearInterval(this.iv);
+    return {job};
+  });
+  retry(id){
+    this.setState(s => ({job: s.job.map(r => r.id===id ? {...r, attempt:1, t0:Date.now(), start:0, state:'calling', progress:6} : r)}));
+    clearInterval(this.iv); this.iv = setInterval(this.tick, 200);
+  }
+  skip(id){ this.setState(s => ({job: s.job.map(r => r.id===id ? {...r, state:'skipped'} : r)})); }
+  ready(){ const s=this.state; return !!(s.file && s.baseModel && s.picked.length); }
+  renderVals(){
+    const s = this.state, A='var(--color-accent)', off='var(--color-neutral-700)';
+    const step = (done, active, n) => ({ mark: done ? '\u2713' : n, bd: done||active ? A : 'var(--color-neutral-600)', fg: done||active ? 'var(--color-accent-200)' : 'var(--color-neutral-400)' });
+    const isJob = s.phase==='job';
+    const rows = s.job.map(r => {
+      const m = M[r.id];
+      const map = {
+        queued:['Queued','ph-clock','var(--color-neutral-400)','none'],
+        calling:['Calling API\u2026','ph-circle-notch','var(--color-accent-200)','spin 1s linear infinite'],
+        streaming:['Generating \u00b7 '+r.tok+' tok','ph-circle-notch','var(--color-accent-200)','spin 1s linear infinite'],
+        done:['Done \u00b7 '+r.tok+' tok \u00b7 '+r.secs+'s','ph-check-circle','var(--color-neutral-200)','none'],
+        failed:['API timeout','ph-warning-circle','var(--color-neutral-200)','none'],
+        skipped:['Skipped','ph-minus-circle','var(--color-neutral-500)','none'],
+      }[r.state];
+      return { name:m.name, mono:m.mono, label:map[0], icon:map[1], fg:map[2], anim:map[3], pct: Math.round(r.progress),
+        barBg: r.state==='failed' ? 'var(--color-neutral-500)' : r.state==='done' ? 'var(--color-accent-500)' : A,
+        failed: r.state==='failed', retry: ()=>this.retry(r.id), skip: ()=>this.skip(r.id) };
+    });
+    const settled = s.job.length && s.job.every(r=>['done','skipped'].includes(r.state));
+    const anyStream = s.job.some(r=>['calling','streaming','failed'].includes(r.state));
+    const anyDone = s.job.some(r=>r.state==='done');
+    const stageIdx = !isJob ? -1 : settled ? 4 : anyStream || anyDone ? 2 : 1;
+    const stages = ['Scheduled','Resolving models','Calling hosted APIs','Ready'].map((n,i) => ({ n,
+      bar: i < stageIdx || stageIdx===4 ? A : i===stageIdx ? 'var(--color-accent-700)' : off,
+      fg: i <= stageIdx ? 'var(--color-text)' : 'var(--color-neutral-500)',
+      icon: i < stageIdx || stageIdx===4 ? 'ph-check' : i===stageIdx ? 'ph-circle-notch' : 'ph-circle',
+      anim: i===stageIdx && stageIdx<4 ? 'spin 1s linear infinite' : 'none' }));
+    const base = M[s.baseModel], p0 = M[s.picked[0]];
+    const doneCount = s.job.filter(r=>r.state==='done').length;
+    const status = !isJob ? 'Draft' : settled ? 'Ready' : `Generating ${doneCount}/${s.job.filter(r=>r.state!=='skipped').length}`;
+    return {
+      isForm: !isJob, isJob,
+      s1: step(!!(s.file && s.baseModel), !s.file || !s.baseModel, 1),
+      s2: step(s.picked.length>0, !!(s.file && s.baseModel) && !s.picked.length, 2),
+      s3: step(!!(s.title && s.cats.length), s.picked.length>0, 3),
+      noFile: !s.file, hasFile: !!s.file, file: s.file || {},
+      dropBd: s.drag ? A : 'var(--color-neutral-600)', dropBg: s.drag ? 'var(--color-accent-900)' : 'transparent',
+      onDragOver: e => { e.preventDefault(); if(!s.drag) this.setState({drag:true}); },
+      onDragLeave: () => this.setState({drag:false}),
+      onDrop: e => { e.preventDefault(); this.setState({drag:false}); this.loadFile(e.dataTransfer.files[0]); },
+      onFile: e => e.target.files[0] && this.loadFile(e.target.files[0]),
+      useSample: () => { this.loadFile(null); this.setState({baseModel:'llama'}); },
+      removeFile: () => this.setState({file:null}),
+      baseModel: s.baseModel, baseBd: s.baseModel ? 'var(--color-neutral-700)' : A,
+      onBase: e => this.setState({baseModel:e.target.value, picked: s.picked.filter(x=>x!==e.target.value)}),
+      modelOpts: MODELS,
+      prompt: s.prompt, onPrompt: e => this.setState({prompt:e.target.value}),
+      pickedLabel: `${s.picked.length} of ${MAX} selected`,
+      tiles: MODELS.map(m => {
+        const on = s.picked.includes(m.id), isBase = m.id===s.baseModel, full = !on && s.picked.length>=MAX;
+        const dis = isBase || full;
+        return { ...m, sub: isBase ? 'Base model' : m.prov, disabled: dis,
+          toggle: () => this.setState({picked: on ? s.picked.filter(x=>x!==m.id) : [...s.picked, m.id]}),
+          bd: on ? A : 'var(--color-neutral-800)', bg: on ? 'var(--color-accent-900)' : 'var(--color-surface)',
+          cur: dis ? 'not-allowed' : 'pointer', op: dis ? .45 : 1, monoBg: on ? 'var(--color-accent-800)' : 'var(--color-neutral-700)',
+          cbBd: on ? A : 'var(--color-neutral-600)', cbBg: on ? A : 'transparent', cbOp: on ? 1 : 0 };
+      }),
+      title: s.title, onTitle: e => this.setState({title:e.target.value}),
+      catChips: CATS.map(c => { const on = s.cats.includes(c); return { n:c,
+        toggle: () => this.setState({cats: on ? s.cats.filter(x=>x!==c) : [...s.cats, c]}),
+        bd: on ? A : 'var(--color-neutral-700)', bg: on ? 'var(--color-accent-900)' : 'transparent', fg: on ? 'var(--color-accent-200)' : 'var(--color-neutral-300)' }; }),
+      effortOpts: EFFORT.map(([n,sub],i) => ({ n, sub, pick: () => this.setState({effort:i}),
+        bg: s.effort===i ? 'var(--color-neutral-700)' : 'transparent', fg: s.effort===i ? 'var(--color-text)' : 'var(--color-neutral-400)' })),
+      submit: this.submit, cantSubmit: !this.ready(), submitOp: this.ready() ? 1 : .45,
+      submitHint: !s.file ? 'Upload a base output to continue' : !s.baseModel ? 'Pick the model that generated it' : !s.picked.length ? 'Choose at least one model to compare'
+        : `${s.picked.length} hosted API call${s.picked.length>1?'s':''} · ~${Math.max(...s.picked.map(id=>M[id].eta))}s`,
+      startedAt: s.startedAt, titleOut: s.title || 'Untitled comparison', baseName: base ? base.name : '',
+      stages, jobRows: rows, isReady: !!settled, notReady: !settled,
+      readySub: `${doneCount} response${doneCount===1?'':'s'} generated. Review it, or publish straight to the live board.`,
+      cardBd: isJob && !settled ? 'var(--color-accent-700)' : 'transparent',
+      card: {
+        m0: base ? base.name : 'Base model', m0mono: base ? base.mono : '–',
+        m1: p0 ? p0.name : 'Compare to…', m1mono: p0 ? p0.mono : '–',
+        more: s.picked.length>1 ? '+'+(s.picked.length-1) : '',
+        title: s.title || 'Your title appears here', titleFg: s.title ? 'var(--color-text)' : 'var(--color-neutral-500)',
+        s0: s.file ? SAMPLE.snippet : 'Base output preview', s1: settled ? 'A sliding-window log is exact but stores every timestamp. A ring buffer\u2026' : isJob ? 'Generating\u2026' : 'Generated after scheduling',
+        cats: s.cats.length ? s.cats : ['Category'],
+        e2: s.effort>=1 ? A : off, e3: s.effort>=2 ? A : off, effort: EFFORT[s.effort][0],
+        status, statusFg: settled ? 'var(--color-accent-200)' : isJob ? 'var(--color-accent-300)' : 'var(--color-neutral-500)',
+        statusAnim: isJob && !settled ? 'pulse 1.2s infinite' : 'none',
+      },
+      asideNote: isJob ? (settled ? 'Only you can see this until you publish.' : 'Visible only to you while generating.') : 'Live preview of the card other people will see.',
+    };
+  }
+}
+</script>
+</body>
+</html>

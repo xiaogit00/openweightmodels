@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="styles.css">
+<style>
+body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body)}
+a{color:var(--color-accent-300)}a:hover{color:var(--color-accent-200)}
+.dv-turn{padding:40px 44px 32px;scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;border:1px solid var(--color-accent);color:var(--color-accent-200);border-radius:4px;text-decoration:none}
+.dv-tname{font:500 15px/1.2 var(--font-heading);color:var(--color-text)}
+.dv-tsub{font:400 12px/1.4 var(--font-body);color:var(--color-neutral-400)}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:2px 6px;background:var(--color-neutral-800);color:var(--color-text);border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 12px/1.3 var(--font-body);color:var(--color-neutral-300)}
+.dv-card{max-width:100%;background:var(--color-bg);border:1px solid var(--color-neutral-800);border-radius:8px;box-shadow:var(--shadow-md);overflow:hidden}
+.dv-opt:target .dv-oid{background:var(--color-accent);color:var(--color-bg)}
+.dv-next{margin:22px 0 0;font:12px/1.5 var(--font-body);color:var(--color-neutral-400)}
+.ln{height:6px;border-radius:3px;background:var(--color-neutral-700)}
+.ln.d{background:var(--color-neutral-800)}
+.bx{border:1px dashed var(--color-neutral-600);border-radius:6px}
+.ch{display:inline-flex;align-items:center;gap:4px;font:500 10px/1 var(--font-body);padding:4px 7px;border-radius:20px;border:1px solid var(--color-neutral-600);color:var(--color-neutral-200);white-space:nowrap}
+.ch.a{border-color:var(--color-accent);color:var(--color-accent-200)}
+.ch.f{background:var(--color-neutral-800);border-color:var(--color-neutral-800)}
+.t{font:500 11px/1.3 var(--font-body);color:var(--color-text)}
+.m{font:400 10px/1.3 var(--font-body);color:var(--color-neutral-400)}
+.h{font:500 14px/1.25 var(--font-heading);color:var(--color-text)}
+.note{font:italic 400 11px/1.35 var(--font-body);color:var(--color-accent-200);border-left:2px solid var(--color-accent);padding:2px 0 2px 8px}
+.hl{background:color-mix(in oklch,var(--color-accent) 35%,transparent);border-bottom:2px solid var(--color-accent)}
+.bt{display:inline-flex;white-space:nowrap;flex:none;align-items:center;gap:5px;font:500 11px/1 var(--font-body);padding:7px 10px;border-radius:6px;border:1px solid var(--color-accent);color:var(--color-accent-200)}
+.bt.g{border-color:var(--color-neutral-600);color:var(--color-neutral-200)}
+.nv{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--color-neutral-800)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--color-neutral-600);display:inline-block}
+.dot.on{background:var(--color-accent)}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t5">
+<div class="dv-thd"><a class="dv-tid" href="#t5">5</a><span class="dv-tname">Board, denser: <a class="dv-oid" href="#1a">1a</a> cards + <a class="dv-oid" href="#1b">1b</a> sidebar</span><span class="dv-tsub">Shown at a 1440px monitor width · Selected directions: <a class="dv-oid" href="#2c">2c</a> comparison · <a class="dv-oid" href="#3b">3b</a> annotations · <a class="dv-oid" href="#4b">4b</a> + <a class="dv-oid" href="#4c">4c</a> new comparison</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="5a"><div class="dv-olabel"><a class="dv-oid" href="#5a">5a</a>4-up compact cards with mini side-by-side preview</div>
+<div class="dv-card" style="width:1440px">
+<div class="nv"><span class="h">◑ OpenWeightModels</span><div class="bx" style="width:360px;height:26px;display:flex;align-items:center;padding:0 8px"><span class="m">Search prompts, models…</span></div><span style="flex:1"></span><span class="bt">+ New comparison</span><span style="width:24px;height:24px;border-radius:50%;background:var(--color-neutral-700)"></span></div>
+<div style="display:grid;grid-template-columns:200px 1fr">
+<div style="padding:12px 14px;border-right:1px solid var(--color-neutral-800);display:flex;flex-direction:column;gap:7px">
+<span class="m">CATEGORIES</span>
+<sc-for list="{{ cats }}" as="c" hint-placeholder-count="6"><div style="display:flex;justify-content:space-between"><span class="t">{{ c.n }}</span><span class="m">{{ c.k }}</span></div></sc-for>
+<span class="m" style="margin-top:10px">MODELS</span>
+<sc-for list="{{ models }}" as="mo" hint-placeholder-count="8"><div style="display:flex;gap:6px;align-items:center"><span style="width:10px;height:10px;border-radius:3px;border:1px solid var(--color-neutral-500)"></span><span class="t">{{ mo }}</span></div></sc-for>
+<span class="m" style="color:var(--color-accent-200)">+ 14 more</span>
+<span class="m" style="margin-top:10px">EFFORT</span>
+<div style="display:flex;gap:4px"><span class="ch">Low</span><span class="ch">Med</span><span class="ch">High</span></div>
+</div>
+<div style="padding:10px 14px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;gap:6px;align-items:center"><span class="ch a">● Live</span><span class="ch">Top</span><span class="ch">New</span><span class="m" style="margin-left:6px">Filtered: Coding · Qwen2.5 ✕</span><span style="flex:1"></span><span class="ch a">↑ 3 new</span><span class="m">Density</span><span class="ch f">▦</span><span class="ch">☰</span></div>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">
+<sc-for list="{{ cards }}" as="c" hint-placeholder-count="12">
+<div style="background:var(--color-surface);border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:6px;border:1px solid var(--color-neutral-800)">
+<div style="display:flex;gap:3px;align-items:center;flex-wrap:wrap"><span class="ch a" style="padding:3px 5px;font-size:9px">{{ c.a }}</span><span class="m" style="font-size:9px">vs</span><span class="ch" style="padding:3px 5px;font-size:9px">{{ c.b }}</span><span class="m" style="font-size:9px">{{ c.more }}</span></div>
+<div class="t" style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.title }}</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px"><div class="bx" style="padding:4px;display:flex;flex-direction:column;gap:3px"><div class="ln" style="height:4px;width:85%"></div><div class="ln d" style="height:4px"></div></div><div class="bx" style="padding:4px;display:flex;flex-direction:column;gap:3px"><div class="ln" style="height:4px;width:70%"></div><div class="ln d" style="height:4px;width:90%"></div></div></div>
+<div style="display:flex;gap:3px;align-items:center"><span class="ch f" style="padding:3px 5px;font-size:9px">{{ c.tag }}</span><span style="flex:1"></span><span class="m" style="font-size:9px">{{ c.effort }}</span></div>
+<div class="m" style="font-size:9px">{{ c.meta }}</div>
+</div>
+</sc-for>
+</div>
+<div class="note">~12 cards above the fold at 1440×900 (vs 4 in 1a). Card height ≈ 120px; preview shrinks to two lines per model. Sidebar filters are checkboxes so several models can combine.</div>
+</div></div>
+</div></div>
+
+<div class="dv-opt" id="5b"><div class="dv-olabel"><a class="dv-oid" href="#5b">5b</a>5-up, text preview instead of mini columns</div>
+<div class="dv-card" style="width:1440px">
+<div class="nv"><span class="h">◑ OpenWeightModels</span><div class="bx" style="width:360px;height:26px;display:flex;align-items:center;padding:0 8px"><span class="m">Search prompts, models…</span></div><span style="flex:1"></span><span class="bt">+ New comparison</span><span style="width:24px;height:24px;border-radius:50%;background:var(--color-neutral-700)"></span></div>
+<div style="display:grid;grid-template-columns:180px 1fr">
+<div style="padding:12px 14px;border-right:1px solid var(--color-neutral-800);display:flex;flex-direction:column;gap:7px">
+<span class="m">CATEGORIES</span>
+<sc-for list="{{ cats }}" as="c" hint-placeholder-count="6"><div style="display:flex;justify-content:space-between"><span class="t">{{ c.n }}</span><span class="m">{{ c.k }}</span></div></sc-for>
+<span class="m" style="margin-top:10px">MODELS</span>
+<sc-for list="{{ models }}" as="mo" hint-placeholder-count="8"><div style="display:flex;gap:6px;align-items:center"><span style="width:10px;height:10px;border-radius:3px;border:1px solid var(--color-neutral-500)"></span><span class="t">{{ mo }}</span></div></sc-for>
+</div>
+<div style="padding:10px 14px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;gap:6px;align-items:center"><span class="ch a">● Live</span><span class="ch">Top</span><span class="ch">New</span><span style="flex:1"></span><span class="ch">Effort ▾</span></div>
+<div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px">
+<sc-for list="{{ cards }}" as="c" hint-placeholder-count="15">
+<div style="background:var(--color-surface);border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:5px;border:1px solid var(--color-neutral-800)">
+<div class="t" style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.title }}</div>
+<div style="display:flex;gap:3px;align-items:center;flex-wrap:wrap"><span class="ch a" style="padding:3px 5px;font-size:9px">{{ c.a }}</span><span class="ch" style="padding:3px 5px;font-size:9px">{{ c.b }}</span><span class="m" style="font-size:9px">{{ c.more }}</span></div>
+<div class="ln d" style="height:4px;width:95%"></div><div class="ln d" style="height:4px;width:70%"></div>
+<div style="display:flex;gap:3px;align-items:center"><span class="ch f" style="padding:3px 5px;font-size:9px">{{ c.tag }}</span><span class="m" style="font-size:9px">{{ c.effort }}</span><span style="flex:1"></span><span class="m" style="font-size:9px">{{ c.short }}</span></div>
+</div>
+</sc-for>
+</div>
+<div class="note">Densest: ~20 cards above the fold. Preview is a one-line excerpt from the base output; hover expands to side-by-side.</div>
+</div></div>
+</div></div>
+
+</div>
+<p class="dv-next">Try next: "go with <a class="dv-oid" href="#5a">5a</a>, now hi-fi" · "<a class="dv-oid" href="#5a">5a</a> with a collapsible sidebar" · "combine <a class="dv-oid" href="#2c">2c</a> + <a class="dv-oid" href="#3b">3b</a> into one screen"</p>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Board — live feed of comparisons</span><span class="dv-tsub">Card = models · prompt preview · category tags · effort</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a"><div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Card grid — preview-first</div>
+<div class="dv-card" style="width:560px">
+<div class="nv"><span class="h">◑ OpenWeightModels</span><div class="bx" style="flex:1;height:26px;display:flex;align-items:center;padding:0 8px"><span class="m">Search prompts, models…</span></div><span class="bt">+ New comparison</span><span style="width:24px;height:24px;border-radius:50%;background:var(--color-neutral-700)"></span></div>
+<div style="padding:12px 14px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="ch a">● Live</span><span class="ch">Top</span><span class="ch">New</span><span class="m" style="margin:0 4px">|</span><span class="ch f">Coding</span><span class="ch f">Reasoning</span><span class="ch f">Creative</span><span class="ch f">Math</span><span class="ch">Effort ▾</span><span class="ch">Model ▾</span></div>
+<div style="padding:0 14px 14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<div style="background:var(--color-surface);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;border:1px solid var(--color-accent)">
+<div style="display:flex;gap:4px;flex-wrap:wrap"><span class="ch a">Llama 3.3 70B</span><span class="m">vs</span><span class="ch">Qwen2.5 72B</span><span class="ch">+2</span></div>
+<div class="t">Write a rate limiter in Go with sliding windows</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><div class="bx" style="padding:6px;display:flex;flex-direction:column;gap:4px"><div class="ln" style="width:90%"></div><div class="ln d" style="width:70%"></div><div class="ln d" style="width:80%"></div></div><div class="bx" style="padding:6px;display:flex;flex-direction:column;gap:4px"><div class="ln" style="width:75%"></div><div class="ln d" style="width:85%"></div><div class="ln d" style="width:60%"></div></div></div>
+<div style="display:flex;gap:4px;align-items:center"><span class="ch f">Coding</span><span class="ch f">Go</span><span style="flex:1"></span><span class="m">Effort</span><span class="dot on"></span><span class="dot on"></span><span class="dot"></span></div>
+<div class="m">@mira · 2m · 💬 14 · ✎ 6 notes</div>
+</div>
+<div style="background:var(--color-surface);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;gap:4px;flex-wrap:wrap"><span class="ch a">Mistral Large</span><span class="m">vs</span><span class="ch">DeepSeek V3</span></div>
+<div class="t">Explain the Monty Hall problem to a 10-year-old</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><div class="bx" style="padding:6px;display:flex;flex-direction:column;gap:4px"><div class="ln" style="width:80%"></div><div class="ln d" style="width:90%"></div><div class="ln d" style="width:50%"></div></div><div class="bx" style="padding:6px;display:flex;flex-direction:column;gap:4px"><div class="ln" style="width:85%"></div><div class="ln d" style="width:65%"></div><div class="ln d" style="width:75%"></div></div></div>
+<div style="display:flex;gap:4px;align-items:center"><span class="ch f">Reasoning</span><span style="flex:1"></span><span class="m">Effort</span><span class="dot on"></span><span class="dot"></span><span class="dot"></span></div>
+<div class="m">@kev · 9m · 💬 3</div>
+</div>
+<div style="background:var(--color-surface);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;opacity:.75">
+<div style="display:flex;gap:4px"><span class="ch a">Gemma 2 27B</span><span class="m">vs</span><span class="ch">Phi-4</span><span class="ch">+1</span></div>
+<div class="ln" style="width:85%;height:8px"></div>
+<div class="bx" style="height:36px"></div>
+<div class="m">…</div>
+</div>
+<div style="background:var(--color-surface);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;opacity:.75">
+<div style="display:flex;gap:4px"><span class="ch a">Qwen2.5 Coder</span><span class="m">vs</span><span class="ch">Codestral</span></div>
+<div class="ln" style="width:70%;height:8px"></div>
+<div class="bx" style="height:36px"></div>
+<div class="m">…</div>
+</div>
+</div>
+<div style="padding:0 14px 14px"><div class="note">Accent border = new since you last looked. Preview shows the first lines of each response side by side, so the difference reads at a glance.</div></div>
+</div></div>
+
+<div class="dv-opt" id="1b"><div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Forum thread list — dense, scannable</div>
+<div class="dv-card" style="width:560px">
+<div class="nv"><span class="h">◑ OpenWeightModels</span><span style="flex:1"></span><span class="bt">+ New comparison</span></div>
+<div style="display:grid;grid-template-columns:120px 1fr">
+<div style="padding:12px;border-right:1px solid var(--color-neutral-800);display:flex;flex-direction:column;gap:8px">
+<span class="m">CATEGORIES</span><span class="t" style="color:var(--color-accent-200)">All</span><span class="t">Coding</span><span class="t">Reasoning</span><span class="t">Creative</span><span class="t">Math</span><span class="t">Long-context</span>
+<span class="m" style="margin-top:8px">MODELS</span><span class="t">Llama 3.3</span><span class="t">Qwen2.5</span><span class="t">DeepSeek</span><span class="m">+ more</span>
+</div>
+<div>
+<div style="display:grid;grid-template-columns:1fr 56px 44px 44px;gap:8px;padding:8px 12px;border-bottom:1px solid var(--color-neutral-800)"><span class="m">Comparison</span><span class="m">Effort</span><span class="m">Replies</span><span class="m">Active</span></div>
+<div style="display:grid;grid-template-columns:1fr 56px 44px 44px;gap:8px;padding:10px 12px;border-bottom:1px solid var(--color-neutral-800);align-items:center">
+<div style="display:flex;flex-direction:column;gap:5px"><span class="t">Rate limiter in Go with sliding windows</span><div style="display:flex;gap:4px;flex-wrap:wrap"><span class="ch a">Llama 3.3 70B</span><span class="ch">Qwen2.5 72B</span><span class="ch">+2</span><span class="ch f">Coding</span></div><div class="ln d" style="width:80%"></div></div>
+<span><span class="dot on"></span> <span class="dot on"></span> <span class="dot"></span></span><span class="t">14</span><span class="m">2m</span></div>
+<div style="display:grid;grid-template-columns:1fr 56px 44px 44px;gap:8px;padding:10px 12px;border-bottom:1px solid var(--color-neutral-800);align-items:center">
+<div style="display:flex;flex-direction:column;gap:5px"><span class="t">Monty Hall for a 10-year-old</span><div style="display:flex;gap:4px"><span class="ch a">Mistral Large</span><span class="ch">DeepSeek V3</span><span class="ch f">Reasoning</span></div><div class="ln d" style="width:65%"></div></div>
+<span><span class="dot on"></span> <span class="dot"></span> <span class="dot"></span></span><span class="t">3</span><span class="m">9m</span></div>
+<div style="display:grid;grid-template-columns:1fr 56px 44px 44px;gap:8px;padding:10px 12px;border-bottom:1px solid var(--color-neutral-800);align-items:center">
+<div style="display:flex;flex-direction:column;gap:5px"><span class="t">Short story: lighthouse keeper, 300 words</span><div style="display:flex;gap:4px"><span class="ch a">Gemma 2 27B</span><span class="ch">Phi-4</span><span class="ch f">Creative</span></div><div class="ln d" style="width:72%"></div></div>
+<span><span class="dot on"></span> <span class="dot"></span> <span class="dot"></span></span><span class="t">27</span><span class="m">1h</span></div>
+<div style="display:grid;grid-template-columns:1fr 56px 44px 44px;gap:8px;padding:10px 12px;align-items:center;opacity:.6">
+<div style="display:flex;flex-direction:column;gap:5px"><div class="ln" style="width:70%;height:8px"></div><div style="display:flex;gap:4px"><span class="ch">…</span><span class="ch">…</span></div></div>
+<span class="m">—</span><span class="m">—</span><span class="m">—</span></div>
+</div></div>
+<div style="padding:12px 14px"><div class="note">Feels most "forum". Preview is one excerpt line; hover a row to expand a two-column peek.</div></div>
+</div></div>
+
+<div class="dv-opt" id="1c"><div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Feed + rail — live jobs and trending models</div>
+<div class="dv-card" style="width:560px">
+<div class="nv"><span class="h">◑ OpenWeightModels</span><div class="bx" style="flex:1;height:26px"></div><span class="bt">+ New comparison</span></div>
+<div style="display:grid;grid-template-columns:1fr 150px;gap:12px;padding:12px 14px">
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border:1px solid var(--color-accent);border-radius:20px"><span class="t" style="color:var(--color-accent-200)">↑ 3 new comparisons</span><span class="m">click to load</span></div>
+<div style="background:var(--color-surface);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;gap:6px;align-items:center"><span style="width:18px;height:18px;border-radius:50%;background:var(--color-neutral-700)"></span><span class="m">@mira · 2m</span><span style="flex:1"></span><span class="ch f">Coding</span><span class="m">Effort ●●○</span></div>
+<div class="h">Rate limiter in Go with sliding windows</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+<div style="display:flex;flex-direction:column;gap:4px"><span class="ch a" style="align-self:flex-start">Llama 3.3 70B · base</span><div class="bx" style="padding:6px;display:flex;flex-direction:column;gap:4px"><div class="ln" style="width:90%"></div><div class="ln d"></div><div class="ln d" style="width:60%"></div></div></div>
+<div style="display:flex;flex-direction:column;gap:4px"><span class="ch" style="align-self:flex-start">Qwen2.5 72B</span><div class="bx" style="padding:6px;display:flex;flex-direction:column;gap:4px"><div class="ln" style="width:80%"></div><div class="ln d"></div><div class="ln d" style="width:70%"></div></div></div>
+<div style="display:flex;flex-direction:column;gap:4px"><span class="ch" style="align-self:flex-start">DeepSeek V3</span><div class="bx" style="padding:6px;display:flex;flex-direction:column;gap:4px"><div class="ln" style="width:70%"></div><div class="ln d"></div><div class="ln d" style="width:85%"></div></div></div>
+</div>
+<div class="m">💬 14 · ✎ 6 annotations · 👍 32</div>
+</div>
+<div style="background:var(--color-surface);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px;opacity:.7"><div class="ln" style="width:60%;height:8px"></div><div class="bx" style="height:40px"></div></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;flex-direction:column;gap:6px"><span class="m">YOUR JOBS</span>
+<div class="bx" style="padding:6px;display:flex;flex-direction:column;gap:4px"><span class="t">Monty Hall…</span><div style="height:4px;border-radius:2px;background:var(--color-neutral-800)"><div style="width:66%;height:4px;border-radius:2px;background:var(--color-accent)"></div></div><span class="m">2 of 3 models done</span></div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><span class="m">TRENDING MODELS</span><span class="t">1 · DeepSeek V3</span><span class="t">2 · Qwen2.5 72B</span><span class="t">3 · Llama 3.3 70B</span></div>
+<div style="display:flex;flex-direction:column;gap:6px"><span class="m">CATEGORIES</span><div style="display:flex;gap:4px;flex-wrap:wrap"><span class="ch f">Coding</span><span class="ch f">Math</span><span class="ch f">Creative</span></div></div>
+</div></div>
+<div style="padding:0 14px 14px"><div class="note">Live updates batch into a "new" pill rather than shifting the feed under you. Rail shows your running jobs.</div></div>
+</div></div>
+
+</div>
+<p class="dv-next">Try next: "card grid <a class="dv-oid" href="#1a">1a</a> with the jobs rail from <a class="dv-oid" href="#1c">1c</a>" · "denser <a class="dv-oid" href="#1b">1b</a> with hover peek"</p>
+</section>
+
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Comparison view — side by side, swap models, comments</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="2a"><div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>N columns, swap from each header</div>
+<div class="dv-card" style="width:600px">
+<div class="nv"><span class="m">← Board</span><span style="flex:1"></span><span class="bt g">✎ Annotations</span><span class="bt g">Share</span></div>
+<div style="padding:12px 14px;display:flex;flex-direction:column;gap:6px;border-bottom:1px solid var(--color-neutral-800)">
+<div style="display:flex;gap:4px"><span class="ch f">Coding</span><span class="ch f">Go</span><span class="m" style="margin-left:6px">Effort ●●○ · @mira · 2m</span></div>
+<div class="h">Rate limiter in Go with sliding windows</div>
+<div class="bx" style="padding:6px;display:flex;flex-direction:column;gap:4px"><span class="m">PROMPT ▾</span><div class="ln d" style="width:90%"></div></div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr 40px;gap:0">
+<div style="padding:10px;border-right:1px solid var(--color-neutral-800);display:flex;flex-direction:column;gap:6px"><div style="display:flex;justify-content:space-between"><span class="ch a">Llama 3.3 70B ▾</span><span class="m">base</span></div><span class="m">1.2k tok · 8.4s</span><div class="ln" style="width:90%"></div><div class="ln d"></div><div class="ln d" style="width:70%"></div><div class="bx" style="height:40px"></div><div class="ln d" style="width:80%"></div><div class="ln d" style="width:60%"></div></div>
+<div style="padding:10px;border-right:1px solid var(--color-neutral-800);display:flex;flex-direction:column;gap:6px;position:relative"><span class="ch" style="align-self:flex-start">Qwen2.5 72B ▾</span><span class="m">980 tok · 6.1s</span><div class="ln" style="width:80%"></div><div class="ln d" style="width:95%"></div><div class="ln d" style="width:60%"></div><div class="bx" style="height:40px"></div><div class="ln d" style="width:70%"></div>
+<div style="position:absolute;top:34px;left:10px;right:-30px;background:var(--color-surface);border:1px solid var(--color-neutral-600);border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:6px;box-shadow:var(--shadow-lg)"><span class="m">SWAP FOR AVAILABLE RESPONSE</span><span class="t">✓ Qwen2.5 72B</span><span class="t">DeepSeek V3</span><span class="t">Mistral Large</span><span class="t">Gemma 2 27B</span><span class="m" style="color:var(--color-accent-200)">+ Request another model…</span></div></div>
+<div style="padding:10px;display:flex;flex-direction:column;gap:6px"><span class="ch" style="align-self:flex-start">DeepSeek V3 ▾</span><span class="m">1.4k tok · 9.0s</span><div class="ln" style="width:70%"></div><div class="ln d"></div><div class="ln d" style="width:85%"></div><div class="bx" style="height:40px"></div><div class="ln d" style="width:50%"></div></div>
+<div style="border-left:1px dashed var(--color-neutral-600);display:flex;align-items:flex-start;justify-content:center;padding-top:12px"><span class="t">＋</span></div>
+</div>
+<div style="padding:12px 14px;border-top:1px solid var(--color-neutral-800);display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:8px"><span class="h">Discussion · 14</span><span style="flex:1"></span><span class="ch">Top ▾</span></div>
+<div class="bx" style="padding:8px;display:flex;justify-content:space-between;align-items:center"><span class="m">Add a comment… tag a model with @</span><span class="bt">Post</span></div>
+<div style="display:flex;gap:8px"><span style="width:20px;height:20px;border-radius:50%;background:var(--color-neutral-700);flex:none"></span><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span class="m">@kev · <span class="ch" style="padding:2px 5px">re: Qwen2.5</span></span><div class="ln d" style="width:90%"></div><div class="ln d" style="width:60%"></div><span class="m">▲ 12 · Reply</span>
+<div style="display:flex;gap:8px;margin-top:4px;padding-left:10px;border-left:1px solid var(--color-neutral-700)"><span style="width:16px;height:16px;border-radius:50%;background:var(--color-neutral-700);flex:none"></span><div class="ln d" style="width:70%;margin-top:5px"></div></div></div></div>
+</div>
+<div style="padding:0 14px 14px"><div class="note">Swap menu lists only responses already generated for this prompt; "request another" kicks off a job (see 4).</div></div>
+</div></div>
+
+<div class="dv-opt" id="2b"><div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>Two-up focus + model tray</div>
+<div class="dv-card" style="width:560px">
+<div class="nv"><span class="m">← Board</span><span class="t" style="margin-left:6px">Rate limiter in Go…</span><span style="flex:1"></span><span class="bt g">✎ Annotations</span></div>
+<div style="padding:10px 14px;display:flex;gap:6px;align-items:center;border-bottom:1px solid var(--color-neutral-800);flex-wrap:wrap"><span class="m">AVAILABLE</span><span class="ch a">A · Llama 3.3</span><span class="ch a">B · Qwen2.5</span><span class="ch">DeepSeek V3</span><span class="ch">Mistral Large</span><span class="ch">Gemma 2</span><span class="ch" style="border-style:dashed">+ Add</span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr">
+<div style="padding:12px;border-right:1px solid var(--color-neutral-800);display:flex;flex-direction:column;gap:6px"><div style="display:flex;justify-content:space-between"><span class="t">A · Llama 3.3 70B</span><span class="m">⇄</span></div><div class="ln" style="width:90%"></div><div class="ln d"></div><div class="ln d" style="width:70%"></div><div class="bx" style="height:56px"></div><div class="ln d" style="width:80%"></div><div class="ln d"></div><div class="ln d" style="width:40%"></div></div>
+<div style="padding:12px;display:flex;flex-direction:column;gap:6px"><div style="display:flex;justify-content:space-between"><span class="t">B · Qwen2.5 72B</span><span class="m">⇄</span></div><div class="ln" style="width:85%"></div><div class="ln d" style="width:95%"></div><div class="ln d" style="width:60%"></div><div class="bx" style="height:56px"></div><div class="ln d" style="width:75%"></div><div class="ln d" style="width:50%"></div></div>
+</div>
+<div style="padding:8px 14px;display:flex;gap:8px;border-top:1px solid var(--color-neutral-800);align-items:center"><span class="ch">🔗 Sync scroll</span><span class="ch">Diff highlight</span><span style="flex:1"></span><span class="t">Which is better?</span><span class="bt g">A</span><span class="bt g">Tie</span><span class="bt g">B</span></div>
+<div style="padding:12px 14px;border-top:1px solid var(--color-neutral-800);display:flex;flex-direction:column;gap:8px">
+<span class="h">Discussion · 14</span><div class="bx" style="height:30px"></div>
+<div style="display:flex;gap:8px"><span style="width:20px;height:20px;border-radius:50%;background:var(--color-neutral-700);flex:none"></span><div style="flex:1;display:flex;flex-direction:column;gap:4px"><div class="ln d" style="width:85%"></div><div class="ln d" style="width:50%"></div></div></div>
+</div>
+<div style="padding:0 14px 14px"><div class="note">Click a tray chip to drop it into A or B. Best for close reading; optional A/B vote feeds the board.</div></div>
+</div></div>
+
+<div class="dv-opt" id="2c"><div class="dv-olabel"><a class="dv-oid" href="#2c">2c</a>Base pinned left, challengers as tabs</div>
+<div class="dv-card" style="width:560px">
+<div class="nv"><span class="m">← Board</span><span style="flex:1"></span><span class="bt g">✎ Annotations</span></div>
+<div style="padding:12px 14px;display:flex;flex-direction:column;gap:4px"><div class="h">Rate limiter in Go with sliding windows</div><span class="m">Base uploaded by @mira · generated by Llama 3.3 70B · Effort ●●○</span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--color-neutral-800)">
+<div style="padding:12px;border-right:1px solid var(--color-neutral-800);display:flex;flex-direction:column;gap:6px;background:var(--color-surface)"><span class="ch a" style="align-self:flex-start">BASE · Llama 3.3 70B</span><div class="ln" style="width:90%"></div><div class="ln d"></div><div class="ln d" style="width:70%"></div><div class="bx" style="height:56px"></div><div class="ln d" style="width:80%"></div><div class="ln d" style="width:55%"></div></div>
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;border-bottom:1px solid var(--color-neutral-800)"><span class="t" style="padding:8px 10px;border-bottom:2px solid var(--color-accent)">Qwen2.5</span><span class="m" style="padding:8px 10px">DeepSeek V3</span><span class="m" style="padding:8px 10px">Mistral</span><span class="m" style="padding:8px 10px">▾</span></div>
+<div style="padding:12px;display:flex;flex-direction:column;gap:6px"><div class="ln" style="width:85%"></div><div class="ln d" style="width:95%"></div><div class="ln d" style="width:60%"></div><div class="bx" style="height:56px"></div><div class="ln d" style="width:75%"></div></div>
+</div></div>
+<div style="padding:12px 14px;border-top:1px solid var(--color-neutral-800);display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;gap:6px;align-items:center"><span class="h">Discussion</span><span class="ch a">All</span><span class="ch">Base</span><span class="ch">Qwen2.5</span><span class="ch">DeepSeek</span></div><div class="bx" style="height:30px"></div>
+<div style="display:flex;gap:8px"><span style="width:20px;height:20px;border-radius:50%;background:var(--color-neutral-700);flex:none"></span><div style="flex:1;display:flex;flex-direction:column;gap:4px"><div class="ln d" style="width:85%"></div><div class="ln d" style="width:50%"></div></div></div>
+</div>
+<div style="padding:0 14px 14px"><div class="note">Matches the mental model of the upload flow: "my output vs theirs". Comments filterable per model.</div></div>
+</div></div>
+
+</div>
+<p class="dv-next">Try next: "<a class="dv-oid" href="#2c">2c</a> but allow pinning two tabs" · "<a class="dv-oid" href="#2a">2a</a> with the vote bar from <a class="dv-oid" href="#2b">2b</a>"</p>
+</section>
+
+<section class="dv-turn" id="t3">
+<div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">Annotations overlay — highlighted spans + comments on them</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="3a"><div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a>Margin notes aligned to highlights</div>
+<div class="dv-card" style="width:600px">
+<div class="nv"><span class="t">Rate limiter in Go…</span><span style="flex:1"></span><span class="bt">✎ Annotations ON · 6</span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr 170px">
+<div style="padding:12px;border-right:1px solid var(--color-neutral-800);display:flex;flex-direction:column;gap:7px"><span class="ch a" style="align-self:flex-start">Llama 3.3</span><div class="ln d"></div><div style="display:flex;gap:4px"><div class="ln d" style="width:30%"></div><div class="ln hl" style="width:55%"></div></div><div class="ln d" style="width:80%"></div><div class="ln d" style="width:60%"></div><div class="ln hl" style="width:70%"></div><div class="ln d"></div></div>
+<div style="padding:12px;border-right:1px solid var(--color-neutral-800);display:flex;flex-direction:column;gap:7px"><span class="ch" style="align-self:flex-start">Qwen2.5</span><div class="ln d" style="width:85%"></div><div class="ln d"></div><div class="ln d" style="width:60%"></div><div style="display:flex;gap:4px"><div class="ln hl" style="width:40%"></div><div class="ln d" style="width:40%"></div></div><div class="ln d" style="width:75%"></div><div class="ln d"></div></div>
+<div style="padding:12px 10px;display:flex;flex-direction:column;gap:8px;background:var(--color-surface)">
+<div style="border:1px solid var(--color-accent);border-radius:6px;padding:6px;display:flex;flex-direction:column;gap:4px"><span class="m">@kev · Llama</span><span class="t">Off-by-one on window edge</span><span class="m">↳ 2 replies</span></div>
+<div style="border:1px solid var(--color-neutral-700);border-radius:6px;padding:6px;display:flex;flex-direction:column;gap:4px;margin-top:6px"><span class="m">@ana · Qwen</span><span class="t">Nice — uses a ring buffer</span></div>
+<div style="border:1px solid var(--color-neutral-700);border-radius:6px;padding:6px;display:flex;flex-direction:column;gap:4px"><span class="m">@mira · Llama</span><span class="t">Hallucinated API</span></div>
+</div></div>
+<div style="padding:10px 14px;border-top:1px solid var(--color-neutral-800)"><div class="note">Select text in any response → "Annotate" bubble. Notes sit in a right gutter at the height of their span; overlapping ones stack.</div></div>
+</div></div>
+
+<div class="dv-opt" id="3b"><div class="dv-olabel"><a class="dv-oid" href="#3b">3b</a>Inline popover on hover / click</div>
+<div class="dv-card" style="width:520px">
+<div class="nv"><span class="t">Rate limiter in Go…</span><span style="flex:1"></span><span class="ch">All users ▾</span><span class="ch">Kind: all ▾</span><span class="bt">✎ ON</span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr">
+<div style="padding:12px;border-right:1px solid var(--color-neutral-800);display:flex;flex-direction:column;gap:7px;position:relative;min-height:250px"><span class="ch a" style="align-self:flex-start">Llama 3.3</span><div class="ln d"></div><div style="display:flex;gap:4px"><div class="ln d" style="width:30%"></div><div class="ln hl" style="width:55%"></div></div><div class="ln d" style="width:80%"></div><div class="ln d" style="width:60%"></div><div class="ln d" style="width:70%"></div><div class="ln d" style="width:90%"></div><div class="ln d" style="width:50%"></div>
+<div style="position:absolute;top:58px;left:60px;width:230px;background:var(--color-surface);border:1px solid var(--color-neutral-600);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px;box-shadow:var(--shadow-lg);z-index:2">
+<div style="display:flex;gap:4px"><span class="ch" style="border-color:oklch(0.65 0.15 25);color:oklch(0.8 0.1 25)">Bug</span><span class="m">3 people</span></div>
+<span class="t">@kev: Off-by-one on the window edge</span><span class="t">@ana: confirmed, fails at t=60s</span>
+<div class="bx" style="padding:5px"><span class="m">Reply…</span></div>
+<span class="m">▲ 9 · Jump to discussion ↓</span></div></div>
+<div style="padding:12px;display:flex;flex-direction:column;gap:7px"><span class="ch" style="align-self:flex-start">Qwen2.5</span><div class="ln d" style="width:85%"></div><div class="ln hl" style="width:60%"></div><div class="ln d" style="width:60%"></div><div class="ln d"></div><div class="ln d" style="width:75%"></div><div class="ln d" style="width:40%"></div></div>
+</div>
+<div style="padding:10px 14px;border-top:1px solid var(--color-neutral-800)"><div class="note">Lightest overlay — text stays full width. Optional annotation kinds (Bug, Good, Hallucination) let highlights colour-code.</div></div>
+</div></div>
+
+<div class="dv-opt" id="3c"><div class="dv-olabel"><a class="dv-oid" href="#3c">3c</a>Heat highlights + drawer list</div>
+<div class="dv-card" style="width:560px">
+<div class="nv"><span class="t">Rate limiter in Go…</span><span style="flex:1"></span><span class="bt">✎ ON</span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr 180px">
+<div style="padding:12px;border-right:1px solid var(--color-neutral-800);display:flex;flex-direction:column;gap:7px"><span class="ch a" style="align-self:flex-start">Llama 3.3</span><div class="ln d"></div><div class="ln" style="width:55%;background:color-mix(in oklch,var(--color-accent) 70%,transparent)"></div><div class="ln d" style="width:80%"></div><div class="ln" style="width:40%;background:color-mix(in oklch,var(--color-accent) 30%,transparent)"></div><div class="ln d"></div></div>
+<div style="padding:12px;border-right:1px solid var(--color-neutral-800);display:flex;flex-direction:column;gap:7px"><span class="ch" style="align-self:flex-start">Qwen2.5</span><div class="ln d" style="width:85%"></div><div class="ln d"></div><div class="ln" style="width:60%;background:color-mix(in oklch,var(--color-accent) 45%,transparent)"></div><div class="ln d" style="width:75%"></div></div>
+<div style="padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--color-surface)">
+<div style="display:flex;justify-content:space-between"><span class="t">Annotations</span><span class="m">✕</span></div>
+<div style="display:flex;gap:4px"><span class="ch a">Llama · 4</span><span class="ch">Qwen · 2</span></div>
+<div style="display:flex;flex-direction:column;gap:3px;padding:6px;border-radius:6px;border:1px solid var(--color-accent)"><span class="m">"if now - start &gt; win"</span><span class="t">Off-by-one · 3 💬</span></div>
+<div style="display:flex;flex-direction:column;gap:3px;padding:6px"><span class="m">"import ratelimit/v9"</span><span class="t">Hallucinated pkg · 1 💬</span></div>
+<div style="display:flex;flex-direction:column;gap:3px;padding:6px"><span class="m">"ring buffer of …"</span><span class="t">Clever · 2 💬</span></div>
+</div></div>
+<div style="padding:10px 14px;border-top:1px solid var(--color-neutral-800)"><div class="note">Highlight intensity = how many people annotated a span. Drawer is a navigable index; click jumps + scrolls both columns.</div></div>
+</div></div>
+
+</div>
+<p class="dv-next">Try next: "<a class="dv-oid" href="#3b">3b</a> popovers with the drawer index from <a class="dv-oid" href="#3c">3c</a>" · "show the select-text → annotate flow"</p>
+</section>
+
+<section class="dv-turn" id="t4">
+<div class="dv-thd"><a class="dv-tid" href="#t4">4</a><span class="dv-tname">New comparison — upload, pick models, job runs</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="4a"><div class="dv-olabel"><a class="dv-oid" href="#4a">4a</a>3-step modal over the board</div>
+<div class="dv-card" style="width:520px;background:var(--color-neutral-900)">
+<div style="padding:24px;display:flex;justify-content:center">
+<div style="width:100%;background:var(--color-surface);border-radius:10px;box-shadow:var(--shadow-lg);border:1px solid var(--color-neutral-700)">
+<div style="padding:12px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--color-neutral-700)"><span class="h">New comparison</span><span style="flex:1"></span><span class="m">✕</span></div>
+<div style="padding:10px 14px;display:flex;gap:6px;align-items:center"><span class="ch f">✓ 1 Upload</span><span class="m">—</span><span class="ch a">2 Compare against</span><span class="m">—</span><span class="ch">3 Details</span></div>
+<div style="padding:4px 14px 12px;display:flex;flex-direction:column;gap:8px">
+<div class="bx" style="padding:8px;display:flex;gap:8px;align-items:center"><span class="t">📄 ratelimiter.md</span><span class="m">· generated by</span><span class="ch a">Llama 3.3 70B</span><span style="flex:1"></span><span class="m">edit</span></div>
+<div class="bx" style="height:26px;display:flex;align-items:center;padding:0 8px"><span class="m">Search models…</span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+<div style="padding:8px;border:1px solid var(--color-accent);border-radius:6px;display:flex;flex-direction:column;gap:3px"><span class="t">☑ Qwen2.5 72B</span><span class="m">Hosted · ~6s</span></div>
+<div style="padding:8px;border:1px solid var(--color-accent);border-radius:6px;display:flex;flex-direction:column;gap:3px"><span class="t">☑ DeepSeek V3</span><span class="m">Hosted · ~9s</span></div>
+<div style="padding:8px;border:1px solid var(--color-neutral-700);border-radius:6px;display:flex;flex-direction:column;gap:3px"><span class="t">☐ Mistral Large</span><span class="m">Hosted · ~7s</span></div>
+<div style="padding:8px;border:1px solid var(--color-neutral-700);border-radius:6px;display:flex;flex-direction:column;gap:3px;opacity:.5"><span class="t">☐ Llama 3.3 70B</span><span class="m">Same as base</span></div>
+</div>
+<span class="m">2 selected · max 4</span>
+</div>
+<div style="padding:10px 14px;display:flex;justify-content:space-between;border-top:1px solid var(--color-neutral-700)"><span class="bt g">Back</span><span class="bt">Next: details →</span></div>
+</div></div>
+<div style="padding:0 14px 14px"><div class="note">Step 1: drop .md, pick source model, prompt auto-extracted (editable). Step 3: title, category tags, effort level → "Schedule job".</div></div>
+</div></div>
+
+<div class="dv-opt" id="4b"><div class="dv-olabel"><a class="dv-oid" href="#4b">4b</a>Single-page form, live preview</div>
+<div class="dv-card" style="width:600px">
+<div class="nv"><span class="m">← Board</span><span class="h" style="margin-left:6px">New comparison</span></div>
+<div style="display:grid;grid-template-columns:1fr 200px;gap:14px;padding:14px">
+<div style="display:flex;flex-direction:column;gap:10px">
+<span class="m">1 · BASE OUTPUT</span>
+<div class="bx" style="height:56px;display:flex;align-items:center;justify-content:center"><span class="m">Drop .md file or browse</span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div style="display:flex;flex-direction:column;gap:4px"><span class="m">Generated by</span><div class="bx" style="height:26px;display:flex;align-items:center;padding:0 8px"><span class="t">Llama 3.3 70B ▾</span></div></div><div style="display:flex;flex-direction:column;gap:4px"><span class="m">Prompt</span><div class="bx" style="height:26px;display:flex;align-items:center;padding:0 8px"><span class="m">auto from front-matter</span></div></div></div>
+<span class="m">2 · COMPARE AGAINST</span>
+<div style="display:flex;gap:4px;flex-wrap:wrap"><span class="ch a">✓ Qwen2.5 72B</span><span class="ch a">✓ DeepSeek V3</span><span class="ch">Mistral Large</span><span class="ch">Gemma 2 27B</span><span class="ch">Phi-4</span><span class="ch">+ more</span></div>
+<span class="m">3 · DETAILS</span>
+<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center"><span class="ch f">Coding ✕</span><span class="ch f">Go ✕</span><span class="ch" style="border-style:dashed">+ tag</span><span style="flex:1"></span><span class="m">Effort</span><span class="ch">Low</span><span class="ch a">Med</span><span class="ch">High</span></div>
+<div style="display:flex;gap:8px;align-items:center"><span class="bt">Schedule comparison</span><span class="m">~10s · runs in background</span></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px"><span class="m">BOARD CARD PREVIEW</span>
+<div style="background:var(--color-surface);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px"><div style="display:flex;gap:4px;flex-wrap:wrap"><span class="ch a">Llama 3.3</span><span class="ch">Qwen2.5</span><span class="ch">DeepSeek</span></div><div class="ln" style="width:85%;height:8px"></div><div class="bx" style="height:34px"></div><div style="display:flex;gap:4px"><span class="ch f">Coding</span><span class="m">●●○</span></div></div>
+<div class="note">Seeing the card as you fill the form nudges good titles and tags.</div></div>
+</div></div></div>
+
+<div class="dv-opt" id="4c"><div class="dv-olabel"><a class="dv-oid" href="#4c">4c</a>Job states — queued → generating → ready</div>
+<div class="dv-card" style="width:560px">
+<div style="padding:14px;display:flex;flex-direction:column;gap:12px">
+<span class="m">ON THE BOARD (author's view)</span>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<div style="background:var(--color-surface);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px;border:1px dashed var(--color-neutral-600)"><span class="ch" style="align-self:flex-start">◌ Queued · #3 in line</span><span class="t">Monty Hall for a 10-year-old</span><span class="m">Only visible to you until ready</span></div>
+<div style="background:var(--color-surface);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px;border:1px solid var(--color-accent)"><span class="ch a" style="align-self:flex-start">◐ Generating 2/3</span><span class="t">Rate limiter in Go…</span>
+<div style="display:flex;flex-direction:column;gap:3px"><span class="m">✓ Qwen2.5 72B</span><span class="m">✓ DeepSeek V3</span><span class="m" style="color:var(--color-accent-200)">… Mistral Large</span></div></div>
+</div>
+<span class="m">COMPARISON PAGE WHILE RUNNING</span>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border:1px solid var(--color-neutral-800);border-radius:8px;overflow:hidden">
+<div style="padding:10px;border-right:1px solid var(--color-neutral-800);display:flex;flex-direction:column;gap:6px"><span class="ch a" style="align-self:flex-start">Llama · base</span><div class="ln"></div><div class="ln d" style="width:80%"></div><div class="ln d" style="width:60%"></div></div>
+<div style="padding:10px;border-right:1px solid var(--color-neutral-800);display:flex;flex-direction:column;gap:6px"><span class="ch" style="align-self:flex-start">Qwen2.5 ✓</span><div class="ln"></div><div class="ln d" style="width:70%"></div><div class="ln d" style="width:85%"></div></div>
+<div style="padding:10px;display:flex;flex-direction:column;gap:6px"><span class="ch" style="align-self:flex-start">Mistral ◐</span><div class="ln d" style="width:60%;opacity:.5"></div><div class="ln d" style="width:40%;opacity:.3"></div><span class="m">streaming…</span></div>
+</div>
+<div style="display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--color-neutral-700);border-radius:8px"><span class="t">✕ DeepSeek V3 failed — API timeout</span><span style="flex:1"></span><span class="bt g">Retry</span><span class="bt g">Publish without</span></div>
+<div style="display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--color-accent);border-radius:8px"><span class="t">🔔 Your comparison is ready</span><span style="flex:1"></span><span class="bt">Review &amp; publish</span></div>
+</div>
+<div style="padding:0 14px 14px"><div class="note">Open question: publish to the live board automatically when done, or let the author review first?</div></div>
+</div></div>
+
+</div>
+<p class="dv-next">Try next: "<a class="dv-oid" href="#4b">4b</a> but as a drawer" · "auto-publish, skip review in <a class="dv-oid" href="#4c">4c</a>" · "add prompt-only mode (no base upload)"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const base = [
+      ['Llama 3.3 70B','Qwen2.5 72B','+2','Rate limiter in Go, sliding windows','Coding','@mira · 2m · 💬14'],
+      ['Mistral Large','DeepSeek V3','','Monty Hall for a 10-year-old','Reasoning','@kev · 9m · 💬3'],
+      ['Gemma 2 27B','Phi-4','+1','Lighthouse keeper story, 300 words','Creative','@ana · 1h · 💬27'],
+      ['Qwen2.5 Coder','Codestral','','Refactor a React class to hooks','Coding','@dev · 1h · 💬8'],
+      ['DeepSeek V3','Llama 3.3 70B','+1','Prove √2 is irrational','Math','@pq · 2h · 💬5'],
+      ['Phi-4','Gemma 2 27B','','Summarize a 40-page RFC','Long-context','@lin · 2h · 💬2'],
+      ['Mistral Large','Qwen2.5 72B','+2','SQL for monthly cohort retention','Coding','@sam · 3h · 💬11'],
+      ['Llama 3.3 70B','Mistral Large','','Haiku sequence about tides','Creative','@jo · 3h · 💬6'],
+      ['Qwen2.5 72B','DeepSeek V3','+1','Plan a 3-day Kyoto itinerary','Planning','@ri · 4h · 💬4'],
+      ['Codestral','Llama 3.3 70B','','Regex to validate IPv6','Coding','@max · 5h · 💬9'],
+      ['DeepSeek V3','Phi-4','','Logic grid puzzle, 5 houses','Reasoning','@el · 6h · 💬13'],
+      ['Gemma 2 27B','Mistral Large','+1','Translate legal clause EN→DE','Language','@fr · 7h · 💬1'],
+    ];
+    const eff = ['●●○','●○○','●○○','●●○','●●●','●●○','●●●','●○○','●●○','●○○','●●●','●●○'];
+    const cards = base.map((r,i)=>({a:r[0],b:r[1],more:r[2],title:r[3],tag:r[4],meta:r[5],effort:eff[i],short:r[5].split(' · ')[1]}));
+    return {
+      cards: cards.concat(cards.slice(0,3)),
+      cats: [{n:'All',k:'1.2k'},{n:'Coding',k:'412'},{n:'Reasoning',k:'268'},{n:'Creative',k:'190'},{n:'Math',k:'144'},{n:'Long-context',k:'86'}],
+      models: ['Llama 3.3 70B','Qwen2.5 72B','DeepSeek V3','Mistral Large','Gemma 2 27B','Phi-4','Codestral','Qwen2.5 Coder'],
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+:root{--color-bg:#0a0c0b;--color-surface:#121513;--color-text:#e8ebe8;--color-accent:#a3e635;
+--color-accent-100:#ecfccb;--color-accent-200:#d9f99d;--color-accent-300:#bef264;--color-accent-400:#a3e635;--color-accent-500:#84cc16;--color-accent-600:#65a30d;--color-accent-700:#3f6212;--color-accent-800:#263c0f;--color-accent-900:#17240b;
+--color-neutral-100:#ececec;--color-neutral-200:#d4d6d4;--color-neutral-300:#a9ada9;--color-neutral-400:#858a86;--color-neutral-500:#646966;--color-neutral-600:#4a4f4c;--color-neutral-700:#2e3330;--color-neutral-800:#1d211f;--color-neutral-900:#141715;
+--font-heading:"Space Grotesk",system-ui,sans-serif;--font-body:"JetBrains Mono",ui-monospace,Menlo,monospace;
+--shadow-md:0 0 0 1px #2e3330,0 8px 24px rgba(0,0,0,.5);--shadow-lg:0 0 0 1px #2e3330,0 16px 40px rgba(0,0,0,.6)}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);-webkit-font-smoothing:antialiased}
+a{color:var(--color-accent-300);text-decoration:none}a:hover{color:var(--color-accent-200)}
+*:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+input::placeholder{color:var(--color-neutral-500)}
+@keyframes arriveA{0%{opacity:0;transform:translateY(-8px) scale(.98);background:var(--color-accent-900)}60%{opacity:1;transform:none;background:var(--color-accent-900)}100%{background:var(--color-surface)}}
+@keyframes arriveB{0%{opacity:0;transform:translateY(-8px) scale(.98);background:var(--color-accent-900)}60%{opacity:1;transform:none;background:var(--color-accent-900)}100%{background:var(--color-surface)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes tickA{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+@keyframes tickB{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;display:flex;flex-direction:column">
+
+<header style="position:sticky;top:0;z-index:5;background:var(--color-bg);border-bottom:1px solid var(--color-neutral-800)">
+<div style="display:flex;align-items:center;gap:16px;padding:10px 20px">
+<a href="#" style="display:flex;align-items:center;gap:8px;color:var(--color-text)"><span style="width:22px;height:22px;border-radius:2px;border:1.5px solid var(--color-accent);display:grid;place-items:center"><span style="width:8px;height:12px;border-right:1.5px solid var(--color-accent)"></span></span><span style="font:500 14px/1 var(--font-heading);letter-spacing:-.01em">OpenWeightModels</span></a>
+<label style="flex:0 1 420px;display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;background:var(--color-surface);border-radius:2px;border:1px solid transparent">
+<i class="ph ph-magnifying-glass" style="font-size:15px;color:var(--color-neutral-400)"></i>
+<input value="{{ q }}" onChange="{{ onSearch }}" placeholder="Search prompts or models" style="flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--color-text);font:400 12px var(--font-body)">
+<span style="font:500 10px var(--font-body);color:var(--color-neutral-500);border:1px solid var(--color-neutral-700);border-radius:2px;padding:2px 5px">/</span>
+</label>
+<div style="flex:1"></div>
+<a href="New Comparison v2.dc.html" style="display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border:1px solid var(--color-accent);border-radius:2px;color:var(--color-bg);background:var(--color-accent);font-weight:600;font:500 12px var(--font-body);cursor:pointer;white-space:nowrap;flex:none" style-hover="background:var(--color-accent-300)" style-active="background:var(--color-accent-800)"><i class="ph ph-plus" style="font-size:14px"></i>New comparison</a>
+<button onClick="{{ noop }}" style="width:32px;height:32px;display:grid;place-items:center;background:transparent;border:0;border-radius:2px;color:var(--color-neutral-300);cursor:pointer" style-hover="background:var(--color-surface)"><i class="ph ph-bell" style="font-size:17px"></i></button>
+<span style="width:28px;height:28px;border-radius:2px;background:var(--color-neutral-700);display:grid;place-items:center;font:500 11px var(--font-body);color:var(--color-neutral-200)">MR</span>
+</div>
+<div style="display:flex;align-items:center;gap:14px;padding:0 20px;height:30px;border-top:1px solid var(--color-neutral-800);overflow:hidden;white-space:nowrap">
+<span style="display:flex;align-items:center;gap:6px;font:500 11px var(--font-body);color:var(--color-accent-200);flex:none"><span style="width:6px;height:6px;border-radius:2px;background:var(--color-accent);animation:pulse 1.6s infinite"></span>LIVE</span>
+<div style="flex:1;min-width:0;overflow:hidden;display:flex"><div style="display:flex;gap:28px;flex:none;animation:marquee 45s linear infinite"><sc-for list="{{ tickerEvents }}" as="e" hint-placeholder-count="8">
+<span style="display:flex;align-items:center;gap:6px;font:400 11px var(--font-body);color:var(--color-neutral-400);flex:none;opacity:{{ e.op }};animation:{{ e.anim }}"><i class="ph {{ e.icon }}" style="font-size:12px"></i><span style="color:var(--color-neutral-200)">{{ e.who }}</span>{{ e.what }}<span style="color:var(--color-neutral-200)">{{ e.target }}</span></span>
+</sc-for></div></div>
+</div>
+</header>
+
+<div style="flex:1;display:grid;grid-template-columns:216px minmax(0,1fr)">
+
+<aside style="position:sticky;top:74px;align-self:start;height:calc(100vh - 74px);overflow:auto;scrollbar-width:thin;scrollbar-color:var(--color-neutral-700) transparent;padding:16px 12px 16px 20px;display:flex;flex-direction:column;gap:18px;border-right:1px solid var(--color-neutral-800)">
+<div style="display:flex;flex-direction:column;gap:1px">
+<span style="font:500 10px var(--font-body);letter-spacing:.06em;color:var(--color-neutral-500);padding:0 8px 6px">CATEGORIES</span>
+<sc-for list="{{ cats }}" as="c" hint-placeholder-count="7">
+<button onClick="{{ c.pick }}" style="display:flex;justify-content:space-between;align-items:center;height:28px;padding:0 8px;border:0;border-radius:2px;background:{{ c.bg }};color:{{ c.fg }};font:500 12px var(--font-body);cursor:pointer;text-align:left" style-hover="background:var(--color-surface)"><span>{{ c.n }}</span><span style="font:400 11px var(--font-body);color:var(--color-neutral-500)">{{ c.k }}</span></button>
+</sc-for>
+</div>
+<div style="display:flex;flex-direction:column;gap:1px">
+<div style="display:flex;justify-content:space-between;align-items:baseline;padding:0 8px 6px"><span style="font:500 10px var(--font-body);letter-spacing:.06em;color:var(--color-neutral-500)">MODELS</span><sc-if value="{{ hasModelSel }}" hint-placeholder-val="{{ false }}"><button onClick="{{ clearModels }}" style="background:none;border:0;padding:0;color:var(--color-accent-300);font:500 11px var(--font-body);cursor:pointer">Clear</button></sc-if></div>
+<sc-for list="{{ modelRows }}" as="m" hint-placeholder-count="8">
+<button onClick="{{ m.toggle }}" style="display:flex;align-items:center;gap:8px;height:28px;padding:0 8px;border:0;border-radius:2px;background:transparent;color:var(--color-neutral-200);font:500 12px var(--font-body);cursor:pointer;text-align:left" style-hover="background:var(--color-surface)">
+<span style="width:14px;height:14px;border-radius:2px;border:1px solid {{ m.bd }};background:{{ m.bg }};display:grid;place-items:center;flex:none"><i class="ph ph-check" style="font-size:10px;color:var(--color-bg);opacity:{{ m.op }}"></i></span>
+<span style="flex:1">{{ m.name }}</span><span style="font:400 11px var(--font-body);color:var(--color-neutral-500)">{{ m.k }}</span></button>
+</sc-for>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;padding:0 8px">
+<span style="font:500 10px var(--font-body);letter-spacing:.06em;color:var(--color-neutral-500)">EFFORT</span>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:2px;background:var(--color-surface);border-radius:2px">
+<sc-for list="{{ efforts }}" as="ef" hint-placeholder-count="3">
+<button onClick="{{ ef.pick }}" style="height:24px;border:0;border-radius:2px;background:{{ ef.bg }};color:{{ ef.fg }};font:500 11px var(--font-body);cursor:pointer">{{ ef.n }}</button>
+</sc-for>
+</div>
+</div>
+</aside>
+
+<main style="padding:14px 20px 32px;display:flex;flex-direction:column;gap:12px;min-width:0">
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<div style="display:flex;gap:2px">
+<sc-for list="{{ sorts }}" as="s" hint-placeholder-count="3">
+<button onClick="{{ s.pick }}" style="display:flex;align-items:center;gap:5px;height:28px;padding:0 10px;border:0;border-radius:2px;background:{{ s.bg }};color:{{ s.fg }};font:500 12px var(--font-body);cursor:pointer" style-hover="color:var(--color-text)"><i class="ph {{ s.icon }}" style="font-size:13px"></i>{{ s.n }}</button>
+</sc-for>
+</div>
+<span style="font:400 12px var(--font-body);color:var(--color-neutral-500)">{{ countLabel }}</span>
+<sc-for list="{{ activeChips }}" as="ch" hint-placeholder-count="0">
+<button onClick="{{ ch.remove }}" style="display:flex;align-items:center;gap:4px;height:22px;padding:0 6px 0 8px;border:1px solid var(--color-neutral-700);border-radius:2px;background:transparent;color:var(--color-neutral-200);font:500 11px var(--font-body);cursor:pointer" style-hover="border-color:var(--color-accent)">{{ ch.n }}<i class="ph ph-x" style="font-size:10px"></i></button>
+</sc-for>
+<div style="flex:1"></div>
+<sc-if value="{{ hasQueued }}" hint-placeholder-val="{{ false }}">
+<button onClick="{{ flush }}" style="display:flex;align-items:center;gap:5px;height:26px;padding:0 10px;border:1px solid var(--color-accent);border-radius:2px;background:var(--color-accent-900);color:var(--color-accent-200);font:500 11px var(--font-body);cursor:pointer"><i class="ph ph-arrow-up" style="font-size:11px"></i>{{ queuedLabel }}</button>
+</sc-if>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:8px">
+<sc-for list="{{ visible }}" as="c" hint-placeholder-count="12">
+<a href="Comparison v2.dc.html" style="display:flex;flex-direction:column;gap:9px;padding:11px 12px 10px;background:var(--color-surface);border:1px solid transparent;border-radius:2px;color:var(--color-text);transition:transform .12s ease-out,border-color .12s;animation:{{ c.anim }}" style-hover="border-color:var(--color-accent);background:var(--color-neutral-800);transform:translateY(-2px)">
+<div style="display:flex;align-items:center;gap:6px;min-width:0">
+<span style="display:flex;align-items:center;gap:5px;height:20px;padding:0 7px 0 3px;border:1px solid var(--color-accent-700);border-radius:2px;font:500 11px var(--font-body);color:var(--color-accent-200);flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis"><span style="width:14px;height:14px;border-radius:2px;background:var(--color-accent-800);display:grid;place-items:center;font:600 8px var(--font-body)">{{ c.m0.mono }}</span>{{ c.m0.name }}</span>
+<span style="font:500 10px var(--font-body);color:var(--color-neutral-500)">vs</span>
+<span style="display:flex;align-items:center;gap:5px;height:20px;padding:0 7px 0 3px;border:1px solid var(--color-neutral-700);border-radius:2px;font:500 11px var(--font-body);color:var(--color-neutral-200);flex:0 2 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis"><span style="width:14px;height:14px;border-radius:2px;background:var(--color-neutral-700);display:grid;place-items:center;font:600 8px var(--font-body);flex:none">{{ c.m1.mono }}</span>{{ c.m1.name }}</span>
+<span style="font:500 11px var(--font-body);color:var(--color-neutral-400);flex:none">{{ c.more }}</span>
+</div>
+<div style="font:500 12px/1.3 var(--font-heading);letter-spacing:-.005em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-wrap:pretty">{{ c.title }}</div>
+<sc-if value="{{ showPreview }}" hint-placeholder-val="{{ true }}">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--color-neutral-700);border-radius:2px;overflow:hidden">
+<div style="background:var(--color-bg);padding:6px 7px;font:400 10.5px/1.4 var(--font-body);color:var(--color-neutral-300)"><div style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">{{ c.s0 }}</div></div>
+<div style="background:var(--color-bg);padding:6px 7px;font:400 10.5px/1.4 var(--font-body);color:var(--color-neutral-300)"><div style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">{{ c.s1 }}</div></div>
+</div>
+</sc-if>
+<div style="display:flex;align-items:center;gap:8px;font:400 11px var(--font-body);color:var(--color-neutral-400)">
+<span style="height:18px;padding:0 6px;display:flex;align-items:center;border-radius:2px;background:var(--color-neutral-800);color:var(--color-neutral-200);font-weight:500">{{ c.cat }}</span>
+<span style="display:flex;align-items:flex-end;gap:2px;height:10px" title="Effort"><span style="width:3px;height:5px;border-radius:1px;background:{{ c.e1 }}"></span><span style="width:3px;height:7px;border-radius:1px;background:{{ c.e2 }}"></span><span style="width:3px;height:10px;border-radius:1px;background:{{ c.e3 }}"></span></span>
+<span>{{ c.effortN }}</span>
+<span style="flex:1"></span>
+<span style="display:flex;align-items:center;gap:3px"><i class="ph ph-chat-circle" style="font-size:12px"></i>{{ c.comments }}</span>
+<span style="display:flex;align-items:center;gap:3px"><i class="ph ph-highlighter" style="font-size:12px"></i>{{ c.notes }}</span>
+</div>
+<div style="display:flex;align-items:center;gap:6px;font:400 11px var(--font-body);color:var(--color-neutral-500)"><span style="width:14px;height:14px;border-radius:2px;background:var(--color-neutral-700)"></span><span style="color:var(--color-neutral-300)">{{ c.author }}</span><span>·</span><span>{{ c.ago }}</span></div>
+</a>
+</sc-for>
+</div>
+<sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+<div style="padding:48px 0;display:flex;flex-direction:column;gap:8px;align-items:flex-start"><span style="font:500 14px var(--font-heading)">No comparisons match</span><button onClick="{{ clearAll }}" style="background:none;border:0;padding:0;color:var(--color-accent-300);font:500 12px var(--font-body);cursor:pointer">Clear filters</button></div>
+</sc-if>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showPreview&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Cards&quot;},&quot;liveUpdates&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Behavior&quot;}}">
+const MODELS = {
+  'Llama 3.3 70B':'L3','Qwen2.5 72B':'Q2','DeepSeek V3':'DS','Mistral Large':'MI',
+  'Gemma 2 27B':'G2','Phi-4':'P4','Codestral':'CS','Qwen2.5 Coder':'QC'
+};
+const CATS = ['Coding','Reasoning','Creative','Math','Long-context','Language'];
+const SEED = [
+  ['Rate limiter in Go with sliding windows','Coding',['Llama 3.3 70B','Qwen2.5 72B','DeepSeek V3','Mistral Large'],'type Limiter struct { mu sync.Mutex; window time.Duration; hits []time.Time }','A ring buffer keeps the last N timestamps so each Allow() call is O(1)…',2,14,6,'@mira',2],
+  ['Explain the Monty Hall problem to a 10-year-old','Reasoning',['Mistral Large','DeepSeek V3'],'Imagine three doors. Behind one is a bike, behind two are goats…','Think of it like this: when you first pick, you have a 1 in 3 chance…',1,3,1,'@kev',9],
+  ['300-word story: a lighthouse keeper who can\u2019t sleep','Creative',['Gemma 2 27B','Phi-4','Llama 3.3 70B'],'The lamp turned every eleven seconds, and Ada counted each one…','Night forty-two. The sea had stopped asking questions…',1,27,9,'@ana',48],
+  ['Refactor a React class component to hooks','Coding',['Qwen2.5 Coder','Codestral'],'Replace componentDidMount with useEffect(() => {…}, []) and move…','function Profile({ id }) { const [user, setUser] = useState(null)…',2,8,2,'@dev',61],
+  ['Prove \u221a2 is irrational, then explain the proof','Math',['DeepSeek V3','Llama 3.3 70B','Qwen2.5 72B'],'Assume \u221a2 = p/q in lowest terms. Then 2q\u00b2 = p\u00b2, so p is even…','Suppose for contradiction that \u221a2 is rational. Write it as a/b…',3,5,4,'@pq',95],
+  ['Summarize a 40-page RFC into 5 decisions','Long-context',['Phi-4','Gemma 2 27B'],'1. Adopt QUIC as the default transport for internal services…','The RFC lands on five calls: transport, auth, retries, quotas…',2,2,0,'@lin',130],
+  ['SQL for monthly cohort retention','Coding',['Mistral Large','Qwen2.5 72B','DeepSeek V3','Codestral'],'WITH cohorts AS (SELECT user_id, date_trunc(\u2019month\u2019, created_at)…','First bucket users by signup month, then join activity by month offset…',3,11,5,'@sam',170],
+  ['A haiku sequence about tides','Creative',['Llama 3.3 70B','Mistral Large'],'moon pulls the blanket / the shore forgets its edges / gulls rewrite the line','low water, low light / a crab inventories stones / the sea, returning',1,6,3,'@jo',200],
+  ['Plan a 3-day Kyoto itinerary on a budget','Reasoning',['Qwen2.5 72B','DeepSeek V3','Phi-4'],'Day 1 \u2014 East: Fushimi Inari at 7am before the crowds, then…','Base yourself near Kyoto Station. Get the bus day pass (\u00a5700)…',2,4,1,'@ri',260],
+  ['Regex to validate IPv6 (with explanation)','Coding',['Codestral','Llama 3.3 70B'],'^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|::|…)$ \u2014 covers compressed…','Honest answer: don\u2019t. Use a parser. But if you must, here\u2019s…',1,9,6,'@max',320],
+  ['Logic grid puzzle: five houses, five pets','Reasoning',['DeepSeek V3','Phi-4'],'From clue 3, the green house is immediately left of the white…','Let\u2019s build the grid. Positions 1\u20135. Clue 9 fixes Norwegian at 1…',3,13,8,'@el',380],
+  ['Translate a legal clause EN \u2192 DE, keep register','Language',['Gemma 2 27B','Mistral Large','Qwen2.5 72B'],'Die Haftung des Auftragnehmers ist auf Vorsatz und grobe Fahrl\u00e4ssigkeit\u2026','Der Auftragnehmer haftet nur f\u00fcr Vorsatz und grobe Fahrl\u00e4ssigkeit\u2026',2,1,0,'@fr',440],
+  ['Write a bash one-liner to find the 10 largest files','Coding',['Phi-4','Codestral','Llama 3.3 70B'],'du -ah . | sort -rh | head -n 10','find . -type f -printf \u2019%s %p\\n\u2019 | sort -nr | head -10',1,7,2,'@oz',500],
+  ['Integrate x\u00b7e^x dx step by step','Math',['Qwen2.5 72B','Gemma 2 27B'],'Use integration by parts: u = x, dv = e^x dx, so du = dx, v = e^x…','Let\u2019s apply \u222bu dv = uv \u2212 \u222bv du with u = x…',1,2,1,'@ty',560],
+  ['Explain transformers to a product manager','Language',['Mistral Large','Llama 3.3 70B','DeepSeek V3'],'A transformer reads every word at once and decides which ones matter…','Think autocomplete, but it looks at the whole page before guessing…',2,19,7,'@ce',640],
+  ['Design a schema for a recipe app','Coding',['DeepSeek V3','Qwen2.5 Coder'],'recipes(id, title, servings) \u00b7 ingredients(id, name) \u00b7 recipe_items…','Start with three tables and one join; tags as a separate many-to-many…',2,6,3,'@ka',720],
+];
+const INCOMING = [
+  ['Write a Python decorator that retries with backoff','Coding',['Qwen2.5 Coder','DeepSeek V3'],'def retry(times=3, base=0.5): def wrap(fn): @functools.wraps(fn)…','import time, random, functools \u2014 exponential backoff with jitter…',2,'@nia'],
+  ['Is a hot dog a sandwich? Argue both sides','Reasoning',['Llama 3.3 70B','Mistral Large','Phi-4'],'For: bread encloses a filling, which is the functional definition…','Structurally, the hot dog bun is a single hinged piece of bread…',1,'@bo'],
+  ['Sonnet about a failing unit test','Creative',['Gemma 2 27B','Qwen2.5 72B'],'Red line at dawn, assertion left unmet / expected true, the runner\u2026','Oh test, you passed on Tuesday, proud and green\u2026',1,'@lu'],
+  ['Derive the closed form of Fibonacci','Math',['DeepSeek V3','Llama 3.3 70B','Qwen2.5 72B'],'Characteristic equation x\u00b2 = x + 1 gives roots \u03c6 and \u03c8\u2026','Assume F(n) = r\u207f. Substituting into the recurrence\u2026',3,'@hx'],
+  ['Summarize this 90-minute earnings call','Long-context',['Phi-4','Mistral Large'],'Revenue up 12% YoY; guidance raised; margins compressed by\u2026','Three takeaways: demand held, costs rose, buyback expanded\u2026',2,'@ve'],
+  ['Kubernetes liveness vs readiness, with examples','Coding',['Codestral','Mistral Large','DeepSeek V3'],'Liveness restarts a stuck container; readiness gates traffic\u2026','readinessProbe: httpGet: path: /ready \u2014 use this when warming caches\u2026',2,'@ji'],
+];
+const EVENTS = [
+  ['ph-git-diff','@ana',' compared ','Phi-4 vs Gemma 2'],
+  ['ph-highlighter','@kev',' annotated ','Qwen2.5 72B'],
+  ['ph-chat-circle','@lin',' replied on ','Monty Hall…'],
+  ['ph-check-circle','DeepSeek V3',' finished ','SQL cohort retention'],
+];
+const EFF = ['Low','Med','High'];
+
+function mk(r, id, ago, fresh) {
+  return { id, title:r[0], cat:r[1], models:r[2], s0:r[3], s1:r[4], effort:r[5],
+    comments: fresh ? 0 : r[6], notes: fresh ? 0 : r[7], author: fresh ? r[6] : r[8], ago: fresh ? 0 : r[9] };
+}
+function fmtAgo(m){ if(m<1) return 'just now'; if(m<60) return m+'m'; const h=Math.floor(m/60); return h<24? h+'h' : Math.floor(h/24)+'d'; }
+
+class Component extends DCLogic {
+  state = {
+    items: SEED.map((r,i)=>mk(r,i,0,false)),
+    pending: [], cat:'All', models:[], effort:null, sort:'live', q:'',
+    events: EVENTS.map((e,i)=>({id:i, icon:e[0], who:e[1], what:e[2], target:e[3]})),
+    newId: null, flip:false, nextId: 100, inc: 0, tflip:false,
+  };
+  componentDidMount(){
+    this.timer = setInterval(()=>this.tick(), 4200);
+    this.clock = setInterval(()=>this.setState(s=>({items:s.items.map(it=>({...it, ago: it.ago + 1}))})), 60000);
+  }
+  componentWillUnmount(){ clearInterval(this.timer); clearInterval(this.clock); }
+  tick(){
+    if (this.props.liveUpdates === false) return;
+    this.setState(s=>{
+      const r = INCOMING[s.inc % INCOMING.length];
+      const it = mk(r, s.nextId, 0, true);
+      const ev = {id:s.nextId, icon:'ph-git-diff', who:r[6], what:' compared ', target:r[2][0]+' vs '+r[2][1], fresh:true};
+      const events = [ev, ...s.events].slice(0,5);
+      if (s.sort !== 'live') return { pending:[it, ...s.pending], nextId:s.nextId+1, inc:s.inc+1, events, tflip:!s.tflip };
+      return { items:[it, ...s.items], newId:it.id, flip:!s.flip, nextId:s.nextId+1, inc:s.inc+1, events, tflip:!s.tflip };
+    });
+  }
+  set(p){ this.setState(p); }
+  renderVals(){
+    const s = this.state, accent='var(--color-accent)', off='var(--color-neutral-700)';
+    const ql = s.q.trim().toLowerCase();
+    let list = s.items.filter(it =>
+      (s.cat==='All' || it.cat===s.cat) &&
+      (!s.models.length || it.models.some(m=>s.models.includes(m))) &&
+      (s.effort==null || it.effort===s.effort) &&
+      (!ql || it.title.toLowerCase().includes(ql) || it.models.some(m=>m.toLowerCase().includes(ql))));
+    if (s.sort==='top') list = [...list].sort((a,b)=>(b.comments+b.notes*2)-(a.comments+a.notes*2));
+    const visible = list.map(it=>({
+      ...it,
+      m0:{name:it.models[0], mono:MODELS[it.models[0]]},
+      m1:{name:it.models[1], mono:MODELS[it.models[1]]},
+      more: it.models.length>2 ? '+'+(it.models.length-2) : '',
+      e1:accent, e2: it.effort>=2?accent:off, e3: it.effort>=3?accent:off,
+      effortN: EFF[it.effort-1], ago: fmtAgo(it.ago),
+      anim: it.id===s.newId ? (s.flip?'arriveA':'arriveB')+' 1.4s ease-out' : 'none',
+    }));
+    const countCat = c => c==='All' ? s.items.length : s.items.filter(i=>i.cat===c).length;
+    const chips = [];
+    if (s.cat!=='All') chips.push({n:s.cat, remove:()=>this.set({cat:'All'})});
+    s.models.forEach(m=>chips.push({n:m, remove:()=>this.set({models:s.models.filter(x=>x!==m)})}));
+    if (s.effort!=null) chips.push({n:EFF[s.effort-1]+' effort', remove:()=>this.set({effort:null})});
+    return {
+      q: s.q, onSearch: e=>this.set({q:e.target.value}), noop: e=>e.preventDefault(),
+      showPreview: this.props.showPreview ?? true,
+      tickerEvents: [...s.events, ...s.events].map((e,i)=>({...e, op:1, anim:"none", id:i})),
+      events: s.events.map((e,i)=>({...e, op: i===0?1:Math.max(.35,1-i*.18), anim: i===0 ? (s.tflip?'tickA':'tickB')+' .4s ease-out' : 'none'})),
+      cats: ['All',...CATS].map(c=>({n:c, k:countCat(c), pick:()=>this.set({cat:c}),
+        bg: s.cat===c?'var(--color-surface)':'transparent', fg: s.cat===c?'var(--color-text)':'var(--color-neutral-300)'})),
+      modelRows: Object.keys(MODELS).map(m=>{ const on=s.models.includes(m); return {name:m,
+        k:s.items.filter(i=>i.models.includes(m)).length,
+        toggle:()=>this.set({models: on? s.models.filter(x=>x!==m) : [...s.models,m]}),
+        bd: on?accent:'var(--color-neutral-600)', bg: on?accent:'transparent', op: on?1:0}; }),
+      hasModelSel: s.models.length>0, clearModels: ()=>this.set({models:[]}),
+      efforts: EFF.map((n,i)=>({n, pick:()=>this.set({effort: s.effort===i+1?null:i+1}),
+        bg: s.effort===i+1?'var(--color-neutral-700)':'transparent', fg: s.effort===i+1?'var(--color-text)':'var(--color-neutral-400)'})),
+      sorts: [['live','Live','ph-lightning'],['top','Top','ph-flame'],['new','New','ph-clock']].map(([k,n,icon])=>({n, icon,
+        pick:()=>this.set(k==='live'? {sort:k, items:[...s.pending, ...s.items], pending:[]} : {sort:k}),
+        bg: s.sort===k?'var(--color-surface)':'transparent', fg: s.sort===k?'var(--color-text)':'var(--color-neutral-400)'})),
+      countLabel: visible.length + ' comparisons',
+      activeChips: chips,
+      hasQueued: s.pending.length>0,
+      queuedLabel: s.pending.length + ' new comparison' + (s.pending.length>1?'s':''),
+      flush: ()=>this.set({items:[...s.pending, ...s.items], pending:[], newId:s.pending[0] && s.pending[0].id, flip:!s.flip}),
+      visible, isEmpty: visible.length===0,
+      clearAll: ()=>this.set({cat:'All', models:[], effort:null, q:''}),
+    };
+  }
+}
+</script>
+</body>
+</html>
