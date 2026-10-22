@@ -11,14 +11,17 @@ import {
   CaretRight,
   Check,
   CircleNotch,
+  DotsThree,
   Ghost,
   Highlighter,
   LinkSimple,
   PaperPlaneRight,
+  PencilSimple,
   Plus,
   Question,
   Stack,
   ThumbsUp,
+  Trash,
   WarningCircle,
   X,
 } from '@phosphor-icons/react';
@@ -42,6 +45,10 @@ import { SiteHeader } from './site-header';
 import { MarkdownView } from './markdown-view';
 import { cn } from '@/lib/utils';
 import { signInPath } from '@/lib/next-path';
+import {
+  countLiveComments,
+  editCommentInTree,
+} from '@/lib/discussion';
 import type { ComparisonResponseView } from '@/lib/comparison-responses';
 import {
   isResponseStatus,
@@ -143,6 +150,345 @@ function ErrorLine({ message }: { message: string }) {
   );
 }
 
+const actionItem =
+  'flex h-7 items-center gap-1.5 rounded-[2px] px-2 text-left text-[11.5px] font-medium text-neutral-200 transition-colors hover:bg-neutral-700 disabled:opacity-45';
+
+const deleteButton =
+  'h-7 flex-1 rounded-[2px] border border-danger px-2 text-[11px] font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-45';
+
+function InlineEditor({
+  label,
+  value,
+  onChange,
+  onSave,
+  onCancel,
+  busy,
+  error,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  busy: boolean;
+  error: string | null;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <textarea
+        aria-label={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        maxLength={5000}
+        rows={3}
+        autoFocus
+        className="resize-y rounded-[2px] border border-neutral-700 bg-bg p-2 text-[12.5px] leading-[1.5] text-text outline-0 focus:border-accent"
+      />
+      {error && <ErrorLine message={error} />}
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          disabled={busy || !value.trim()}
+          onClick={onSave}
+          className="btn-secondary h-7 disabled:opacity-45"
+        >
+          {busy ? 'Saving…' : 'Save'}
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onCancel}
+          className="btn-neutral h-7"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One kebab menu for owner-only content. Delete asks for confirmation in the
+ * menu, then closes itself when the API accepts the change.
+ */
+function ActionsMenu({
+  label,
+  noun,
+  onEdit,
+  onDelete,
+}: {
+  label: string;
+  noun: string;
+  onEdit: () => void;
+  onDelete: () => Promise<string | null>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const close = () => {
+    setOpen(false);
+    setConfirming(false);
+    setError(null);
+  };
+
+  const confirm = async () => {
+    setBusy(true);
+    setError(null);
+    const message = await onDelete();
+    setBusy(false);
+    if (message) {
+      setError(message);
+      return;
+    }
+    close();
+  };
+
+  return (
+    <Popover.Root
+      open={open}
+      onOpenChange={(value) => {
+        if (value) {
+          setOpen(true);
+          setError(null);
+        } else {
+          close();
+        }
+      }}
+    >
+      <Popover.Trigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          data-actions-trigger
+          className="grid h-6 w-6 place-items-center rounded-[2px] text-neutral-500 transition-colors hover:bg-neutral-700 hover:text-text"
+        >
+          <DotsThree size={16} weight="bold" />
+        </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          align="end"
+          sideOffset={4}
+          data-popover
+          data-actions-menu
+          aria-label={`${noun} actions`}
+          className="z-50 flex w-[180px] flex-col gap-[2px] rounded-[2px] border border-neutral-700 bg-neutral-800 p-1.5 shadow-lg"
+        >
+          {confirming ? (
+            <>
+              <span className="px-1 pb-1 text-[11px] leading-[1.4] text-neutral-300">
+                Delete this {noun}?
+              </span>
+              {error && (
+                <span className="px-1 pb-1 text-[11px] text-danger" role="alert">
+                  {error}
+                </span>
+              )}
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void confirm()}
+                  className={deleteButton}
+                >
+                  {busy ? 'Deleting…' : 'Delete'}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    setConfirming(false);
+                    setError(null);
+                  }}
+                  className="btn-neutral h-7 flex-1"
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  close();
+                  onEdit();
+                }}
+                className={actionItem}
+              >
+                <PencilSimple size={13} />
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirming(true)}
+                className={actionItem}
+              >
+                <Trash size={13} />
+                Delete
+              </button>
+            </>
+          )}
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
+/** The Annotation owner can retag it or delete the highlight and whole thread. */
+function AnnotationActions({
+  annotation,
+  onChangeKind,
+  onDelete,
+}: {
+  annotation: AnnotationView;
+  onChangeKind: (annotation: AnnotationView, kind: AnnotationKind) => Promise<string | null>;
+  onDelete: () => Promise<string | null>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const close = () => {
+    setOpen(false);
+    setConfirming(false);
+    setError(null);
+  };
+
+  const choose = async (kind: AnnotationKind) => {
+    setBusy(true);
+    setError(null);
+    const message = await onChangeKind(annotation, kind);
+    setBusy(false);
+    if (message) setError(message);
+    else close();
+  };
+
+  const confirm = async () => {
+    setBusy(true);
+    setError(null);
+    const message = await onDelete();
+    setBusy(false);
+    if (message) setError(message);
+    else close();
+  };
+
+  return (
+    <Popover.Root
+      open={open}
+      onOpenChange={(value) => {
+        if (value) {
+          setOpen(true);
+          setError(null);
+        } else {
+          close();
+        }
+      }}
+    >
+      <Popover.Trigger asChild>
+        <button
+          type="button"
+          aria-label="Annotation actions"
+          data-actions-trigger
+          className="grid h-6 w-6 place-items-center rounded-[2px] text-neutral-500 transition-colors hover:bg-neutral-700 hover:text-text"
+        >
+          <DotsThree size={16} weight="bold" />
+        </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          align="end"
+          sideOffset={4}
+          data-popover
+          data-actions-menu
+          aria-label="Annotation actions"
+          className="z-50 flex w-[220px] flex-col gap-[2px] rounded-[2px] border border-neutral-700 bg-neutral-800 p-1.5 shadow-lg"
+        >
+          {confirming ? (
+            <>
+              <span className="px-1 pb-1 text-[11px] leading-[1.4] text-neutral-300">
+                Delete this annotation and its whole thread?
+              </span>
+              {error && (
+                <span className="px-1 pb-1 text-[11px] text-danger" role="alert">
+                  {error}
+                </span>
+              )}
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void confirm()}
+                  className={deleteButton}
+                >
+                  {busy ? 'Deleting…' : 'Delete'}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    setConfirming(false);
+                    setError(null);
+                  }}
+                  className="btn-neutral h-7 flex-1"
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="px-1 pb-0.5 pt-0.5 text-[10px] font-medium tracking-[0.06em] text-neutral-500">
+                CHANGE KIND
+              </span>
+              <div className="grid grid-cols-2 gap-1">
+                {ANNOTATION_KINDS.map((value) => {
+                  const Icon = KIND_ICONS[value];
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={annotation.kind === value}
+                      disabled={busy}
+                      onClick={() => void choose(value)}
+                      className={cn(
+                        'flex h-7 items-center gap-1 rounded-[2px] border px-2 text-[11px] font-medium',
+                        annotation.kind === value
+                          ? 'border-accent text-accent-200'
+                          : 'border-neutral-700 text-neutral-300',
+                      )}
+                    >
+                      <Icon size={12} />
+                      {ANNOTATION_KIND_META[value].label}
+                    </button>
+                  );
+                })}
+              </div>
+              {error && (
+                <span className="px-1 pt-1 text-[11px] text-danger" role="alert">
+                  {error}
+                </span>
+              )}
+              <div className="my-1 h-px bg-neutral-700" />
+              <button
+                type="button"
+                onClick={() => setConfirming(true)}
+                className={actionItem}
+              >
+                <Trash size={13} />
+                Delete annotation
+              </button>
+            </>
+          )}
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
 type RunAction = 'retry' | 'dismiss';
 
 export function ComparisonView(props: ComparisonPageData) {
@@ -216,6 +562,19 @@ export function ComparisonView(props: ComparisonPageData) {
   const [replyParentId, setReplyParentId] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
   const [commentError, setCommentError] = useState<string | null>(null);
+  const [commentEdit, setCommentEdit] = useState<{
+    id: string;
+    body: string;
+    busy: boolean;
+    error: string | null;
+  } | null>(null);
+  const [messageEdit, setMessageEdit] = useState<{
+    annotationId: string;
+    id: string;
+    body: string;
+    busy: boolean;
+    error: string | null;
+  } | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -224,6 +583,13 @@ export function ComparisonView(props: ComparisonPageData) {
   const activeAnnotation = popover?.mode === 'thread'
     ? annotations.find((annotation) => annotation.id === popover.id) ?? null
     : null;
+  const annotationPeople = activeAnnotation
+    ? new Set(
+        activeAnnotation.thread
+          .filter((message) => !message.deletedAt)
+          .map((message) => message.author.id),
+      ).size
+    : 0;
 
   const visibleAnnotations = useMemo(
     () => annotations.filter((annotation) => kind === 'All' || annotation.kind === kind),
@@ -278,10 +644,7 @@ export function ComparisonView(props: ComparisonPageData) {
     return comments.filter((comment) => comment.aboutModel?.slug === commentFilter);
   }, [comments, commentFilter]);
 
-  const totalComments = comments.reduce(
-    (total, comment) => total + 1 + comment.replies.length,
-    0,
-  );
+  const totalComments = countLiveComments(comments);
 
   useEffect(() => {
     if (!popover) return;
@@ -313,6 +676,19 @@ export function ComparisonView(props: ComparisonPageData) {
       if (Array.isArray(payload.responses)) setResponseList(payload.responses);
     } catch {
       // The next settled event or a reload repairs the view.
+    }
+  }, [comparison.id]);
+
+  const resyncComments = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/comparisons/${comparison.id}`, {
+        cache: 'no-store',
+      });
+      if (!response.ok) return;
+      const payload = (await response.json()) as { comments?: CommentView[] };
+      if (Array.isArray(payload.comments)) setComments(payload.comments);
+    } catch {
+      // The next reload repairs the view.
     }
   }, [comparison.id]);
 
@@ -624,6 +1000,207 @@ export function ComparisonView(props: ComparisonPageData) {
     setAbout(comment.aboutModel?.slug ?? null);
     setReplyParentId(comment.id);
     composerRef.current?.focus();
+  };
+
+  const startCommentEdit = (comment: CommentView) => {
+    setCommentEdit({ id: comment.id, body: comment.body, busy: false, error: null });
+  };
+
+  const saveCommentEdit = async (comment: CommentView) => {
+    if (!commentEdit || commentEdit.id !== comment.id || commentEdit.busy) return;
+    const body = commentEdit.body.trim();
+    if (!body) {
+      setCommentEdit((current) =>
+        current ? { ...current, error: 'Write something first.' } : current,
+      );
+      return;
+    }
+    setCommentEdit((current) =>
+      current ? { ...current, busy: true, error: null } : current,
+    );
+    try {
+      const response = await fetch(`/api/comments/${comment.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ body }),
+      });
+      if (!response.ok) {
+        const message = await responseErrorMessage(
+          response,
+          'Could not save that comment.',
+        );
+        setCommentEdit((current) =>
+          current ? { ...current, busy: false, error: message } : current,
+        );
+        return;
+      }
+      setComments((current) => editCommentInTree(current, comment.id, body));
+      setCommentEdit(null);
+    } catch {
+      setCommentEdit((current) =>
+        current ? { ...current, busy: false, error: 'Could not save that comment.' } : current,
+      );
+    }
+  };
+
+  const deleteCommentAction = async (comment: CommentView) => {
+    try {
+      const response = await fetch(`/api/comments/${comment.id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        return responseErrorMessage(response, 'Could not delete that comment.');
+      }
+      // Re-read the Discussion instead of guessing locally: a reply may have
+      // arrived since this page loaded, which changes tombstone-vs-delete.
+      await resyncComments();
+      setCommentEdit((current) => (current?.id === comment.id ? null : current));
+      return null;
+    } catch {
+      return 'Could not delete that comment.';
+    }
+  };
+
+  const updateThreadMessage = (
+    annotationId: string,
+    messageId: string,
+    update: (message: AnnotationView['thread'][number]) => AnnotationView['thread'][number],
+  ) => {
+    setAnnotations((current) =>
+      current.map((annotation) =>
+        annotation.id === annotationId
+          ? {
+              ...annotation,
+              thread: annotation.thread.map((message) =>
+                message.id === messageId ? update(message) : message,
+              ),
+            }
+          : annotation,
+      ),
+    );
+  };
+
+  const startMessageEdit = (
+    annotation: AnnotationView,
+    message: AnnotationView['thread'][number],
+  ) => {
+    setMessageEdit({
+      annotationId: annotation.id,
+      id: message.id,
+      body: message.body,
+      busy: false,
+      error: null,
+    });
+  };
+
+  const saveMessageEdit = async (
+    annotation: AnnotationView,
+    message: AnnotationView['thread'][number],
+  ) => {
+    if (
+      !messageEdit ||
+      messageEdit.annotationId !== annotation.id ||
+      messageEdit.id !== message.id ||
+      messageEdit.busy
+    ) {
+      return;
+    }
+    const body = messageEdit.body.trim();
+    if (!body) {
+      setMessageEdit((current) =>
+        current ? { ...current, error: 'Write something first.' } : current,
+      );
+      return;
+    }
+    setMessageEdit((current) =>
+      current ? { ...current, busy: true, error: null } : current,
+    );
+    try {
+      const response = await fetch(
+        `/api/annotations/${annotation.id}/messages/${message.id}`,
+        {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ body }),
+        },
+      );
+      if (!response.ok) {
+        const error = await responseErrorMessage(
+          response,
+          'Could not save that message.',
+        );
+        setMessageEdit((current) =>
+          current ? { ...current, busy: false, error } : current,
+        );
+        return;
+      }
+      updateThreadMessage(annotation.id, message.id, (item) => ({ ...item, body }));
+      setMessageEdit(null);
+    } catch {
+      setMessageEdit((current) =>
+        current ? { ...current, busy: false, error: 'Could not save that message.' } : current,
+      );
+    }
+  };
+
+  const deleteMessageAction = async (
+    annotation: AnnotationView,
+    message: AnnotationView['thread'][number],
+  ) => {
+    try {
+      const response = await fetch(
+        `/api/annotations/${annotation.id}/messages/${message.id}`,
+        { method: 'DELETE' },
+      );
+      if (!response.ok) {
+        return responseErrorMessage(response, 'Could not delete that message.');
+      }
+      updateThreadMessage(annotation.id, message.id, (item) => ({
+        ...item,
+        body: '',
+        deletedAt: new Date().toISOString(),
+      }));
+      setMessageEdit((current) => (current?.id === message.id ? null : current));
+      return null;
+    } catch {
+      return 'Could not delete that message.';
+    }
+  };
+
+  const changeAnnotationKind = async (
+    annotation: AnnotationView,
+    kind: AnnotationKind,
+  ) => {
+    try {
+      const response = await fetch(`/api/annotations/${annotation.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ kind }),
+      });
+      if (!response.ok) {
+        return responseErrorMessage(response, 'Could not change that annotation.');
+      }
+      setAnnotations((current) =>
+        current.map((item) => (item.id === annotation.id ? { ...item, kind } : item)),
+      );
+      return null;
+    } catch {
+      return 'Could not change that annotation.';
+    }
+  };
+
+  const deleteAnnotationAction = async (annotation: AnnotationView) => {
+    try {
+      const response = await fetch(`/api/annotations/${annotation.id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        return responseErrorMessage(response, 'Could not delete that annotation.');
+      }
+      setAnnotations((current) => current.filter((item) => item.id !== annotation.id));
+      setPopover(null);
+      return null;
+    } catch {
+      return 'Could not delete that annotation.';
+    }
   };
 
   const addChallenger = async (model: ComparisonPageData['models'][number]) => {
@@ -1136,6 +1713,7 @@ export function ComparisonView(props: ComparisonPageData) {
             <div
               ref={popoverRef}
               data-popover
+              data-annotation-popover
               style={{ position: 'absolute', top: popover.y, left: popover.x }}
               className="z-20 flex w-[300px] flex-col rounded-[2px] border border-neutral-700 bg-neutral-800 shadow-lg"
             >
@@ -1152,14 +1730,19 @@ export function ComparisonView(props: ComparisonPageData) {
                       );
                     })()}
                     <span className="text-[11px] text-neutral-400">
-                      {new Set(activeAnnotation.thread.map((message) => message.author.id)).size}{' '}
-                      {new Set(activeAnnotation.thread.map((message) => message.author.id)).size === 1
-                        ? 'person'
-                        : 'people'}
+                      {annotationPeople} {annotationPeople === 1 ? 'person' : 'people'}
                     </span>
                     <div className="flex-1" />
+                    {activeAnnotation.author.id === currentUserId && (
+                      <AnnotationActions
+                        annotation={activeAnnotation}
+                        onChangeKind={changeAnnotationKind}
+                        onDelete={() => deleteAnnotationAction(activeAnnotation)}
+                      />
+                    )}
                     <button
                       type="button"
+                      aria-label="Close annotation"
                       onClick={() => setPopover(null)}
                       className="btn-ghost h-6 w-6 p-0"
                     >
@@ -1172,22 +1755,60 @@ export function ComparisonView(props: ComparisonPageData) {
                   </div>
 
                   <div className="flex max-h-[220px] flex-col gap-2.5 overflow-auto px-3 pt-2.5">
-                    {activeAnnotation.thread.map((message) => (
-                      <div key={message.id} className="flex gap-2">
-                        <Avatar handle={message.author.handle} size={20} />
-                        <div className="flex min-w-0 flex-col gap-0.5">
-                          <span className="text-[11px] text-neutral-400">
-                            <span className="font-medium text-neutral-100">
-                              @{message.author.handle}
-                            </span>{' '}
-                            · {ago(message.createdAt)}
-                          </span>
-                          <span className="text-[12.5px] leading-[1.45] text-neutral-100 [text-wrap:pretty]">
-                            {message.body}
-                          </span>
+                    {activeAnnotation.thread.map((message) => {
+                      const canManage =
+                        message.author.id === currentUserId && !message.deletedAt;
+                      const editing =
+                        messageEdit?.annotationId === activeAnnotation.id &&
+                        messageEdit.id === message.id;
+                      return (
+                        <div key={message.id} className="flex gap-2">
+                          <Avatar handle={message.author.handle} size={20} />
+                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[11px] text-neutral-400">
+                                <span className="font-medium text-neutral-100">
+                                  @{message.author.handle}
+                                </span>{' '}
+                                · {ago(message.createdAt)}
+                              </span>
+                              <div className="flex-1" />
+                              {canManage && !editing && (
+                                <ActionsMenu
+                                  label="Message actions"
+                                  noun="message"
+                                  onEdit={() => startMessageEdit(activeAnnotation, message)}
+                                  onDelete={() => deleteMessageAction(activeAnnotation, message)}
+                                />
+                              )}
+                            </div>
+                            {editing && messageEdit ? (
+                              <InlineEditor
+                                label="Edit message"
+                                value={messageEdit.body}
+                                onChange={(body) =>
+                                  setMessageEdit((current) =>
+                                    current ? { ...current, body } : current,
+                                  )
+                                }
+                                onSave={() => void saveMessageEdit(activeAnnotation, message)}
+                                onCancel={() => setMessageEdit(null)}
+                                busy={messageEdit.busy}
+                                error={messageEdit.error}
+                              />
+                            ) : (
+                              <span className="text-[12.5px] leading-[1.45] text-neutral-100 [text-wrap:pretty]">
+                                {message.deletedAt ? (
+                                  <span className="italic text-neutral-500">[deleted]</span>
+                                ) : (
+                                  message.body
+                                )}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   <div className="flex items-center gap-1.5 px-3 py-2.5">
@@ -1301,7 +1922,9 @@ export function ComparisonView(props: ComparisonPageData) {
         <section className="flex max-w-[860px] flex-col gap-3.5 pt-[18px]">
           <div className="flex flex-wrap items-center gap-2.5">
             <h2 className="m-0 font-heading text-[16px] font-medium">Discussion</h2>
-            <span className="text-[12px] text-neutral-500">{totalComments}</span>
+            <span data-comment-count className="text-[12px] text-neutral-500">
+              {totalComments}
+            </span>
             <div className="flex-1" />
             <div className="flex flex-wrap gap-[2px] rounded-[2px] bg-surface p-[2px]">
               {[
@@ -1383,94 +2006,177 @@ export function ComparisonView(props: ComparisonPageData) {
             {filteredComments.length === 0 ? (
               <span className="py-4 text-[12px] text-neutral-500">No comments yet.</span>
             ) : (
-              filteredComments.map((comment) => (
-                <div
-                  key={comment.id}
-                  className="flex gap-2.5 border-b border-neutral-800 py-3.5"
-                >
-                  <Avatar handle={comment.author.handle} size={28} />
-                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                    <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-neutral-400">
-                      <span className="font-medium text-neutral-100">@{comment.author.handle}</span>
-                      <span>{relativeTime(comment.createdAt)}</span>
-                      {comment.aboutModel && (
-                        <span className="flex h-[18px] items-center rounded-[2px] border border-neutral-700 px-1.5 text-[10px] font-medium text-neutral-200">
-                          on {comment.aboutModel.name}
+              filteredComments.map((comment) => {
+                const canManage =
+                  comment.author.id === currentUserId && !comment.deletedAt;
+                const editing = commentEdit?.id === comment.id;
+                return (
+                  <div
+                    key={comment.id}
+                    data-comment={comment.id}
+                    className="flex gap-2.5 border-b border-neutral-800 py-3.5"
+                  >
+                    <Avatar handle={comment.author.handle} size={28} />
+                    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-neutral-400">
+                        <span className="font-medium text-neutral-100">
+                          @{comment.author.handle}
                         </span>
-                      )}
-                    </div>
-                    <div className="text-[12.5px] leading-[1.55] text-neutral-100 [text-wrap:pretty]">
-                      {comment.deletedAt ? (
-                        <span className="italic text-neutral-500">[deleted]</span>
-                      ) : (
-                        comment.body
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 text-[11px] font-medium text-neutral-400">
-                      <button
-                        type="button"
-                        aria-label={comment.voted ? 'Remove comment vote' : 'Vote on comment'}
-                        disabled={comment.author.id === currentUserId}
-                        onClick={() => void voteComment(comment)}
-                        className={cn(
-                          'flex items-center gap-1',
-                          comment.voted && 'text-accent-200',
-                          comment.author.id === currentUserId && 'cursor-not-allowed opacity-50',
+                        <span>{relativeTime(comment.createdAt)}</span>
+                        {comment.aboutModel && (
+                          <span className="flex h-[18px] items-center rounded-[2px] border border-neutral-700 px-1.5 text-[10px] font-medium text-neutral-200">
+                            on {comment.aboutModel.name}
+                          </span>
                         )}
-                      >
-                        <ArrowFatUp size={13} weight={comment.voted ? 'fill' : 'regular'} />
-                        {comment.votes}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => replyTo(comment)}
-                        className="flex items-center gap-1 transition-colors hover:text-text"
-                      >
-                        <ArrowBendUpLeft size={13} />
-                        Reply
-                      </button>
-                    </div>
-
-                    {comment.replies.map((reply) => (
-                      <div
-                        key={reply.id}
-                        className="mt-1 flex gap-2 border-l border-neutral-700 pl-3"
-                      >
-                        <Avatar handle={reply.author.handle} size={20} />
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-[11px] text-neutral-400">
-                            <span className="font-medium text-neutral-100">
-                              @{reply.author.handle}
-                            </span>{' '}
-                            · {relativeTime(reply.createdAt)}
-                          </span>
-                          <span className="text-[12px] leading-[1.5] text-neutral-100">
-                            {reply.deletedAt ? (
-                              <span className="italic text-neutral-500">[deleted]</span>
-                            ) : (
-                              reply.body
-                            )}
-                          </span>
+                        {canManage && !editing && (
+                          <div className="ml-auto">
+                            <ActionsMenu
+                              label="Comment actions"
+                              noun="comment"
+                              onEdit={() => startCommentEdit(comment)}
+                              onDelete={() => deleteCommentAction(comment)}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      {editing && commentEdit ? (
+                        <InlineEditor
+                          label="Edit comment"
+                          value={commentEdit.body}
+                          onChange={(body) =>
+                            setCommentEdit((current) =>
+                              current ? { ...current, body } : current,
+                            )
+                          }
+                          onSave={() => void saveCommentEdit(comment)}
+                          onCancel={() => setCommentEdit(null)}
+                          busy={commentEdit.busy}
+                          error={commentEdit.error}
+                        />
+                      ) : (
+                        <div className="text-[12.5px] leading-[1.55] text-neutral-100 [text-wrap:pretty]">
+                          {comment.deletedAt ? (
+                            <span className="italic text-neutral-500">[deleted]</span>
+                          ) : (
+                            comment.body
+                          )}
+                        </div>
+                      )}
+                      {!comment.deletedAt && (
+                        <div className="flex items-center gap-3 text-[11px] font-medium text-neutral-400">
                           <button
                             type="button"
-                            aria-label={reply.voted ? 'Remove reply vote' : 'Vote on reply'}
-                            disabled={reply.author.id === currentUserId}
-                            onClick={() => void voteComment(reply)}
+                            aria-label={
+                              comment.voted ? 'Remove comment vote' : 'Vote on comment'
+                            }
+                            disabled={comment.author.id === currentUserId}
+                            onClick={() => void voteComment(comment)}
                             className={cn(
-                              'mt-0.5 flex items-center gap-1 text-[11px] font-medium text-neutral-400',
-                              reply.voted && 'text-accent-200',
-                              reply.author.id === currentUserId && 'cursor-not-allowed opacity-50',
+                              'flex items-center gap-1',
+                              comment.voted && 'text-accent-200',
+                              comment.author.id === currentUserId &&
+                                'cursor-not-allowed opacity-50',
                             )}
                           >
-                            <ArrowFatUp size={12} weight={reply.voted ? 'fill' : 'regular'} />
-                            {reply.votes}
+                            <ArrowFatUp
+                              size={13}
+                              weight={comment.voted ? 'fill' : 'regular'}
+                            />
+                            {comment.votes}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => replyTo(comment)}
+                            className="flex items-center gap-1 transition-colors hover:text-text"
+                          >
+                            <ArrowBendUpLeft size={13} />
+                            Reply
                           </button>
                         </div>
-                      </div>
-                    ))}
+                      )}
+
+                      {comment.replies.map((reply) => {
+                        const canManageReply =
+                          reply.author.id === currentUserId && !reply.deletedAt;
+                        const editingReply = commentEdit?.id === reply.id;
+                        return (
+                          <div
+                            key={reply.id}
+                            data-comment={reply.id}
+                            className="mt-1 flex gap-2 border-l border-neutral-700 pl-3"
+                          >
+                            <Avatar handle={reply.author.handle} size={20} />
+                            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                              <div className="flex items-center gap-1">
+                                <span className="text-[11px] text-neutral-400">
+                                  <span className="font-medium text-neutral-100">
+                                    @{reply.author.handle}
+                                  </span>{' '}
+                                  · {relativeTime(reply.createdAt)}
+                                </span>
+                                <div className="flex-1" />
+                                {canManageReply && !editingReply && (
+                                  <ActionsMenu
+                                    label="Reply actions"
+                                    noun="reply"
+                                    onEdit={() => startCommentEdit(reply)}
+                                    onDelete={() => deleteCommentAction(reply)}
+                                  />
+                                )}
+                              </div>
+                              {editingReply && commentEdit ? (
+                                <InlineEditor
+                                  label="Edit reply"
+                                  value={commentEdit.body}
+                                  onChange={(body) =>
+                                    setCommentEdit((current) =>
+                                      current ? { ...current, body } : current,
+                                    )
+                                  }
+                                  onSave={() => void saveCommentEdit(reply)}
+                                  onCancel={() => setCommentEdit(null)}
+                                  busy={commentEdit.busy}
+                                  error={commentEdit.error}
+                                />
+                              ) : (
+                                <span className="text-[12px] leading-[1.5] text-neutral-100">
+                                  {reply.deletedAt ? (
+                                    <span className="italic text-neutral-500">[deleted]</span>
+                                  ) : (
+                                    reply.body
+                                  )}
+                                </span>
+                              )}
+                              {!reply.deletedAt && (
+                                <button
+                                  type="button"
+                                  aria-label={
+                                    reply.voted ? 'Remove reply vote' : 'Vote on reply'
+                                  }
+                                  disabled={reply.author.id === currentUserId}
+                                  onClick={() => void voteComment(reply)}
+                                  className={cn(
+                                    'mt-0.5 flex items-center gap-1 text-[11px] font-medium text-neutral-400',
+                                    reply.voted && 'text-accent-200',
+                                    reply.author.id === currentUserId &&
+                                      'cursor-not-allowed opacity-50',
+                                  )}
+                                >
+                                  <ArrowFatUp
+                                    size={12}
+                                    weight={reply.voted ? 'fill' : 'regular'}
+                                  />
+                                  {reply.votes}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </section>

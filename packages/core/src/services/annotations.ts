@@ -14,7 +14,7 @@ import {
   type AnnotationKind,
 } from '../domain/types';
 import { validateAnnotationRange, AnnotationRangeError } from '../domain/markdown';
-import { logActivity } from '../events';
+import { logActivity, retractActivity } from '../events';
 import { conflict, forbidden, notFound } from './errors';
 
 async function responseContext(responseId: string) {
@@ -173,6 +173,7 @@ export async function createAnnotation(input: CreateAnnotationInput) {
         id: messageId,
         body,
         createdAt: new Date().toISOString(),
+        deletedAt: null,
         author: {
           id: input.userId,
           handle: author?.handle ?? 'unknown',
@@ -230,6 +231,15 @@ export async function deleteAnnotation(id: string, userId: string) {
         .where(eq(comparisons.id, response.comparisonId));
     }
   });
+
+  if (response) {
+    await retractActivity({
+      kind: 'annotation.deleted',
+      comparisonId: response.comparisonId,
+      payload: { annotationId: id },
+      match: { annotationId: id },
+    });
+  }
 }
 
 export async function addAnnotationMessage(
@@ -269,13 +279,14 @@ export async function addAnnotationMessage(
     comparisonId: comparison.id,
     modelId: response.modelId,
     summary: `${author?.handle ?? 'someone'} replied on ${model?.displayName ?? 'a response'}`,
-    payload: { annotationId },
+    payload: { annotationId, messageId },
   });
 
   return {
     id: messageId,
     body: trimmed,
     createdAt: new Date().toISOString(),
+    deletedAt: null,
     author: {
       id: userId,
       handle: author?.handle ?? 'unknown',
@@ -328,4 +339,19 @@ export async function deleteAnnotationMessage(
     .update(annotationMessages)
     .set({ deletedAt: new Date() })
     .where(eq(annotationMessages.id, messageId));
+
+  const [annotation] = await db
+    .select({ responseId: annotations.responseId })
+    .from(annotations)
+    .where(eq(annotations.id, annotationId))
+    .limit(1);
+  if (!annotation) return;
+
+  const { comparison } = await responseContext(annotation.responseId);
+  await retractActivity({
+    kind: 'annotation.message.deleted',
+    comparisonId: comparison.id,
+    payload: { annotationId, messageId },
+    match: { messageId },
+  });
 }

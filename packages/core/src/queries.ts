@@ -410,12 +410,7 @@ export async function getAnnotationViews(
     db
       .select()
       .from(annotationMessages)
-      .where(
-        and(
-          inArray(annotationMessages.annotationId, annotationIds),
-          isNull(annotationMessages.deletedAt),
-        ),
-      )
+      .where(inArray(annotationMessages.annotationId, annotationIds))
       .orderBy(annotationMessages.createdAt),
     db
       .select({ targetId: votes.targetId, total: count() })
@@ -473,8 +468,9 @@ export async function getAnnotationViews(
     voted: myVotes.has(annotation.id),
     thread: (messagesByAnnotation.get(annotation.id) ?? []).map((message) => ({
       id: message.id,
-      body: message.body,
+      body: message.deletedAt ? '' : message.body,
       createdAt: message.createdAt.toISOString(),
+      deletedAt: message.deletedAt?.toISOString() ?? null,
       author: authorMap.get(message.authorId) ?? {
         id: message.authorId,
         handle: 'unknown',

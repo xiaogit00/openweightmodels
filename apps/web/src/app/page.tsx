@@ -62,6 +62,7 @@ export default async function BoardPage({
         kind: event.kind,
         summary: event.summary,
         createdAt: event.createdAt.toISOString(),
+        payload: event.payload,
       }))}
       handle={user?.handle ?? null}
       signedIn={user !== null}

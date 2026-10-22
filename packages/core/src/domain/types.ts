@@ -150,6 +150,7 @@ export type AnnotationThreadMessage = {
   id: string;
   body: string;
   createdAt: string;
+  deletedAt: string | null;
   author: PublicUser;
 };
 

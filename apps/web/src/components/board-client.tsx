@@ -46,6 +46,7 @@ type TickerEvent = {
   kind: string;
   summary: string;
   createdAt: string;
+  payload?: Record<string, unknown>;
 };
 
 type BoardEvent = {
@@ -53,7 +54,7 @@ type BoardEvent = {
   comparisonId?: string | null;
   summary?: string;
   createdAt?: string;
-  payload?: { card?: ComparisonCard };
+  payload?: Record<string, unknown> & { card?: ComparisonCard };
 };
 
 type Props = {
@@ -92,14 +93,23 @@ async function requestPage(
   return (await response.json()) as BoardPage;
 }
 
-function bumpCount(cards: ComparisonCard[], id: string, field: CountField) {
+function changeCount(
+  cards: ComparisonCard[],
+  id: string,
+  field: CountField,
+  delta: 1 | -1,
+) {
   let changed = false;
   const next = cards.map((card) => {
     if (card.id !== id) return card;
     changed = true;
-    return { ...card, [field]: card[field] + 1 };
+    return { ...card, [field]: Math.max(0, card[field] + delta) };
   });
   return changed ? next : cards;
+}
+
+function retractTickerEvents(events: TickerEvent[], key: string, value: string) {
+  return events.filter((event) => event.payload?.[key] !== value);
 }
 
 export function BoardClient({
@@ -322,7 +332,7 @@ export function BoardClient({
           lastSeen = activity.id;
         }
 
-        if (typeof activity.summary === 'string' && typeof activity.id === 'number') {
+        if (typeof activity.summary === 'string' && activity.summary && typeof activity.id === 'number') {
           setEvents((current) =>
             [
               {
@@ -330,6 +340,7 @@ export function BoardClient({
                 kind: payload.type,
                 summary: activity.summary as string,
                 createdAt: activity.createdAt ?? new Date().toISOString(),
+                payload: activity.payload,
               },
               ...current,
             ].slice(0, 30),
@@ -372,8 +383,21 @@ export function BoardClient({
           typeof activity.comparisonId === 'string'
         ) {
           setItems((current) =>
-            bumpCount(current, activity.comparisonId as string, 'annotationCount'),
+            changeCount(current, activity.comparisonId as string, 'annotationCount', 1),
           );
+        }
+
+        if (
+          payload.type === 'annotation.deleted' &&
+          typeof activity.comparisonId === 'string'
+        ) {
+          setItems((current) =>
+            changeCount(current, activity.comparisonId as string, 'annotationCount', -1),
+          );
+          const annotationId = activity.payload?.annotationId;
+          if (typeof annotationId === 'string') {
+            setEvents((current) => retractTickerEvents(current, 'annotationId', annotationId));
+          }
         }
 
         if (
@@ -381,8 +405,28 @@ export function BoardClient({
           typeof activity.comparisonId === 'string'
         ) {
           setItems((current) =>
-            bumpCount(current, activity.comparisonId as string, 'commentCount'),
+            changeCount(current, activity.comparisonId as string, 'commentCount', 1),
           );
+        }
+
+        if (
+          payload.type === 'comment.deleted' &&
+          typeof activity.comparisonId === 'string'
+        ) {
+          setItems((current) =>
+            changeCount(current, activity.comparisonId as string, 'commentCount', -1),
+          );
+          const commentId = activity.payload?.commentId;
+          if (typeof commentId === 'string') {
+            setEvents((current) => retractTickerEvents(current, 'commentId', commentId));
+          }
+        }
+
+        if (payload.type === 'annotation.message.deleted') {
+          const messageId = activity.payload?.messageId;
+          if (typeof messageId === 'string') {
+            setEvents((current) => retractTickerEvents(current, 'messageId', messageId));
+          }
         }
 
         // A Challenger added to a published Comparison settles into the live
@@ -476,7 +520,8 @@ export function BoardClient({
     return () => observer.disconnect();
   }, [error, loadMore, nextCursor, phase]);
 
-  const ticker = events.length ? [...events, ...events] : [];
+  const tickerEvents = events.filter((event) => event.summary);
+  const ticker = tickerEvents.length ? [...tickerEvents, ...tickerEvents] : [];
   const loadingFirst = phase === 'first';
   const loadingMore = phase === 'more';
 
@@ -517,7 +562,7 @@ export function BoardClient({
           {live ? 'LIVE' : 'RECONNECTING'}
         </span>
         <div className="flex min-w-0 flex-1 overflow-hidden">
-          <div className="marquee flex flex-none gap-7">
+          <div className="marquee flex flex-none gap-7" data-ticker>
             {ticker.map((event, index) => {
               const Icon = EVENT_ICONS[event.kind] ?? ChatCircle;
               return (

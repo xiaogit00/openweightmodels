@@ -261,7 +261,7 @@ These are intentionally unresolved. Do not assume them.
 ### Annotations and rendering
 17. Tables, images and raw HTML are not annotatable. Is richer rendering needed before launch?
 18. Cross-node annotations (across bold/italic/link boundaries) are a future feature; offsets are designed to survive it.
-19. Annotation/message edit/delete UI is API-only in M1; when does it become visible?
+19. Resolved: owners edit and delete Discussion comments and replies, retag or delete their Annotations, and edit or tombstone thread messages from kebab menus on the Comparison page.
 20. Clickable links in Responses are rendered as underlined text, not anchors, to avoid losing annotation click targets. Decide the link behaviour.
 21. Annotation threads have no pagination; very long threads will scroll.
 
@@ -335,7 +335,7 @@ Not M1 work, but required before public exposure:
 **Tests**: Vitest for offsets, cursor, filters and upload parsing; integration for job transitions with the mock provider; Playwright for create → publish → read and annotate → thread.
 
 **M2**
-Board pagination (infinite scroll/Load more, global counts, stable SSE effect), magic-link auth with handle onboarding and the job-ready notification bell are done; remaining M2 work is add-model UI, minimal admin and edit/delete affordances for Discussion and annotations.
+Board pagination (infinite scroll/Load more, global counts, stable SSE effect), magic-link auth with handle onboarding, the job-ready notification bell, add-model on a published Comparison and edit/delete affordances for Discussion and Annotations are done; remaining M2 work is minimal admin.
 
 **M3**
 Real OpenRouter execution, accessibility audit, AWS deployment, operational hardening.

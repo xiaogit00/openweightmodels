@@ -62,6 +62,7 @@ function RunText({
       <span
         key={annotation.id}
         data-annotation-span="1"
+        data-annotation-id={annotation.id}
         onClick={(event) => onOpen(annotation.id, event)}
         style={{
           background: open ? 'var(--color-accent-800)' : 'var(--color-accent-900)',

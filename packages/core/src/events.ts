@@ -1,4 +1,4 @@
-import { and, desc, eq, gt } from 'drizzle-orm';
+import { and, desc, eq, gt, ne, or, sql } from 'drizzle-orm';
 import { getDb } from './db/client';
 import { activityEvents, jobEvents } from './db/schema';
 import { BOARD_CHANNEL, jobChannel, publish } from './redis';
@@ -40,8 +40,39 @@ export async function recentActivity(limit = 30) {
   return getDb()
     .select()
     .from(activityEvents)
+    .where(ne(activityEvents.summary, ''))
     .orderBy(desc(activityEvents.id))
     .limit(limit);
+}
+
+/**
+ * Removes the public ticker lines for content that was just deleted, then
+ * publishes a summary-less event so open Boards can lower their card counts and
+ * drop those lines without a refetch.
+ */
+export async function retractActivity(input: {
+  kind: string;
+  comparisonId: string;
+  payload: Record<string, string>;
+  match: Record<string, string>;
+}) {
+  const conditions = Object.entries(input.match).map(
+    ([key, value]) => sql`${activityEvents.payload}->>${key} = ${value}`,
+  );
+
+  if (conditions.length) {
+    await getDb()
+      .delete(activityEvents)
+      .where(
+        and(eq(activityEvents.comparisonId, input.comparisonId), or(...conditions)!),
+      );
+  }
+
+  return logActivity({
+    kind: input.kind,
+    comparisonId: input.comparisonId,
+    payload: input.payload,
+  });
 }
 
 export async function activityAfter(id: number, limit = 200) {

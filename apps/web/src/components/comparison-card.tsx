@@ -103,11 +103,11 @@ export function ComparisonCardView({
         <EffortMeter effort={card.effort} />
         <span>{effortLabel}</span>
         <span className="flex-1" />
-        <span className="flex items-center gap-[3px]">
+        <span data-card-comment-count className="flex items-center gap-[3px]">
           <ChatCircle size={12} />
           {card.commentCount}
         </span>
-        <span className="flex items-center gap-[3px]">
+        <span data-card-annotation-count className="flex items-center gap-[3px]">
           <Highlighter size={12} />
           {card.annotationCount}
         </span>

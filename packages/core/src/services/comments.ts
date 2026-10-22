@@ -8,7 +8,7 @@ import {
   users,
   votes,
 } from '../db/schema';
-import { logActivity } from '../events';
+import { logActivity, retractActivity } from '../events';
 import { conflict, forbidden, notFound } from './errors';
 
 function assertBody(body: string) {
@@ -100,6 +100,7 @@ export async function createComment(input: CreateCommentInput) {
     summary: `${author?.handle ?? 'someone'} ${input.parentId ? 'replied on' : 'commented on'} ${
       comparison.title
     }`,
+    payload: { commentId: id },
   });
 
   return {
@@ -161,5 +162,12 @@ export async function deleteComment(id: string, userId: string) {
       .update(comparisons)
       .set({ commentCount: sql`greatest(0, ${comparisons.commentCount} - 1)` })
       .where(eq(comparisons.id, comment.comparisonId));
+  });
+
+  await retractActivity({
+    kind: 'comment.deleted',
+    comparisonId: comment.comparisonId,
+    payload: { commentId: id },
+    match: { commentId: id },
   });
 }

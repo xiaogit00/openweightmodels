@@ -179,18 +179,20 @@ The first message is created atomically with the Annotation; an Annotation canno
 
 ### `activity_events`
 
-Append-only public feed for the Board ticker and SSE replay.
+Public feed for the Board ticker and SSE replay.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | bigserial PK | monotonic SSE event ID |
-| `kind` | text | `comparison.published`, `annotation.created`, `annotation.replied`, `comment.created`, `comment.replied`, `run.finished` |
+| `kind` | text | `comparison.published`, `annotation.created`, `annotation.replied`, `comment.created`, `comment.replied`, `run.finished`, plus summary-less `comment.deleted`, `annotation.deleted`, `annotation.message.deleted` |
 | `actor_id` | uuid null | |
 | `comparison_id` | uuid null | |
 | `model_id` | uuid null | |
-| `summary` | text | human-readable ticker line |
-| `payload` | jsonb | e.g. the full card for `comparison.published` |
+| `summary` | text | human-readable ticker line; empty for deletion events |
+| `payload` | jsonb | e.g. the full card for `comparison.published`; content IDs for deletion events |
 | `created_at` | timestamptz | |
+
+Deleting a comment or Annotation removes its ticker rows, then emits a summary-less deletion event so open Boards lower the card count and drop those lines live. `recentActivity` omits summary-less rows.
 
 Draft activity must never enter this table in a way that leaks to the public stream. `run.finished` is only written when the Comparison is already published.
 
@@ -385,6 +387,7 @@ Creation rules:
 - Replies are one level; a reply to a reply is re-parented.
 - `aboutModelId` is inherited from the parent when omitted.
 - `comment_count` includes replies and is decremented on delete.
+- A tombstoned comment is returned with an empty body and `deletedAt`; its replies keep their bodies, authors and flat order.
 
 ### Votes
 
@@ -457,7 +460,7 @@ Annotatable runs are leaf text nodes and fenced code blocks for which the raw ma
 - Overlaps are rejected; adjacent annotations are fine.
 - Offsets are UTF-16 code units, matching JavaScript and browser Selection.
 - When an Annotation is deleted, its highlight and thread disappear; votes on the soft-deleted target remain in the table but are not read.
-- A deleted thread message is always tombstoned in v1; hard deletion of childless messages is not implemented.
+- A deleted thread message is always tombstoned in v1; hard deletion of childless messages is not implemented. Reads return it with an empty body and `deletedAt`, so the thread keeps its place.
 
 ---
 
