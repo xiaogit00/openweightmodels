@@ -14,7 +14,7 @@ import {
   responses,
   retryRun,
 } from '../src/index';
-import { createJobFixture, servicesAvailable } from './index';
+import { createJobFixture, removeQueuedRuns, servicesAvailable } from './index';
 import { fakeOpenAi, sse } from './fake-openai';
 
 const available = await servicesAvailable();
@@ -42,15 +42,6 @@ async function storedRuns(jobId: string) {
   return getDb().select().from(responses).where(eq(responses.jobId, jobId));
 }
 
-async function removeQueuedJobs(responseIds: string[]) {
-  const jobs = await getRunQueue().getJobs(['wait', 'delayed', 'prioritized']);
-  await Promise.all(
-    jobs
-      .filter((job) => responseIds.includes(String(job.data?.responseId ?? '')))
-      .map((job) => job.remove().catch(() => {})),
-  );
-}
-
 describe.skipIf(!available)('real provider through the Job pipeline', () => {
   it('persists streamed content, tokens, latency and cost for every Challenger', async () => {
     const providerServer = await fakeOpenAi(() => ({
@@ -74,6 +65,7 @@ describe.skipIf(!available)('real provider through the Job pipeline', () => {
       challengers: 2,
       provider: 'openrouter',
       apiBase: providerServer.baseUrl,
+      apiModelId: 'vendor/model-under-test',
     });
 
     try {
@@ -114,13 +106,18 @@ describe.skipIf(!available)('real provider through the Job pipeline', () => {
         'Explain a sliding-window rate limiter with Go code.',
         'Explain a sliding-window rate limiter with Go code.',
       ]);
+      // The registry's api_model_id is what the provider is asked for.
+      expect(providerServer.requests.map((request) => request.body.model)).toEqual([
+        'vendor/model-under-test',
+        'vendor/model-under-test',
+      ]);
 
       const ready = (await getNotifications(fixture.userId)).filter(
         (notification) => notification.kind === 'job.ready',
       );
       expect(ready).toHaveLength(1);
     } finally {
-      await removeQueuedJobs(fixture.runIds);
+      await removeQueuedRuns(fixture.runIds);
       await fixture.cleanup();
       await providerServer.close();
     }
@@ -181,7 +178,7 @@ describe.skipIf(!available)('real provider through the Job pipeline', () => {
       const [row] = await storedRuns(fixture.jobId);
       expect(Number(row?.costUsd)).toBeCloseTo(0.0004, 6);
     } finally {
-      await removeQueuedJobs(fixture.runIds);
+      await removeQueuedRuns(fixture.runIds);
       await fixture.cleanup();
       await providerServer.close();
     }

@@ -22,6 +22,8 @@ export type FixtureOptions = {
   provider?: string;
   /** Optional OpenAI-compatible endpoint used by integration tests. */
   apiBase?: string | null;
+  /** Provider model identifier the adapter should send. Defaults to null. */
+  apiModelId?: string | null;
   /**
    * Attach this Comparison to an existing account instead of creating a
    * throwaway author. The caller owns that account's cleanup.
@@ -75,6 +77,7 @@ export async function createJobFixture(options: FixtureOptions = {}) {
     monogram,
     provider: options.provider ?? 'mock',
     apiBase: options.apiBase ?? null,
+    apiModelId: options.apiModelId ?? null,
   });
 
   const modelRows = await db

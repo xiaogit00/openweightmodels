@@ -7,11 +7,10 @@ import {
   getComparisonForViewer,
   getJobForAuthor,
   getNotifications,
-  getRunQueue,
   processRun,
   publishComparison,
 } from '../src/index';
-import { createJobFixture, servicesAvailable } from './index';
+import { createJobFixture, removeQueuedRuns, servicesAvailable } from './index';
 
 const available = await servicesAvailable();
 if (!available) {
@@ -38,16 +37,6 @@ afterEach(() => {
     else process.env[key] = value;
   }
 });
-
-async function removeQueuedRuns(responseIds: string[]) {
-  const queue = getRunQueue();
-  const jobs = await queue.getJobs(['wait', 'delayed', 'prioritized']);
-  await Promise.all(
-    jobs
-      .filter((job) => responseIds.includes(String(job.data?.responseId ?? '')))
-      .map((job) => job.remove().catch(() => {})),
-  );
-}
 
 describe.skipIf(!available)('create → generate → publish', () => {
   it('runs an uploaded file through the mock pipeline and publishes it to the Board', async () => {

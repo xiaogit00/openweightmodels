@@ -122,7 +122,7 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 ### Verification
 
-- Ticket 12: `packages/core/test/providers.test.ts` covers the exact request shape (same Prompt and generation parameters for every Challenger), SSE content, provider usage tokens/cost, HTTP and in-stream errors, key redaction, the 120s timeout (injected short for the test), and provider selection with no silent mock fallback. A shared `test/fake-openai.ts` endpoint feeds `packages/core/test/provider-pipeline.test.ts`, which drives `processRun` end to end: content, completion tokens, latency and cost persisted; a 500 becomes Failed with a redacted useful message and an auto-skip timer; Retry then reaches Ready. A live-key OpenRouter call has **not** been made (no key in this checkout).
+- Ticket 12: `packages/core/test/providers.test.ts` covers the exact request shape (same Prompt and generation parameters for every Challenger), SSE content, provider usage tokens/cost, HTTP and in-stream errors, key redaction, the 120s timeout (injected short for the test), and provider selection with no silent mock fallback. A shared `test/fake-openai.ts` endpoint feeds `packages/core/test/provider-pipeline.test.ts`, which drives `processRun` end to end: content, completion tokens, latency and cost persisted; a 500 becomes Failed with a redacted useful message and an auto-skip timer; Retry then reaches Ready. `packages/core/test/live-provider.test.ts` is the opt-in live smoke (`pnpm test:live`): one real call through `processRun` asserting Done, non-empty content, tokens, latency, a provider-reported non-zero cost and at least one `streaming` job event. Only the `test:live` script runs it, so `pnpm test` never calls a provider; running it without a key or services fails instead of skipping green. **Verified on 2026-10-23** with `deepseek/deepseek-chat`: `status=done tokens=946 latency=17221ms cost=$0.000977` (and a second run with 914 tokens / 18053 ms / $0.000944).
 - Ticket 15: `packages/core/test/account.test.ts` proves deletion keeps published Comparisons under `[deleted]`, erases unpublished work and personal fields, tombstones comments while preserving other people's replies, removes Annotations with their threads, keeps `comment_count`/`annotation_count` exact (including a reply under an Admin-hidden parent), removes sessions, pending magic links, notifications, votes and ticker rows, frees the handle and email, refuses an untyped confirmation and a second deletion, and that export contains only the account's own data. `e2e/account.spec.ts` drives sign-in → comment → export download → typed confirmation → signed-out Board → tombstone, and checks the footer links to both legal pages.
 - Ticket 17: `apps/web/test/contrast.test.ts` parses the real design tokens and proves every text token clears 4.5:1 on `bg`, `surface`, `neutral-800`, `accent-900` (plus selected-control sub-labels on `neutral-700`). `e2e/a11y.spec.ts` uses axe-core on Board, Comparison (with an Annotation thread open), New Comparison and Job and fails on critical or serious findings. `e2e/keyboard.spec.ts` proves Annotation toggle/thread/reply/vote/close with focus return, Discussion compose/reply/edit/delete, Add model and admin takedown panels are keyboard-only, that Escape preserves an unsent reply draft, and that reduced motion yields no running animations. `e2e/responsive.spec.ts` asserts no document overflow at 768px and 360px. `e2e/visual.spec.ts` holds 1440×900 baselines at a 1% pixel tolerance plus the v2 measurements, reseeding first so other suites' mutations cannot leak into the images.
 - `pnpm typecheck` — **passes** (core, web, worker and the E2E suite).
@@ -146,7 +146,6 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 - Production images and the AWS deployment (ticket 13). The current `Dockerfile` is a development target only.
 - AWS CDK stack, Dockerfiles, CI/CD, deployment.
-- One live-key OpenRouter smoke call. The adapter and pipeline are covered against a local OpenAI-compatible server; no `OPENROUTER_API_KEY` is configured in this checkout, so ticket 12's live-key sign-off remains manual.
 - Owner/legal review of the Terms and Privacy copy, and the bracketed placeholders in them. The behaviour they describe is implemented and tested; the wording is not legal advice (`docs/PRIVACY.md`).
 - A scheduled retention/pruning job for expired sessions and verification rows. They are inert today and are removed when the account is deleted, but nothing prunes them on a timer yet.
 
@@ -175,8 +174,7 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 ## 5. Suggested next order
 
-1. Accessibility and fidelity audit (ticket 17), including the admin surface and the new account/legal pages.
-2. The live-key sign-off for ticket 12, then AWS staging (ticket 13) and the abuse/spend controls that depend on it (ticket 16).
+1. AWS staging (ticket 13), then the abuse/spend controls that depend on it (ticket 16).
 
 ---
 

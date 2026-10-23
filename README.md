@@ -104,11 +104,24 @@ PROVIDER=openrouter OPENROUTER_API_KEY=sk-or-... docker compose up --build
 
 The worker validates this at startup: `PROVIDER=openrouter` without
 `OPENROUTER_API_KEY` fails with the missing variable named, and a real mode
-never falls back to mock. Each Challenger receives the same frozen Prompt,
+never falls back to mock. Keep the key out of shell history by putting it in
+`.env.local` (gitignored); Next, the worker and the db scripts read it. Each
+Challenger receives the same frozen Prompt,
 `temperature: 0.7`, `max_tokens: 4096`, streaming and a 120-second timeout;
 the final content, provider-reported completion tokens, latency and cost are
 stored on the Response. The key stays in the environment and is redacted from
 error messages stored on a failed Run.
+
+To prove one real call end to end — including the stored tokens, latency and
+cost — with Postgres, Redis and the key in `.env.local` (or exported):
+
+```bash
+pnpm test:live
+```
+
+Only the `test:live` script runs that file, so `pnpm test` never calls a
+provider and never bills you. `LIVE_PROVIDER_MODEL` overrides the default
+`deepseek/deepseek-chat`.
 
 `pnpm db:init` is idempotent. Use `pnpm db:seed` to replace content with the
 deterministic dev fixtures, and `pnpm db:reset` to drop and recreate the public
@@ -119,6 +132,7 @@ schema (it refuses to run in production).
 ```bash
 pnpm typecheck
 pnpm test                    # unit + integration tests (needs Postgres and Redis)
+pnpm test:live               # opt-in real-provider smoke call (needs a key)
 pnpm build
 pnpm test:e2e                # browser journey, with an isolated database and Redis DB
 ```
