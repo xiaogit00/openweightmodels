@@ -79,7 +79,7 @@ export function AccountSettings({ handle }: { handle: string | null }) {
           onChange={(event) => setConfirmation(event.target.value)}
           autoComplete="off"
           spellCheck={false}
-          className="mt-1 h-8 w-full max-w-[240px] rounded-[2px] border border-neutral-700 bg-bg px-2 text-[12px] text-text outline-0 focus-visible:border-accent"
+          className="mt-1 h-8 w-full max-w-[240px] rounded-[2px] border border-neutral-700 bg-bg px-2 text-[12px] text-text focus-visible:border-accent"
         />
         {error && (
           <p role="alert" className="m-0 mt-2 text-[11px] text-danger">

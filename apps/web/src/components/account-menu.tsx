@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { authClient } from '@/lib/auth-client';
+import { initials } from '@/lib/utils';
 import { Avatar } from './avatar';
 
 export function AccountMenu({ handle }: { handle: string | null }) {
@@ -41,7 +42,9 @@ export function AccountMenu({ handle }: { handle: string | null }) {
     }
   };
 
-  const label = handle ? `Account menu for @${handle}` : 'Account menu';
+  const label = handle
+    ? `${initials(handle)} — account menu for @${handle}`
+    : 'Account menu';
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
@@ -49,7 +52,7 @@ export function AccountMenu({ handle }: { handle: string | null }) {
         <button
           type="button"
           aria-label={label}
-          className={`grid h-8 w-8 place-items-center rounded-[2px] outline-0 focus-visible:ring-2 focus-visible:ring-accent ${
+          className={`grid h-8 w-8 place-items-center rounded-[2px] ${
             handle ? '' : 'border border-neutral-700 text-neutral-200'
           }`}
         >
@@ -72,7 +75,7 @@ export function AccountMenu({ handle }: { handle: string | null }) {
           <Link
             href="/account"
             onClick={() => setOpen(false)}
-            className="flex h-7 items-center gap-1.5 rounded-[2px] px-2 text-[12px] text-neutral-200 outline-0 hover:bg-surface focus-visible:ring-2 focus-visible:ring-accent"
+            className="flex h-7 items-center gap-1.5 rounded-[2px] px-2 text-[12px] text-neutral-200 hover:bg-surface"
           >
             <User size={13} />
             Account
@@ -81,7 +84,7 @@ export function AccountMenu({ handle }: { handle: string | null }) {
             <Link
               href="/admin"
               onClick={() => setOpen(false)}
-              className="flex h-7 items-center gap-1.5 rounded-[2px] px-2 text-[12px] text-neutral-200 outline-0 hover:bg-surface focus-visible:ring-2 focus-visible:ring-accent"
+              className="flex h-7 items-center gap-1.5 rounded-[2px] px-2 text-[12px] text-neutral-200 hover:bg-surface"
             >
               <ShieldCheck size={13} />
               Admin
@@ -91,7 +94,7 @@ export function AccountMenu({ handle }: { handle: string | null }) {
             type="button"
             onClick={() => void signOut()}
             disabled={signingOut}
-            className="flex h-7 items-center gap-1.5 rounded-[2px] px-2 text-[12px] text-neutral-200 outline-0 hover:bg-surface focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60"
+            className="flex h-7 items-center gap-1.5 rounded-[2px] px-2 text-[12px] text-neutral-200 hover:bg-surface disabled:opacity-60"
           >
             <SignOut size={13} />
             {signingOut ? 'Signing out…' : 'Sign out'}

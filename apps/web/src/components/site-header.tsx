@@ -26,7 +26,7 @@ export function SiteHeader({
 }) {
   const viewerSignedIn = signedIn ?? handle !== null;
   return (
-    <header className="sticky top-0 z-20 flex items-center gap-4 border-b border-neutral-800 bg-bg px-5 py-[10px]">
+    <header className="sticky top-0 z-20 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-neutral-800 bg-bg px-5 py-[10px]">
       <Logo />
       {variant === 'page' && (
         <Link

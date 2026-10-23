@@ -117,30 +117,24 @@ export function ComparisonCardView({
         <Avatar handle={card.author.handle} size={14} />
         <span className="text-neutral-300">{formatHandle(card.author.handle)}</span>
         <span>·</span>
-        <span>{relativeTime(card.publishedAt, now)}</span>
+        <span data-relative-time>{relativeTime(card.publishedAt, now)}</span>
       </div>
     </>
   );
 
-  const style =
-    animation === 'a'
-      ? { animation: 'arrive-a 1.4s ease-out' }
-      : animation === 'b'
-        ? { animation: 'arrive-b 1.4s ease-out' }
-        : undefined;
-
-  const classes = cn('card', className);
+  const classes = cn(
+    'card',
+    animation === 'a' && 'arrive-a',
+    animation === 'b' && 'arrive-b',
+    className,
+  );
 
   if (!href) {
-    return (
-      <div className={classes} style={style}>
-        {content}
-      </div>
-    );
+    return <div className={classes}>{content}</div>;
   }
 
   return (
-    <Link href={href} className={classes} style={style}>
+    <Link href={href} className={classes}>
       {content}
     </Link>
   );

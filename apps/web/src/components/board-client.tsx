@@ -638,7 +638,13 @@ export function BoardClient({
   }, [error, loadMore, nextCursor, phase]);
 
   const tickerEvents = events.filter((event) => event.summary);
-  const ticker = tickerEvents.length ? [...tickerEvents, ...tickerEvents] : [];
+  // The marquee needs a duplicated list to loop seamlessly. Reduced motion
+  // renders one static pass so the reader does not get a repeated sentence.
+  const ticker = tickerEvents.length
+    ? reducedMotion
+      ? tickerEvents
+      : [...tickerEvents, ...tickerEvents]
+    : [];
   const loadingFirst = phase === 'first';
   const loadingMore = phase === 'more';
 
@@ -648,7 +654,7 @@ export function BoardClient({
         handle={handle}
         signedIn={signedIn}
         search={
-          <label className="flex h-8 flex-[0_1_420px] items-center gap-2 rounded-[2px] border border-transparent bg-surface px-[10px] focus-within:border-neutral-700">
+          <label className="flex h-8 min-w-0 flex-[1_1_200px] items-center gap-2 rounded-[2px] border border-transparent bg-surface px-[10px] focus-within:border-neutral-700 sm:flex-[0_1_420px]">
             <MagnifyingGlass size={15} className="text-neutral-400" />
             <input
               ref={searchRef}
@@ -656,7 +662,7 @@ export function BoardClient({
               onChange={(event) => patchFilters({ q: event.target.value })}
               placeholder="Search prompts or models"
               aria-label="Search comparisons"
-              className="min-w-0 flex-1 border-0 bg-transparent text-[12px] text-text outline-0"
+              className="min-w-0 flex-1 border-0 bg-transparent text-[12px] text-text"
             />
             <span className="rounded-[2px] border border-neutral-700 px-[5px] py-[2px] text-[10px] font-medium text-neutral-500">
               /
@@ -671,15 +677,19 @@ export function BoardClient({
       >
         <span className="flex flex-none items-center gap-[6px] text-[11px] font-medium text-accent-200">
           <span
-            className={cn('h-[6px] w-[6px] rounded-[2px]', live ? 'bg-accent' : 'bg-neutral-500')}
-            style={
-              live && !reducedMotion ? { animation: 'pulse-soft 1.6s infinite' } : undefined
-            }
+            className={cn(
+              'h-[6px] w-[6px] rounded-[2px]',
+              live ? 'bg-accent' : 'bg-neutral-500',
+              live && !reducedMotion && 'anim-pulse',
+            )}
           />
           {live ? 'LIVE' : 'RECONNECTING'}
         </span>
         <div className="flex min-w-0 flex-1 overflow-hidden">
-          <div className="marquee flex flex-none gap-7" data-ticker>
+          <div
+            className={cn('flex flex-none gap-7', !reducedMotion && 'marquee')}
+            data-ticker
+          >
             {ticker.map((event, index) => {
               const Icon = EVENT_ICONS[event.kind] ?? ChatCircle;
               return (
@@ -696,10 +706,14 @@ export function BoardClient({
         </div>
       </div>
 
-      <div className="grid flex-1 grid-cols-[216px_minmax(0,1fr)]">
-        <aside className="sticky top-[82px] flex h-[calc(100vh-82px)] flex-col gap-[18px] self-start overflow-auto border-r border-neutral-800 px-3 py-4 pl-5">
-          <div className="flex flex-col gap-px">
-            <span className="micro-label px-2 pb-[6px]">CATEGORIES</span>
+      <div className="grid flex-1 grid-cols-1 lg:grid-cols-[216px_minmax(0,1fr)]">
+        <aside
+          aria-label="Board filters"
+          className="flex flex-col gap-[18px] overflow-auto border-b border-neutral-800 px-5 py-4 lg:sticky lg:top-[82px] lg:h-[calc(100vh-82px)] lg:self-start lg:border-b-0 lg:border-r lg:px-3 lg:py-4 lg:pl-5">
+          <div className="grid grid-cols-2 gap-px lg:flex lg:flex-col">
+            <span className="micro-label col-span-2 px-2 pb-[6px] lg:col-span-1">
+              CATEGORIES
+            </span>
             {['All', ...CATEGORIES].map((category) => {
               const active = filters.cat === category;
               return (
@@ -709,7 +723,7 @@ export function BoardClient({
                   aria-pressed={active}
                   onClick={() => patchFilters({ cat: category })}
                   className={cn(
-                    'flex h-7 items-center justify-between rounded-[2px] px-2 text-left text-[12px] font-medium transition-colors hover:bg-surface',
+                    'flex h-7 min-w-0 items-center justify-between rounded-[2px] px-2 text-left text-[12px] font-medium transition-colors hover:bg-surface',
                     active ? 'bg-surface text-text' : 'text-neutral-300',
                   )}
                 >
@@ -724,8 +738,8 @@ export function BoardClient({
             })}
           </div>
 
-          <div className="flex flex-col gap-px">
-            <div className="flex items-baseline justify-between px-2 pb-[6px]">
+          <div className="grid grid-cols-2 gap-px lg:flex lg:flex-col">
+            <div className="col-span-2 flex items-baseline justify-between px-2 pb-[6px] lg:col-span-1">
               <span className="micro-label">MODELS</span>
               {filters.models.length > 0 && (
                 <button
@@ -752,7 +766,7 @@ export function BoardClient({
                         : [...current.models, model.slug],
                     }))
                   }
-                  className="flex h-7 items-center gap-2 rounded-[2px] px-2 text-left text-[12px] font-medium text-neutral-200 transition-colors hover:bg-surface"
+                  className="flex h-7 min-w-0 items-center gap-2 rounded-[2px] px-2 text-left text-[12px] font-medium text-neutral-200 transition-colors hover:bg-surface"
                 >
                   <span
                     className={cn(
@@ -801,6 +815,7 @@ export function BoardClient({
           className="flex min-w-0 flex-col gap-3 px-5 pb-8 pt-[14px]"
           aria-busy={loadingFirst}
         >
+          <h1 className="sr-only">Board</h1>
           <div className="flex flex-wrap items-center gap-[10px]">
             <div className="flex gap-[2px]">
               {SORTS.map((value) => {
@@ -842,7 +857,7 @@ export function BoardClient({
             </span>
             {loadingFirst && (
               <span className="flex items-center gap-[5px] text-[11px] text-neutral-400">
-                <CircleNotch size={11} style={{ animation: 'spin-soft 1s linear infinite' }} />
+                <CircleNotch size={11} className="anim-spin" />
                 Loading…
               </span>
             )}
@@ -911,7 +926,7 @@ export function BoardClient({
               role="status"
               className="flex items-center gap-2 py-12 text-[12px] text-neutral-400"
             >
-              <CircleNotch size={13} style={{ animation: 'spin-soft 1s linear infinite' }} />
+              <CircleNotch size={13} className="anim-spin" />
               Loading comparisons…
             </div>
           ) : error ? null : (
@@ -942,7 +957,7 @@ export function BoardClient({
                 className="btn-neutral"
               >
                 {loadingMore && (
-                  <CircleNotch size={12} style={{ animation: 'spin-soft 1s linear infinite' }} />
+                  <CircleNotch size={12} className="anim-spin" />
                 )}
                 {loadingMore ? 'Loading more…' : 'Load more'}
               </button>

@@ -260,6 +260,7 @@ export function NewComparisonClient({
               ref={inputRef}
               type="file"
               accept=".md,.markdown,.txt"
+              aria-label="Base output file"
               className="sr-only"
               onChange={(event) => {
                 pickFile(event.target.files?.[0]);
@@ -350,7 +351,7 @@ export function NewComparisonClient({
                         setPicked((current) => current.filter((id) => id !== next));
                       }}
                       className={cn(
-                        'h-8 rounded-[2px] border bg-bg px-2 text-[12px] font-medium text-text outline-0',
+                        'h-8 rounded-[2px] border bg-bg px-2 text-[12px] font-medium text-text',
                         baseModelId ? 'border-neutral-700' : 'border-accent',
                       )}
                     >
@@ -372,7 +373,7 @@ export function NewComparisonClient({
                       onChange={(event) => setPrompt(event.target.value)}
                       rows={2}
                       maxLength={10_000}
-                      className="resize-y rounded-[2px] border border-neutral-700 bg-bg px-2 py-[7px] text-[12px] font-normal leading-[1.45] text-text outline-0 focus:border-accent"
+                      className="resize-y rounded-[2px] border border-neutral-700 bg-bg px-2 py-[7px] text-[12px] font-normal leading-[1.45] text-text focus:border-accent"
                     />
                   </label>
                 </div>
@@ -496,7 +497,7 @@ export function NewComparisonClient({
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="What's being compared?"
                 maxLength={200}
-                className="h-[34px] rounded-[2px] border border-neutral-700 bg-surface px-[10px] text-[12px] font-medium text-text outline-0 focus:border-accent"
+                className="h-[34px] rounded-[2px] border border-neutral-700 bg-surface px-[10px] text-[12px] font-medium text-text focus:border-accent"
               />
             </label>
 
@@ -544,7 +545,7 @@ export function NewComparisonClient({
                       )}
                     >
                       <span className="text-[12px] font-medium">{level.label}</span>
-                      <span className="text-[10px] font-normal text-neutral-500">
+                      <span className="text-[10px] font-normal text-neutral-300">
                         {level.sub}
                       </span>
                     </button>
@@ -571,7 +572,7 @@ export function NewComparisonClient({
               className="flex h-9 items-center gap-[6px] rounded-[2px] border border-accent bg-accent px-4 text-[12px] font-semibold text-bg transition-colors hover:bg-accent-300 disabled:cursor-not-allowed disabled:opacity-45"
             >
               {submitting ? (
-                <CircleNotch size={14} style={{ animation: 'spin-soft 1s linear infinite' }} />
+                <CircleNotch size={14} className="anim-spin" />
               ) : (
                 <Lightning size={14} />
               )}

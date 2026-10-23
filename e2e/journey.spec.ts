@@ -136,25 +136,25 @@ test('upload → schedule → live Job → publish → Board → annotate → th
   await page.getByRole('button', { name: /Annotations/ }).click();
   await page.locator('[data-annotation-span]').first().click();
   const readerPopover = page.locator('[data-popover]');
-  await readerPopover.getByRole('button', { name: 'Vote on annotation' }).click();
+  await readerPopover.getByRole('button', { name: /Vote on annotation/ }).click();
   await expect(
-    readerPopover.getByRole('button', { name: 'Remove annotation vote' }),
+    readerPopover.getByRole('button', { name: /Remove annotation vote/ }),
   ).toBeVisible();
   await page.keyboard.press('Escape');
 
-  await page.getByRole('button', { name: 'Vote on comment' }).click();
-  await expect(page.getByRole('button', { name: 'Remove comment vote' })).toBeVisible();
+  await page.getByRole('button', { name: /Vote on comment/ }).click();
+  await expect(page.getByRole('button', { name: /Remove comment vote/ })).toBeVisible();
 
   // The thread and both votes persist across a reload.
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Remove comment vote' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Remove comment vote/ })).toBeVisible();
 
   await page.getByRole('button', { name: /Annotations/ }).click();
   await page.locator('[data-annotation-span]').first().click();
   const persisted = page.locator('[data-popover]');
   await expect(persisted.getByText(replyBody)).toBeVisible();
   await expect(
-    persisted.getByRole('button', { name: 'Remove annotation vote' }),
+    persisted.getByRole('button', { name: /Remove annotation vote/ }),
   ).toBeVisible();
   await page.keyboard.press('Escape');
 

@@ -128,7 +128,7 @@ export function NotificationBell() {
                 type="button"
                 disabled={updating}
                 onClick={() => void markRead({ all: true })}
-                className="rounded-[2px] text-[11px] font-medium text-accent-200 outline-0 hover:text-accent-100 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60"
+                className="rounded-[2px] text-[11px] font-medium text-accent-200 hover:text-accent-100 disabled:opacity-60"
               >
                 Mark all read
               </button>
@@ -143,7 +143,7 @@ export function NotificationBell() {
               <button
                 type="button"
                 onClick={() => void load()}
-                className="text-[11px] font-medium text-accent-200 outline-0 hover:text-accent-100 focus-visible:ring-2 focus-visible:ring-accent"
+                className="text-[11px] font-medium text-accent-200 hover:text-accent-100"
               >
                 Try again
               </button>
@@ -160,7 +160,7 @@ export function NotificationBell() {
               {items.map((notification) => {
                 const href = notificationHref(notification);
                 const className = cn(
-                  'flex w-full items-start gap-2 rounded-[2px] px-2 py-2 text-left outline-0 hover:bg-surface focus-visible:ring-2 focus-visible:ring-accent',
+                  'flex w-full items-start gap-2 rounded-[2px] px-2 py-2 text-left hover:bg-surface',
                   notification.readAt ? 'text-neutral-300' : 'text-text',
                 );
                 const body = (

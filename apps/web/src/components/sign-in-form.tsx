@@ -102,7 +102,7 @@ export function SignInForm({
         value={email}
         onChange={(event) => setEmail(event.target.value)}
         placeholder="you@example.com"
-        className="h-9 rounded-[2px] border border-neutral-700 bg-surface px-2.5 text-[12px] text-text outline-0 focus:border-accent"
+        className="h-9 rounded-[2px] border border-neutral-700 bg-surface px-2.5 text-[12px] text-text focus:border-accent"
       />
       <p className="m-0 text-[11px] leading-[1.5] text-neutral-500">
         We email a single-use link — no password. Your address is private; only your

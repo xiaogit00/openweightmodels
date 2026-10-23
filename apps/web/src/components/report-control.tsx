@@ -193,7 +193,7 @@ export function ReportControl({
                 maxLength={500}
                 rows={2}
                 placeholder="Anything else an Admin should know? (optional)"
-                className="resize-y rounded-[2px] border border-neutral-700 bg-bg p-2 text-[11.5px] leading-[1.5] text-text outline-0 focus:border-accent"
+                className="resize-y rounded-[2px] border border-neutral-700 bg-bg p-2 text-[11.5px] leading-[1.5] text-text focus:border-accent"
               />
 
               {error && (
@@ -209,7 +209,7 @@ export function ReportControl({
                 onClick={() => void submit()}
                 className="btn-secondary h-7 self-start disabled:opacity-45"
               >
-                {busy ? <CircleNotch size={12} className="animate-spin" /> : <Flag size={12} />}
+                {busy ? <CircleNotch size={12} className="anim-spin" /> : <Flag size={12} />}
                 {busy ? 'Reporting…' : 'Submit report'}
               </button>
             </>

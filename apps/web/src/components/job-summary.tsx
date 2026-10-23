@@ -287,10 +287,10 @@ export function JobSummary({ view }: { view: JobView }) {
       <SiteHeader handle={view.authorHandle} variant="page" showNew={false} />
 
       <main className="mx-auto grid w-full max-w-[1120px] grid-cols-1 gap-8 px-5 pb-14 pt-[22px] lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="flex min-w-0 flex-col gap-5" style={{ animation: 'rise .25s ease-out' }}>
+        <div className="anim-rise flex min-w-0 flex-col gap-5">
           <div className="flex flex-col gap-1">
             <span className="flex flex-wrap items-center gap-x-[6px] text-[11px] font-medium uppercase tracking-[0.04em] text-neutral-500">
-              <span>
+              <span data-relative-time>
                 Job #{view.jobId.slice(-4).toUpperCase()} · Scheduled {view.scheduledAt} UTC
               </span>
               <span aria-hidden="true">·</span>
@@ -302,13 +302,8 @@ export function JobSummary({ view }: { view: JobView }) {
                 <span
                   className={cn(
                     'h-[6px] w-[6px] rounded-[2px]',
-                    connection === 'live' ? 'bg-accent' : 'bg-neutral-500',
+                    connection === 'live' ? 'bg-accent anim-pulse' : 'bg-neutral-500',
                   )}
-                  style={
-                    connection === 'live'
-                      ? { animation: 'pulse-soft 1.6s infinite' }
-                      : undefined
-                  }
                 />
                 <span className={connection === 'live' ? 'text-accent-200' : 'text-neutral-400'}>
                   {connectionLabel}
@@ -349,8 +344,8 @@ export function JobSummary({ view }: { view: JobView }) {
                     ) : current ? (
                       <CircleNotch
                         size={12}
-                        style={{ animation: 'spin-soft 1s linear infinite' }}
-                      />
+                        className="anim-spin"
+                        />
                     ) : (
                       <Circle size={12} />
                     )}
@@ -363,7 +358,7 @@ export function JobSummary({ view }: { view: JobView }) {
 
           <div className="flex flex-col rounded-[2px] bg-surface">
             <div className="flex items-center gap-[10px] border-b border-neutral-800 px-[14px] py-3">
-              <span className="rounded-[2px] border border-accent-700 px-[6px] py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-accent-200">
+              <span className="rounded-[2px] border border-accent-700 px-[6px] py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-accent-200">
                 Base
               </span>
               <span className="text-[12px] font-medium">
@@ -387,7 +382,7 @@ export function JobSummary({ view }: { view: JobView }) {
                   className="flex flex-col gap-[7px] border-b border-neutral-800 px-[14px] py-3 last:border-b-0"
                 >
                   <div className="flex flex-wrap items-center gap-[10px]">
-                    <span className="grid h-[22px] w-[22px] flex-none place-items-center rounded-[2px] bg-neutral-700 text-[9px] font-semibold">
+                    <span className="grid h-[22px] w-[22px] flex-none place-items-center rounded-[2px] bg-neutral-700 text-[10px] font-semibold">
                       {run.monogram}
                     </span>
                     <span className="text-[12px] font-medium">{run.modelName}</span>
@@ -401,13 +396,8 @@ export function JobSummary({ view }: { view: JobView }) {
                     >
                       <Icon
                         size={13}
-                        className="flex-none"
-                        style={
-                          display.spinning
-                            ? { animation: 'spin-soft 1s linear infinite' }
-                            : undefined
-                        }
-                      />
+                        className={cn('flex-none', display.spinning && 'anim-spin')}
+                        />
                       <span className="truncate">{display.label}</span>
                     </span>
                     {run.status === 'failed' && (
@@ -463,8 +453,7 @@ export function JobSummary({ view }: { view: JobView }) {
 
           {settled ? (
             <div
-              className="flex flex-col gap-2 rounded-[2px] border border-accent bg-accent-900 px-4 py-[14px]"
-              style={{ animation: 'rise .3s ease-out' }}
+              className="anim-rise-slow flex flex-col gap-2 rounded-[2px] border border-accent bg-accent-900 px-4 py-[14px]"
               aria-live="polite"
             >
               <div className="flex flex-wrap items-center gap-3">

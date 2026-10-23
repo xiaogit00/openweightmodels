@@ -146,9 +146,8 @@ export function ComparisonPreview({
             <span
               className={cn(
                 'h-[6px] w-[6px] rounded-[2px]',
-                ready ? 'bg-accent-200' : generating ? 'bg-accent-300' : 'bg-neutral-500',
+                ready ? 'bg-accent-200' : generating ? 'bg-accent-300 anim-pulse-fast' : 'bg-neutral-500',
               )}
-              style={generating ? { animation: 'pulse-soft 1.2s infinite' } : undefined}
             />
             {status.label}
           </span>

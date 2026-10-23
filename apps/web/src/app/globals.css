@@ -21,7 +21,9 @@
   --color-neutral-200: #d4d6d4;
   --color-neutral-300: #a9ada9;
   --color-neutral-400: #858a86;
-  --color-neutral-500: #646966;
+  /* Lifted from #646966 so 10px muted text clears WCAG AA on bg, surface,
+     neutral-800 and accent-900. See apps/web/test/contrast.test.ts. */
+  --color-neutral-500: #8b908c;
   --color-neutral-600: #4a4f4c;
   --color-neutral-700: #2e3330;
   --color-neutral-800: #1d211f;
@@ -114,9 +116,57 @@
   animation-play-state: paused;
 }
 
+/* Motion is opt-in through these classes so `prefers-reduced-motion` can turn
+   it off in one place, including inline uses that used to carry keyframes. */
+.anim-spin {
+  animation: spin-soft 1s linear infinite;
+}
+
+.anim-pulse {
+  animation: pulse-soft 1.6s infinite;
+}
+
+.anim-pulse-fast {
+  animation: pulse-soft 1.2s infinite;
+}
+
+.anim-shimmer {
+  animation: shimmer 1.2s infinite;
+}
+
+.anim-rise {
+  animation: rise 0.25s ease-out;
+}
+
+.anim-rise-slow {
+  animation: rise 0.3s ease-out;
+}
+
+.arrive-a {
+  animation: arrive-a 1.4s ease-out;
+}
+
+.arrive-b {
+  animation: arrive-b 1.4s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .marquee {
+  .marquee,
+  .anim-spin,
+  .anim-pulse,
+  .anim-pulse-fast,
+  .anim-shimmer,
+  .anim-rise,
+  .anim-rise-slow,
+  .arrive-a,
+  .arrive-b {
     animation: none !important;
+  }
+
+  /* The shimmer placeholders keep their static fill instead of freezing at a
+     half-faded frame. */
+  .anim-shimmer {
+    opacity: 1;
   }
 }
 
@@ -159,28 +209,6 @@
   }
   100% {
     background: var(--color-surface);
-  }
-}
-
-@keyframes tick-in {
-  from {
-    opacity: 0;
-    transform: translateX(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes pop-in {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
   }
 }
 
@@ -347,11 +375,11 @@
     display: grid;
     place-items: center;
     flex: none;
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     border-radius: 2px;
     background: var(--color-neutral-700);
-    font: 600 8px var(--font-body);
+    font: 600 10px var(--font-body);
     color: var(--color-neutral-100);
   }
 

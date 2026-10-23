@@ -1,6 +1,7 @@
 'use client';
 
 import type { AnnotationView, Block, Run } from '@owm/core/client';
+import { ANNOTATION_KIND_META } from '@owm/core/client';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -10,7 +11,7 @@ type Props = {
   annOn: boolean;
   kindFilter: string;
   openId: string | null;
-  onOpen: (annotationId: string, event: React.MouseEvent) => void;
+  onOpen: (annotationId: string, trigger: HTMLElement) => void;
 };
 
 function runStyle(run: Run) {
@@ -58,13 +59,26 @@ function RunText({
       );
     }
     const open = openId === annotation.id;
+    const kindLabel =
+      ANNOTATION_KIND_META[annotation.kind as keyof typeof ANNOTATION_KIND_META]?.label ??
+      'Annotation';
     parts.push(
       <span
         key={annotation.id}
         id={`annotation-${annotation.id}`}
         data-annotation-span="1"
         data-annotation-id={annotation.id}
-        onClick={(event) => onOpen(annotation.id, event)}
+        role="button"
+        tabIndex={0}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={`Open ${kindLabel} annotation: ${annotation.quote}`}
+        onClick={(event) => onOpen(annotation.id, event.currentTarget)}
+        onKeyDown={(event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          onOpen(annotation.id, event.currentTarget);
+        }}
         style={{
           background: open ? 'var(--color-accent-800)' : 'var(--color-accent-900)',
           boxShadow: 'inset 0 -1.5px 0 var(--color-accent)',
@@ -145,7 +159,7 @@ export function MarkdownView(props: Props) {
         }
         if (block.type === 'code') {
           return (
-            <pre key={index} className="code-block">
+            <pre key={index} className="code-block" tabIndex={0}>
               {block.annotatable ? (
                 <RunText
                   run={{

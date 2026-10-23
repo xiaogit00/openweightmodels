@@ -63,7 +63,7 @@ export function HandleForm({ next }: { next: string }) {
           required
           placeholder="mira"
           aria-describedby="handle-rules"
-          className="h-9 min-w-0 flex-1 border-0 bg-transparent px-0 text-[12px] text-text outline-0"
+          className="h-9 min-w-0 flex-1 border-0 bg-transparent px-0 text-[12px] text-text"
         />
         <span className="text-[11px] text-neutral-500">{handle.trim().length}/{HANDLE_MAX_LENGTH}</span>
       </div>

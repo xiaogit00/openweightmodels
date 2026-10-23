@@ -129,6 +129,22 @@ It needs `psql` and `redis-cli` on `PATH` (Homebrew installs both). Override the
 `E2E_DATABASE_URL` and `E2E_REDIS_URL`; the suite refuses to seed the development database or
 flush the development Redis DB index.
 
+### Accessibility and fidelity checks
+
+`e2e/a11y.spec.ts` runs axe-core against the Board, Comparison (including an open Annotation
+thread), New Comparison and Job screens and fails on any critical or serious finding.
+`e2e/keyboard.spec.ts` drives Annotation threads, Discussion compose/reply/edit/delete, Add model
+and the admin takedown panel with the keyboard, checks Escape with an unsent draft, and asserts
+`prefers-reduced-motion` turns off the ticker, arrival, shimmer and pulse animations.
+`e2e/responsive.spec.ts` proves the four main screens stack at 768px and 360px without document
+overflow, and `e2e/visual.spec.ts` keeps 1440×900 baselines for them (1% pixel tolerance) plus the
+v2 measurements (52px header, 30px ticker, 216px sidebar, 20px gutters, 8px card gap, 1120/1480
+page widths). Update the baselines deliberately after a visual review with
+`pnpm test:e2e e2e/visual.spec.ts --update-snapshots`; the spec reseeds the E2E database so other
+suites' mutations cannot leak into the images. Playwright suffixes snapshots with the platform
+(`*-darwin.png` here), so generate and commit a set on each OS a CI job runs on before enabling the
+visual suite there.
+
 ## Scripts
 
 | Script | Purpose |

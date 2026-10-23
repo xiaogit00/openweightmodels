@@ -313,7 +313,10 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
         </div>
 
         {error && (
-          <p className="m-0 flex items-start gap-2 rounded-[2px] border border-danger px-3 py-2 text-[11px] text-danger">
+          <p
+            role="alert"
+            className="m-0 flex items-start gap-2 rounded-[2px] border border-danger px-3 py-2 text-[11px] text-danger"
+          >
             <WarningCircle size={14} className="mt-px shrink-0" />
             {error}
           </p>
@@ -333,14 +336,29 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
           <div
             role="tablist"
             aria-label="Report status"
+            onKeyDown={(event) => {
+              if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+              event.preventDefault();
+              const index = REPORT_TABS.findIndex((tab) => tab.value === reportTab);
+              const step = event.key === 'ArrowRight' ? 1 : -1;
+              const next =
+                REPORT_TABS[(index + step + REPORT_TABS.length) % REPORT_TABS.length];
+              setReportTab(next.value);
+              setReportAction(null);
+              requestAnimationFrame(() =>
+                document.getElementById(`report-tab-${next.value}`)?.focus(),
+              );
+            }}
             className="flex w-fit gap-[2px] rounded-[2px] bg-surface p-[2px]"
           >
             {REPORT_TABS.map((tab) => (
               <button
                 key={tab.value}
+                id={`report-tab-${tab.value}`}
                 type="button"
                 role="tab"
                 aria-selected={reportTab === tab.value}
+                tabIndex={reportTab === tab.value ? 0 : -1}
                 onClick={() => {
                   setReportTab(tab.value);
                   setReportAction(null);
@@ -381,7 +399,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                   className="bg-surface px-3 py-2.5"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-[2px] bg-neutral-800 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-neutral-300">
+                    <span className="rounded-[2px] bg-neutral-800 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-neutral-300">
                       {report.targetType}
                     </span>
                     {href ? (
@@ -403,6 +421,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                         <>
                           <button
                             type="button"
+                            id={`report-hide-${report.id}`}
                             onClick={() =>
                               setReportAction({
                                 id: report.id,
@@ -411,6 +430,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                               })
                             }
                             aria-expanded={panel?.mode === 'hide'}
+                            aria-controls={`report-panel-${report.id}`}
                             className="btn-secondary h-7"
                           >
                             <EyeSlash size={12} />
@@ -423,13 +443,14 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                             className="btn-ghost h-7"
                           >
                             {busy === `dismiss:${report.id}` ? (
-                              <CircleNotch size={12} className="animate-spin" />
+                              <CircleNotch size={12} className="anim-spin" />
                             ) : null}
                             Dismiss
                           </button>
                           {report.targetAuthorId && (
                             <button
                               type="button"
+                              id={`report-suspend-${report.id}`}
                               data-suspend-trigger
                               onClick={() =>
                                 setReportAction({
@@ -439,6 +460,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                                 })
                               }
                               aria-expanded={panel?.mode === 'suspend'}
+                              aria-controls={`report-panel-${report.id}`}
                               className="btn-secondary h-7"
                             >
                               <UserMinus size={12} />
@@ -456,7 +478,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                           className="btn-secondary h-7"
                         >
                           {busy === `restore-report:${report.id}` ? (
-                            <CircleNotch size={12} className="animate-spin" />
+                            <CircleNotch size={12} className="anim-spin" />
                           ) : (
                             <ArrowCounterClockwise size={12} />
                           )}
@@ -481,7 +503,19 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                   )}
 
                   {panel && (
-                    <div className="mt-2 flex flex-col gap-2 border-l-2 border-neutral-700 pl-3">
+                    <div
+                      id={`report-panel-${report.id}`}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Escape') return;
+                        event.preventDefault();
+                        const trigger = document.getElementById(
+                          `report-${panel.mode}-${report.id}`,
+                        );
+                        setReportAction(null);
+                        requestAnimationFrame(() => trigger?.focus());
+                      }}
+                      className="mt-2 flex flex-col gap-2 border-l-2 border-neutral-700 pl-3"
+                    >
                       <label
                         htmlFor={`report-reason-${report.id}`}
                         className="text-[11px] text-neutral-400"
@@ -492,6 +526,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                       </label>
                       <textarea
                         id={`report-reason-${report.id}`}
+                        autoFocus
                         value={panel.reason}
                         onChange={(event) =>
                           setReportAction((current) =>
@@ -500,7 +535,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                         }
                         maxLength={500}
                         rows={2}
-                        className="w-full rounded-[2px] border border-neutral-700 bg-bg px-2 py-1.5 text-[12px] text-text outline-0 focus:border-accent"
+                        className="w-full rounded-[2px] border border-neutral-700 bg-bg px-2 py-1.5 text-[12px] text-text focus:border-accent"
                       />
                       <div className="flex items-center gap-2">
                         <button
@@ -514,7 +549,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                         >
                           {busy === `hide:${report.id}` ||
                           busy === `suspend:${report.targetAuthorId}` ? (
-                            <CircleNotch size={12} className="animate-spin" />
+                            <CircleNotch size={12} className="anim-spin" />
                           ) : panel.mode === 'hide' ? (
                             <EyeSlash size={12} />
                           ) : (
@@ -572,7 +607,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                       className="btn-secondary h-7"
                     >
                       {busy === `reinstate:${user.id}` ? (
-                        <CircleNotch size={12} className="animate-spin" />
+                        <CircleNotch size={12} className="anim-spin" />
                       ) : (
                         <UserCheck size={12} />
                       )}
@@ -598,7 +633,12 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
               Responses stay readable.
             </p>
           </div>
-          <div className="overflow-x-auto rounded-[2px] border border-neutral-800">
+          <div
+            role="region"
+            aria-label="Model registry table"
+            tabIndex={0}
+            className="overflow-x-auto rounded-[2px] border border-neutral-800"
+          >
             <table className="w-full min-w-[720px] border-collapse text-left text-[12px]">
               <thead className="bg-surface text-[10px] uppercase tracking-[0.08em] text-neutral-500">
                 <tr>
@@ -614,7 +654,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                   <tr key={model.id} className="border-t border-neutral-800">
                     <td className="px-3 py-2">
                       <span className="flex items-center gap-2">
-                        <span className="grid h-5 w-7 place-items-center rounded-[2px] bg-neutral-800 text-[9px] font-semibold text-neutral-200">
+                        <span className="grid h-5 w-7 place-items-center rounded-[2px] bg-neutral-800 text-[10px] font-semibold text-neutral-200">
                           {model.monogram}
                         </span>
                         <span className="text-neutral-100">{model.displayName}</span>
@@ -643,7 +683,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                         className="btn-secondary h-7"
                       >
                         {busy === `model:${model.id}` ? (
-                          <CircleNotch size={12} className="animate-spin" />
+                          <CircleNotch size={12} className="anim-spin" />
                         ) : model.enabled ? (
                           <EyeSlash size={12} />
                         ) : (
@@ -672,7 +712,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Find by title or @handle"
-                className="h-full w-full bg-transparent text-[12px] text-text outline-0"
+                className="h-full w-full bg-transparent text-[12px] text-text"
               />
             </label>
           </div>
@@ -706,12 +746,14 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                     </Link>
                     <button
                       type="button"
+                      id={`takedown-trigger-${comparison.id}`}
                       onClick={() => {
                         setConfirming(open ? null : comparison);
                         setReason('');
                         setError(null);
                       }}
                       aria-expanded={open}
+                      aria-controls={`takedown-panel-${comparison.id}`}
                       aria-label={`Take down ${comparison.title}`}
                       className="btn-secondary h-7"
                     >
@@ -720,7 +762,20 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                     </button>
                   </div>
                   {open && (
-                    <div className="mt-2 flex flex-col gap-2 border-l-2 border-neutral-700 pl-3">
+                    <div
+                      id={`takedown-panel-${comparison.id}`}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Escape') return;
+                        event.preventDefault();
+                        const trigger = document.getElementById(
+                          `takedown-trigger-${comparison.id}`,
+                        );
+                        setConfirming(null);
+                        setReason('');
+                        requestAnimationFrame(() => trigger?.focus());
+                      }}
+                      className="mt-2 flex flex-col gap-2 border-l-2 border-neutral-700 pl-3"
+                    >
                       <label
                         htmlFor={`takedown-reason-${comparison.id}`}
                         className="text-[11px] text-neutral-400"
@@ -729,11 +784,12 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                       </label>
                       <textarea
                         id={`takedown-reason-${comparison.id}`}
+                        autoFocus
                         value={reason}
                         onChange={(event) => setReason(event.target.value)}
                         maxLength={500}
                         rows={2}
-                        className="w-full rounded-[2px] border border-neutral-700 bg-bg px-2 py-1.5 text-[12px] text-text outline-0 focus:border-accent"
+                        className="w-full rounded-[2px] border border-neutral-700 bg-bg px-2 py-1.5 text-[12px] text-text focus:border-accent"
                       />
                       <div className="flex items-center gap-2">
                         <button
@@ -743,7 +799,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                           className="btn-primary h-7"
                         >
                           {busy === `takedown:${comparison.id}` ? (
-                            <CircleNotch size={12} className="animate-spin" />
+                            <CircleNotch size={12} className="anim-spin" />
                           ) : (
                             <EyeSlash size={12} />
                           )}
@@ -802,7 +858,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                     className="btn-secondary h-7"
                   >
                     {busy === `restore:${comparison.id}` ? (
-                      <CircleNotch size={12} className="animate-spin" />
+                      <CircleNotch size={12} className="anim-spin" />
                     ) : (
                       <CheckCircle size={12} />
                     )}
@@ -821,7 +877,12 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
           <h2 id="admin-actions" className="m-0 font-heading text-[14px] font-medium">
             Recent admin actions
           </h2>
-          <div className="overflow-x-auto rounded-[2px] border border-neutral-800">
+          <div
+            role="region"
+            aria-label="Admin action log"
+            tabIndex={0}
+            className="overflow-x-auto rounded-[2px] border border-neutral-800"
+          >
             <table className="w-full min-w-[720px] border-collapse text-left text-[12px]">
               <thead className="bg-surface text-[10px] uppercase tracking-[0.08em] text-neutral-500">
                 <tr>

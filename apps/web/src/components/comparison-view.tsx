@@ -176,16 +176,34 @@ function InlineEditor({
   busy: boolean;
   error: string | null;
 }) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
+
   return (
-    <div className="flex flex-col gap-1.5">
+    <div
+      className="flex flex-col gap-1.5"
+      onKeyDown={(event) => {
+        if (event.key !== 'Escape') return;
+        event.preventDefault();
+        event.stopPropagation();
+        onCancel();
+      }}
+    >
       <textarea
         aria-label={label}
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key !== 'Escape') return;
+          event.preventDefault();
+          event.stopPropagation();
+          // First Escape keeps the draft and moves to Cancel; a second Escape
+          // (from Cancel) discards it deliberately.
+          cancelRef.current?.focus();
+        }}
         maxLength={5000}
         rows={3}
         autoFocus
-        className="resize-y rounded-[2px] border border-neutral-700 bg-bg p-2 text-[12.5px] leading-[1.5] text-text outline-0 focus:border-accent"
+        className="resize-y rounded-[2px] border border-neutral-700 bg-bg p-2 text-[12.5px] leading-[1.5] text-text focus:border-accent"
       />
       {error && <ErrorLine message={error} />}
       <div className="flex items-center gap-1.5">
@@ -198,9 +216,16 @@ function InlineEditor({
           {busy ? 'Saving…' : 'Save'}
         </button>
         <button
+          ref={cancelRef}
           type="button"
           disabled={busy}
           onClick={onCancel}
+          onKeyDown={(event) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            onCancel();
+          }}
           className="btn-neutral h-7"
         >
           Cancel
@@ -229,11 +254,23 @@ function ActionsMenu({
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const deleteRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (confirming) confirmRef.current?.focus();
+  }, [confirming]);
 
   const close = () => {
     setOpen(false);
     setConfirming(false);
     setError(null);
+  };
+
+  const cancelConfirm = () => {
+    setConfirming(false);
+    setError(null);
+    requestAnimationFrame(() => deleteRef.current?.focus());
   };
 
   const confirm = async () => {
@@ -291,6 +328,7 @@ function ActionsMenu({
               )}
               <div className="flex gap-1.5">
                 <button
+                  ref={confirmRef}
                   type="button"
                   disabled={busy}
                   onClick={() => void confirm()}
@@ -301,10 +339,7 @@ function ActionsMenu({
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => {
-                    setConfirming(false);
-                    setError(null);
-                  }}
+                  onClick={cancelConfirm}
                   className="btn-neutral h-7 flex-1"
                 >
                   Cancel
@@ -325,6 +360,7 @@ function ActionsMenu({
                 Edit
               </button>
               <button
+                ref={deleteRef}
                 type="button"
                 onClick={() => setConfirming(true)}
                 className={actionItem}
@@ -354,11 +390,23 @@ function AnnotationActions({
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const deleteRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (confirming) confirmRef.current?.focus();
+  }, [confirming]);
 
   const close = () => {
     setOpen(false);
     setConfirming(false);
     setError(null);
+  };
+
+  const cancelConfirm = () => {
+    setConfirming(false);
+    setError(null);
+    requestAnimationFrame(() => deleteRef.current?.focus());
   };
 
   const choose = async (kind: AnnotationKind) => {
@@ -422,6 +470,7 @@ function AnnotationActions({
               )}
               <div className="flex gap-1.5">
                 <button
+                  ref={confirmRef}
                   type="button"
                   disabled={busy}
                   onClick={() => void confirm()}
@@ -432,10 +481,7 @@ function AnnotationActions({
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => {
-                    setConfirming(false);
-                    setError(null);
-                  }}
+                  onClick={cancelConfirm}
                   className="btn-neutral h-7 flex-1"
                 >
                   Cancel
@@ -477,6 +523,7 @@ function AnnotationActions({
               )}
               <div className="my-1 h-px bg-neutral-700" />
               <button
+                ref={deleteRef}
                 type="button"
                 onClick={() => setConfirming(true)}
                 className={actionItem}
@@ -582,6 +629,17 @@ export function ComparisonView(props: ComparisonPageData) {
   const gridRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+
+  const closePopover = useCallback((restoreFocus = true) => {
+    const opener = openerRef.current;
+    setPopover(null);
+    // The span or button that opened the popover gets focus back. It may have
+    // been deleted in the meantime (deleting an Annotation removes its span).
+    if (restoreFocus && opener?.isConnected) {
+      requestAnimationFrame(() => opener.focus());
+    }
+  }, []);
 
   const active = challengers.find((response) => response.model.slug === activeSlug) ?? null;
   const activeAnnotation = popover?.mode === 'thread'
@@ -655,10 +713,29 @@ export function ComparisonView(props: ComparisonPageData) {
     const onDown = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
       if (target.closest('[data-popover]') || target.closest('[data-annotation-span]')) return;
-      setPopover(null);
+      closePopover(false);
     };
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setPopover(null);
+      if (event.key !== 'Escape') return;
+      const target = event.target as HTMLElement;
+      // A nested Radix menu or the report form closes itself first.
+      if (target.closest('[data-popover]') && !target.closest('[data-annotation-popover]')) {
+        return;
+      }
+      // Escape in a text field with a draft keeps the popover open and only
+      // leaves the field, so a reply is never discarded by a stray keypress.
+      const field = target.closest('input, textarea, [contenteditable="true"]') as
+        | HTMLInputElement
+        | HTMLTextAreaElement
+        | HTMLElement
+        | null;
+      if (field && 'value' in field && field.value.trim()) {
+        // Keep focus inside the dialog so a screen reader stays in context;
+        // the draft and the dialog both survive.
+        popoverRef.current?.focus({ preventScroll: true });
+        return;
+      }
+      closePopover();
     };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
@@ -666,6 +743,18 @@ export function ComparisonView(props: ComparisonPageData) {
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey);
     };
+  }, [popover, closePopover]);
+
+  // Move focus into the popover when it opens. The thread focuses its dialog
+  // container so a screen reader announces it; a new Annotation starts in the
+  // textarea, where the author is about to type.
+  useEffect(() => {
+    if (!popover) return;
+    const node = popoverRef.current;
+    if (!node) return;
+    const target =
+      popover.mode === 'new' ? node.querySelector<HTMLElement>('textarea') : node;
+    target?.focus({ preventScroll: true });
   }, [popover]);
 
   const resyncResponses = useCallback(async () => {
@@ -762,14 +851,14 @@ export function ComparisonView(props: ComparisonPageData) {
     };
   };
 
-  const openThread = (annotationId: string, event: React.MouseEvent) => {
-    event.stopPropagation();
-    const position = rel(event.currentTarget.getBoundingClientRect());
+  const openThread = (annotationId: string, trigger: HTMLElement) => {
+    openerRef.current = trigger;
+    const position = rel(trigger.getBoundingClientRect());
     setSelection(null);
     setPopover({ mode: 'thread', id: annotationId, ...position });
   };
 
-  const onMouseUp = () => {
+  const captureSelection = () => {
     if (!annOn || !canWrite) return;
     setTimeout(() => {
       const browserSelection = window.getSelection();
@@ -823,9 +912,9 @@ export function ComparisonView(props: ComparisonPageData) {
     }, 0);
   };
 
-  const openNew = (event: React.MouseEvent) => {
-    event.preventDefault();
+  const openNew = (trigger: HTMLElement) => {
     if (!selection) return;
+    openerRef.current = trigger;
     setNewBody('');
     setNewError(null);
     setPopover({
@@ -837,7 +926,6 @@ export function ComparisonView(props: ComparisonPageData) {
       x: selection.x,
       y: selection.y + 34,
     });
-    setSelection(null);
     window.getSelection()?.removeAllRanges();
   };
 
@@ -1200,7 +1288,7 @@ export function ComparisonView(props: ComparisonPageData) {
         return responseErrorMessage(response, 'Could not delete that annotation.');
       }
       setAnnotations((current) => current.filter((item) => item.id !== annotation.id));
-      setPopover(null);
+      closePopover();
       return null;
     } catch {
       return 'Could not delete that annotation.';
@@ -1369,7 +1457,8 @@ export function ComparisonView(props: ComparisonPageData) {
             <span>·</span>
             <Avatar handle={author.handle} size={14} />
             <span className="text-neutral-200">{formatHandle(author.handle)}</span>
-            <span>· {ago(comparison.publishedAt ?? comparison.createdAt)}</span>
+            <span>· </span>
+            <span data-relative-time>{ago(comparison.publishedAt ?? comparison.createdAt)}</span>
           </div>
 
           <h1 className="m-0 font-heading text-[20px] font-medium leading-[1.2] tracking-[-0.015em] [text-wrap:pretty]">
@@ -1394,6 +1483,7 @@ export function ComparisonView(props: ComparisonPageData) {
         <div className="sticky top-[52px] z-10 flex flex-wrap items-center gap-2 border-b border-neutral-800 bg-bg py-2">
           <button
             type="button"
+            aria-pressed={annOn}
             onClick={() => {
               setAnnOn((value) => !value);
               setPopover(null);
@@ -1415,11 +1505,16 @@ export function ComparisonView(props: ComparisonPageData) {
 
           {annOn && (
             <>
-              <div className="flex gap-[2px] rounded-[2px] bg-surface p-[2px]">
+              <div
+                role="group"
+                aria-label="Filter annotations by kind"
+                className="flex min-w-0 max-w-full flex-wrap gap-[2px] rounded-[2px] bg-surface p-[2px]"
+              >
                 {KIND_FILTERS.map((filter) => (
                   <button
                     key={filter.value}
                     type="button"
+                    aria-pressed={kind === filter.value}
                     onClick={() => {
                       setKind(filter.value);
                       setPopover(null);
@@ -1449,6 +1544,16 @@ export function ComparisonView(props: ComparisonPageData) {
                   Sign in to annotate
                 </Link>
               )}
+              {selection && canWrite && (
+                <button
+                  type="button"
+                  onClick={(event) => openNew(event.currentTarget)}
+                  className="btn-secondary h-[30px]"
+                >
+                  <Highlighter size={14} />
+                  Annotate selection
+                </button>
+              )}
             </>
           )}
 
@@ -1470,17 +1575,24 @@ export function ComparisonView(props: ComparisonPageData) {
 
         <div
           ref={gridRef}
-          onMouseUp={onMouseUp}
+          onMouseUp={captureSelection}
+          onKeyUp={(event) => {
+            // Caret browsing (F7) lets a keyboard user select text; releasing
+            // Shift or an arrow key surfaces the same Annotate affordance.
+            const target = event.target as HTMLElement;
+            if (target.closest('input, textarea, [contenteditable="true"]')) return;
+            if (event.key === 'Shift' || event.shiftKey) captureSelection();
+          }}
           className="relative grid items-start gap-3"
-          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))' }}
+          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(380px, 100%), 1fr))' }}
         >
           {base && base.status === 'done' && (
             <section className="flex min-w-0 flex-col rounded-[2px] bg-surface">
               <div className="flex h-[42px] items-center gap-2 border-b border-neutral-800 px-3.5">
-                <span className="rounded-[2px] border border-accent-700 px-1.5 py-1 text-[9px] font-semibold leading-none tracking-[0.08em] text-accent-200">
+                <span className="rounded-[2px] border border-accent-700 px-1.5 py-1 text-[10px] font-semibold leading-none tracking-[0.08em] text-accent-200">
                   BASE
                 </span>
-                <span className="monogram monogram-base !h-[18px] !w-[18px] !text-[9px]">
+                <span className="monogram monogram-base !h-[18px] !w-[18px] !text-[10px]">
                   {base.model.monogram}
                 </span>
                 <span className="text-[12px] font-medium">{base.model.name}</span>
@@ -1529,15 +1641,14 @@ export function ComparisonView(props: ComparisonPageData) {
                         : 'border-transparent text-neutral-400 hover:text-text',
                     )}
                   >
-                    <span className="monogram !h-[18px] !w-[18px] !text-[9px]">
+                    <span className="monogram !h-[18px] !w-[18px] !text-[10px]">
                       {response.model.monogram}
                     </span>
                     {response.model.name}
                     {pending && (
                       <CircleNotch
                         size={12}
-                        className="text-accent-300"
-                        style={{ animation: 'spin-soft 1s linear infinite' }}
+                        className="anim-spin text-accent-300"
                       />
                     )}
                     {failed && <WarningCircle size={12} className="text-danger" />}
@@ -1607,7 +1718,7 @@ export function ComparisonView(props: ComparisonPageData) {
                           onClick={() => void addChallenger(model)}
                           className="flex h-8 items-center gap-2 rounded-[2px] px-2 text-left text-[12px] font-medium text-text transition-colors hover:bg-neutral-700 disabled:opacity-50"
                         >
-                          <span className="monogram !h-[18px] !w-[18px] !text-[9px]">
+                          <span className="monogram !h-[18px] !w-[18px] !text-[10px]">
                             {model.monogram}
                           </span>
                           <span className="min-w-0 flex-1 truncate">{model.name}</span>
@@ -1690,28 +1801,24 @@ export function ComparisonView(props: ComparisonPageData) {
             ) : active && isPendingResponse(active.status) ? (
               <div className="flex flex-col gap-3 px-4 pb-[18px] pt-3.5" aria-live="polite">
                 <span className="flex items-center gap-2 text-[12px] font-medium text-accent-200">
-                  <CircleNotch
-                    size={14}
-                    style={{ animation: 'spin-soft 1s linear infinite' }}
-                  />
+                  <CircleNotch size={14} className="anim-spin" />
                   Calling {active.model.name} hosted API…
                 </span>
                 <div className="flex flex-col gap-2">
                   <div
-                    className="h-2 w-[92%] rounded-[2px] bg-neutral-800"
-                    style={{ animation: 'shimmer 1.2s infinite' }}
+                    className="anim-shimmer h-2 w-[92%] rounded-[2px] bg-neutral-800"
                   />
                   <div
-                    className="h-2 w-[78%] rounded-[2px] bg-neutral-800"
-                    style={{ animation: 'shimmer 1.2s .15s infinite' }}
+                    className="anim-shimmer h-2 w-[78%] rounded-[2px] bg-neutral-800"
+                    style={{ animationDelay: '.15s' }}
                   />
                   <div
-                    className="h-16 rounded-[2px] bg-bg"
-                    style={{ animation: 'shimmer 1.2s .3s infinite' }}
+                    className="anim-shimmer h-16 rounded-[2px] bg-bg"
+                    style={{ animationDelay: '.3s' }}
                   />
                   <div
-                    className="h-2 w-[64%] rounded-[2px] bg-neutral-800"
-                    style={{ animation: 'shimmer 1.2s .45s infinite' }}
+                    className="anim-shimmer h-2 w-[64%] rounded-[2px] bg-neutral-800"
+                    style={{ animationDelay: '.45s' }}
                   />
                 </div>
                 <span className="text-[11px] text-neutral-500">
@@ -1727,10 +1834,10 @@ export function ComparisonView(props: ComparisonPageData) {
             )}
           </section>
 
-          {selection && (
+          {selection && !popover && (
             <button
               type="button"
-              onMouseDown={openNew}
+              onMouseDown={(event) => openNew(event.currentTarget)}
               style={{ position: 'absolute', top: selection.y, left: selection.x }}
               className="z-20 flex h-7 items-center gap-[5px] whitespace-nowrap rounded-[2px] border border-accent bg-neutral-800 px-2.5 text-[12px] font-medium text-accent-200 shadow-md"
             >
@@ -1744,8 +1851,14 @@ export function ComparisonView(props: ComparisonPageData) {
               ref={popoverRef}
               data-popover
               data-annotation-popover
+              role="dialog"
+              aria-modal="false"
+              aria-label={
+                popover.mode === 'thread' ? 'Annotation thread' : 'New annotation'
+              }
+              tabIndex={-1}
               style={{ position: 'absolute', top: popover.y, left: popover.x }}
-              className="z-20 flex w-[300px] flex-col rounded-[2px] border border-neutral-700 bg-neutral-800 shadow-lg"
+              className="z-20 flex w-[min(300px,calc(100vw-40px))] flex-col rounded-[2px] border border-neutral-700 bg-neutral-800 shadow-lg"
             >
               {popover.mode === 'thread' && activeAnnotation ? (
                 <>
@@ -1782,7 +1895,7 @@ export function ComparisonView(props: ComparisonPageData) {
                     <button
                       type="button"
                       aria-label="Close annotation"
-                      onClick={() => setPopover(null)}
+                      onClick={() => closePopover()}
                       className="btn-ghost h-6 w-6 p-0"
                     >
                       <X size={13} />
@@ -1854,8 +1967,11 @@ export function ComparisonView(props: ComparisonPageData) {
                     <button
                       type="button"
                       aria-label={
-                        activeAnnotation.voted ? 'Remove annotation vote' : 'Vote on annotation'
+                        activeAnnotation.voted
+                          ? `Remove annotation vote · ${activeAnnotation.votes} votes`
+                          : `Vote on annotation · ${activeAnnotation.votes} votes`
                       }
+                      aria-pressed={activeAnnotation.voted}
                       disabled={activeAnnotation.author.id === currentUserId || !canWrite}
                       onClick={() => voteAnnotation(activeAnnotation)}
                       className={cn(
@@ -1870,16 +1986,18 @@ export function ComparisonView(props: ComparisonPageData) {
                     {canWrite ? (
                       <>
                         <input
+                          aria-label="Reply to annotation"
                           value={replyDraft}
                           onChange={(event) => setReplyDraft(event.target.value)}
                           onKeyDown={(event) => {
                             if (event.key === 'Enter') void sendReply();
                           }}
                           placeholder="Reply…"
-                          className="h-7 min-w-0 flex-1 rounded-[2px] border border-neutral-700 bg-bg px-2 text-[12px] text-text outline-0 focus:border-accent"
+                          className="h-7 min-w-0 flex-1 rounded-[2px] border border-neutral-700 bg-bg px-2 text-[12px] text-text focus:border-accent"
                         />
                         <button
                           type="button"
+                          aria-label="Send reply"
                           onClick={() => void sendReply()}
                           className="grid h-7 w-7 place-items-center rounded-[2px] border border-accent text-accent-200"
                         >
@@ -1903,7 +2021,8 @@ export function ComparisonView(props: ComparisonPageData) {
                     <div className="flex-1" />
                     <button
                       type="button"
-                      onClick={() => setPopover(null)}
+                      aria-label="Close new annotation"
+                      onClick={() => closePopover()}
                       className="btn-ghost h-6 w-6 p-0"
                     >
                       <X size={13} />
@@ -1936,11 +2055,12 @@ export function ComparisonView(props: ComparisonPageData) {
                       })}
                     </div>
                     <textarea
+                      aria-label="Annotation note"
                       value={newBody}
                       onChange={(event) => setNewBody(event.target.value)}
                       placeholder="What stands out here?"
                       rows={3}
-                      className="resize-none rounded-[2px] border border-neutral-700 bg-bg p-2 text-[12.5px] leading-[1.45] text-text outline-0 focus:border-accent"
+                      className="resize-none rounded-[2px] border border-neutral-700 bg-bg p-2 text-[12.5px] leading-[1.45] text-text focus:border-accent"
                     />
                     {newError && <ErrorLine message={newError} />}
                     <button
@@ -1965,7 +2085,11 @@ export function ComparisonView(props: ComparisonPageData) {
               {totalComments}
             </span>
             <div className="flex-1" />
-            <div className="flex flex-wrap gap-[2px] rounded-[2px] bg-surface p-[2px]">
+            <div
+              role="group"
+              aria-label="Filter discussion"
+              className="flex flex-wrap gap-[2px] rounded-[2px] bg-surface p-[2px]"
+            >
               {[
                 { value: 'All', label: 'All' },
                 ...commentModels.map((model) => ({ value: model.slug, label: model.name })),
@@ -1974,6 +2098,7 @@ export function ComparisonView(props: ComparisonPageData) {
                 <button
                   key={filter.value}
                   type="button"
+                  aria-pressed={commentFilter === filter.value}
                   onClick={() => setCommentFilter(filter.value)}
                   className={cn(
                     'h-6 whitespace-nowrap rounded-[2px] px-[9px] text-[11px] font-medium',
@@ -1992,11 +2117,12 @@ export function ComparisonView(props: ComparisonPageData) {
             <div className="flex flex-col gap-2 rounded-[2px] bg-surface p-2.5">
               <textarea
                 ref={composerRef}
+                aria-label="Write a comment"
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 placeholder="Share what you noticed across the outputs…"
                 rows={2}
-                className="resize-y border-0 bg-transparent px-0.5 py-1 text-[12px] leading-[1.5] text-text outline-0"
+                className="resize-y border-0 bg-transparent px-0.5 py-1 text-[12px] leading-[1.5] text-text"
               />
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-[11px] text-neutral-500">About</span>
@@ -2006,6 +2132,7 @@ export function ComparisonView(props: ComparisonPageData) {
                     <button
                       key={option.slug ?? 'general'}
                       type="button"
+                      aria-pressed={activeAbout}
                       onClick={() => setAbout(option.slug)}
                       className={cn(
                         'h-[22px] whitespace-nowrap rounded-[2px] border px-2 text-[11px] font-medium',
@@ -2068,7 +2195,7 @@ export function ComparisonView(props: ComparisonPageData) {
                         <span className="font-medium text-neutral-100">
                           {formatHandle(comment.author.handle)}
                         </span>
-                        <span>{relativeTime(comment.createdAt)}</span>
+                        <span data-relative-time>{relativeTime(comment.createdAt)}</span>
                         {comment.aboutModel && (
                           <span className="flex h-[18px] items-center rounded-[2px] border border-neutral-700 px-1.5 text-[10px] font-medium text-neutral-200">
                             on {comment.aboutModel.name}
@@ -2113,8 +2240,11 @@ export function ComparisonView(props: ComparisonPageData) {
                           <button
                             type="button"
                             aria-label={
-                              comment.voted ? 'Remove comment vote' : 'Vote on comment'
+                              comment.voted
+                                ? `Remove comment vote · ${comment.votes} votes`
+                                : `Vote on comment · ${comment.votes} votes`
                             }
+                            aria-pressed={comment.voted}
                             disabled={comment.author.id === currentUserId || !canWrite}
                             onClick={() => void voteComment(comment)}
                             className={cn(
@@ -2169,7 +2299,7 @@ export function ComparisonView(props: ComparisonPageData) {
                                   <span className="font-medium text-neutral-100">
                                     {formatHandle(reply.author.handle)}
                                   </span>{' '}
-                                  · {relativeTime(reply.createdAt)}
+                                  · <span data-relative-time>{relativeTime(reply.createdAt)}</span>
                                 </span>
                                 <div className="flex-1" />
                                 {canManageReply && !editingReply && (
@@ -2209,8 +2339,11 @@ export function ComparisonView(props: ComparisonPageData) {
                                   <button
                                     type="button"
                                     aria-label={
-                                      reply.voted ? 'Remove reply vote' : 'Vote on reply'
+                                      reply.voted
+                                        ? `Remove reply vote · ${reply.votes} votes`
+                                        : `Vote on reply · ${reply.votes} votes`
                                     }
+                                    aria-pressed={reply.voted}
                                     disabled={reply.author.id === currentUserId || !canWrite}
                                     onClick={() => void voteComment(reply)}
                                     className={cn(
