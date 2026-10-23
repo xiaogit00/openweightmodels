@@ -1,4 +1,4 @@
-# Implementation status — 22 October 2026
+# Implementation status — 23 October 2026
 
 Snapshot for resuming work after a context clear. `BACKEND.md` is the contract; `docs/DECISIONS.md` is the decision record; `GLOSSARY.md` is the vocabulary; `design_handoff_openweightmodels/` remains the visual source of truth (v2 overrides `styles.css`).
 
@@ -46,6 +46,7 @@ package.json, pnpm-workspace.yaml, tsconfig.base.json, .env.example
 apps/web       Next.js 16.4.2, React 19.3.1, Tailwind 4.3.3
 apps/worker    BullMQ consumer: run + auto-skip handlers, graceful shutdown
 packages/core  Drizzle schema, domain, queries, providers, services, seed
+infra          AWS CDK staging stacks, release script, template tests
 docs/          ADRs + decision log + this file
 GLOSSARY.md, BACKEND.md
 ```
@@ -120,14 +121,62 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 - Account and legal pages: `app/account` (identity, JSON export download, typed-confirmation deletion), `app/terms` and `app/privacy` describe the data actually collected and retained, carry a visible draft-for-owner/legal-review banner and bracketed placeholders, and are linked from a shared footer in the root layout. Content whose author deleted their account renders `[deleted]` rather than a handle; the account menu links to `/account`.
 - Anonymous readers see **Sign in** in the header. The New Comparison page redirects to `/sign-in?next=/new`; annotation, Discussion reply and vote affordances link to sign-in on a Comparison; the account menu signs out.
 
+### Production deployment (ticket 13)
+
+- `infra/` is a CDK TypeScript app with two stacks: `OwmStagingFoundation`
+  (VPC, RDS Postgres 17, ElastiCache Redis 7 with `noeviction`, ECR, Secrets
+  Manager, SES identity, CloudWatch log groups, ECS cluster and web/worker/
+  migrate task definitions) and `OwmStagingApp` (ALB with HTTPS, HTTP→HTTPS
+  redirect, idle timeout 4000s, target group health check `/api/health`, and
+  the two ECS services with circuit breakers and auto-scaling minima).
+- Production images are `Dockerfile` targets `web` (Next standalone) and
+  `worker` (tsx runtime plus migrations); both are ARM64 Fargate tasks.
+  `apps/web/public/.gitkeep` keeps the standalone static copy valid when no
+  public assets exist.
+- `infra/scripts/deploy.sh` (`pnpm deploy:staging`) bootstraps CDK if needed,
+  creates ECR before the first push, builds/pushes the images, registers task
+  definitions, refuses an empty provider secret, runs the bootstrap task,
+  creates the App stack, pins both services to the new revision, waits for
+  `services-stable` and polls `/api/health`. Migration ordering is recorded in
+  ADR 0007.
+- `packages/core/src/db/bootstrap.ts` (`pnpm db:bootstrap`) applies migrations
+  and upserts `MODEL_REGISTRY` without creating users, Comparisons or other
+  development content. It preserves an Admin-disabled Model.
+- Runtime configuration accepts ECS-shaped discrete variables:
+  `DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD/DB_SSL` assemble a TLS
+  connection URL (URL-encoded parts), and `REDIS_HOST/REDIS_PORT/REDIS_TLS`
+  select a TLS connection. The provider key is a worker-only ECS secret.
+- `apps/web/src/app/api/health/route.ts` is the ALB/target-group check. It is
+  200 when Postgres is reachable, `degraded` when only Redis is down, and 503
+  when Postgres is unreachable.
+- Magic links use the SES v2 API through the web task role when
+  `EMAIL_TRANSPORT=ses`; SMTP/Mailpit remains the local default. No SES SMTP
+  credentials are stored.
+- `infra/test/staging.test.ts` synthesizes both stacks offline and asserts
+  Fargate task shape, ARM64, secrets vs plain environment, RDS/ElastiCache
+  settings, SES identity and the single SES policy, log retention, ALB idle
+  timeout and HTTPS redirect, `/api/health` target-group check, service
+  circuit breakers, scaling minima, DNS and the deploy outputs. Config tests
+  reject a missing hostname, missing TLS source and invalid task counts.
+- `packages/core/test/config.test.ts`, `apps/web/test/health.test.ts`,
+  `apps/web/test/mail-ses.test.ts` and `packages/core/test/model-registry.test.ts`
+  cover the new seams. `docs/DEPLOYMENT.md` documents prerequisites, secrets,
+  first deploy, release ordering, smoke checks (including a >5-minute SSE
+  heartbeat check), rollback, operations and the monthly cost estimate.
+
+**Not yet verified against a real AWS account**: this workstation has no AWS
+credentials, so the stacks are synth/test-verified only. The owner must set the
+domain/zone, deploy, put the OpenRouter key in Secrets Manager, verify the SES
+identity and run the smoke checklist in `docs/DEPLOYMENT.md`.
+
 ### Verification
 
 - Ticket 12: `packages/core/test/providers.test.ts` covers the exact request shape (same Prompt and generation parameters for every Challenger), SSE content, provider usage tokens/cost, HTTP and in-stream errors, key redaction, the 120s timeout (injected short for the test), and provider selection with no silent mock fallback. A shared `test/fake-openai.ts` endpoint feeds `packages/core/test/provider-pipeline.test.ts`, which drives `processRun` end to end: content, completion tokens, latency and cost persisted; a 500 becomes Failed with a redacted useful message and an auto-skip timer; Retry then reaches Ready. `packages/core/test/live-provider.test.ts` is the opt-in live smoke (`pnpm test:live`): one real call through `processRun` asserting Done, non-empty content, tokens, latency, a provider-reported non-zero cost and at least one `streaming` job event. Only the `test:live` script runs it, so `pnpm test` never calls a provider; running it without a key or services fails instead of skipping green. **Verified on 2026-10-23** with `deepseek/deepseek-chat`: `status=done tokens=946 latency=17221ms cost=$0.000977` (and a second run with 914 tokens / 18053 ms / $0.000944).
 - Ticket 15: `packages/core/test/account.test.ts` proves deletion keeps published Comparisons under `[deleted]`, erases unpublished work and personal fields, tombstones comments while preserving other people's replies, removes Annotations with their threads, keeps `comment_count`/`annotation_count` exact (including a reply under an Admin-hidden parent), removes sessions, pending magic links, notifications, votes and ticker rows, frees the handle and email, refuses an untyped confirmation and a second deletion, and that export contains only the account's own data. `e2e/account.spec.ts` drives sign-in → comment → export download → typed confirmation → signed-out Board → tombstone, and checks the footer links to both legal pages.
 - Ticket 17: `apps/web/test/contrast.test.ts` parses the real design tokens and proves every text token clears 4.5:1 on `bg`, `surface`, `neutral-800`, `accent-900` (plus selected-control sub-labels on `neutral-700`). `e2e/a11y.spec.ts` uses axe-core on Board, Comparison (with an Annotation thread open), New Comparison and Job and fails on critical or serious findings. `e2e/keyboard.spec.ts` proves Annotation toggle/thread/reply/vote/close with focus return, Discussion compose/reply/edit/delete, Add model and admin takedown panels are keyboard-only, that Escape preserves an unsent reply draft, and that reduced motion yields no running animations. `e2e/responsive.spec.ts` asserts no document overflow at 768px and 360px. `e2e/visual.spec.ts` holds 1440×900 baselines at a 1% pixel tolerance plus the v2 measurements, reseeding first so other suites' mutations cannot leak into the images.
-- `pnpm typecheck` — **passes** (core, web, worker and the E2E suite).
-- `pnpm test` — **passes with local Postgres and Redis**: 195 core tests, 50 web tests and 9 worker tests. When either service is unavailable the integration files warn and skip, so the unit tests still run. Coverage includes UTF-16 annotation offsets (emoji, CJK, escapes, cross-formatting, fenced vs indented code), upload parsing and limits, keyset cursors (including a sort mismatch and a Top cursor without a score), Board filter/URL helpers, 48-item default pagination, global Category/Model facets, the create → generate → publish pipeline with the mock provider, add-Challenger visibility (author-only pending/failed, atomic publication, cap/duplicate/Base/disabled rules, dismissed-slot release), admin authorization and audit (Model enable/disable, queued Runs failing on a disabled Model, takedown hiding from Board/public routes and restore), comment and Annotation edit/delete rules (inline body limit, hard delete and votes, tombstone with live replies, retagging, message tombstone, counters, ticker retraction), author-only write permissions, handle format/reserved-name rules, case-insensitive handle uniqueness and the concurrent-onboarding race, SMTP delivery of the magic-link email through a local sink, and post-auth redirect safety.
-- `pnpm test:e2e` — **passes (34 tests)** (the run logged a Turbopack cache write warning after the suite; all tests still passed): an auth suite proves request → single-use link → handle onboarding → session reload → sign-out, reserved and taken handles, anonymous read with sign-in affordances, 401 on an anonymous write, replay rejection, expiry rejection after the verification row is expired, the development outbox, no bell for anonymous visitors, and a seeded author signing in with a link while their published Comparisons stay intact. An admin suite proves anonymous and member requests to `/admin` get 404, an admin can disable a Model (removing it from the API picker and `/new`) and re-enable it, a published Comparison can be taken down with a reason (disappearing from the public route and Board), the audit and hidden record show the actor and reason, and restore makes it public again. A real browser journey covers upload → schedule → live Job → publish → Board arrival → the author's unread notification and its persisted read state → annotate → thread → comment → vote across two identities (explicitly signing in through the development switcher), and asserts that a second reader sees an empty bell. A separate add-Challenger journey publishes a Comparison, adds a model from the menu (Base and existing models absent, ETA shown), proves the tab is author-only until it completes, and checks readers still have no Add control. An edit/delete journey proves inline comment editing, childless hard delete, parent tombstone with a surviving reply, live Board count and ticker retraction, inline message edit and tombstone, Annotation retagging and deletion, and that non-owners get no controls and a direct `PATCH` returns 403. A Board suite covers 48-item pages, the Load more fallback, the infinite-scroll sentinel, global sidebar counts, URL state across reload/back/forward, a single SSE subscription, loading/error/Retry and reduced motion. The ticket 17 suites add axe scans, keyboard-only flows, 768/360 stacking checks and 1440×900 screenshot baselines. It seeds an isolated `openweightmodels_e2e` database (with enough published fixtures to paginate) and Redis DB `1`, then starts its own web and worker servers.
+- `pnpm typecheck` — **passes** (core, web, worker, infra and the E2E suite).
+- `pnpm test` — **passes with local Postgres and Redis**: 206 core tests, 56 web tests, 9 worker tests and 18 infra tests. When either service is unavailable the integration files warn and skip, so the unit tests still run. Coverage includes UTF-16 annotation offsets (emoji, CJK, escapes, cross-formatting, fenced vs indented code), upload parsing and limits, keyset cursors (including a sort mismatch and a Top cursor without a score), Board filter/URL helpers, 48-item default pagination, global Category/Model facets, the create → generate → publish pipeline with the mock provider, add-Challenger visibility (author-only pending/failed, atomic publication, cap/duplicate/Base/disabled rules, dismissed-slot release), admin authorization and audit (Model enable/disable, queued Runs failing on a disabled Model, takedown hiding from Board/public routes and restore), comment and Annotation edit/delete rules (inline body limit, hard delete and votes, tombstone with live replies, retagging, message tombstone, counters, ticker retraction), author-only write permissions, handle format/reserved-name rules, case-insensitive handle uniqueness and the concurrent-onboarding race, SMTP and SES magic-link delivery, database/Redis configuration assembly, production Model-registry upsert (preserving an Admin disable), health-report semantics, and post-auth redirect safety.
+- `pnpm test:e2e` — **passes (34 tests)**: an auth suite proves request → single-use link → handle onboarding → session reload → sign-out, reserved and taken handles, anonymous read with sign-in affordances, 401 on an anonymous write, replay rejection, expiry rejection after the verification row is expired, the development outbox, no bell for anonymous visitors, and a seeded author signing in with a link while their published Comparisons stay intact. An admin suite proves anonymous and member requests to `/admin` get 404, an admin can disable a Model (removing it from the API picker and `/new`) and re-enable it, a published Comparison can be taken down with a reason (disappearing from the public route and Board), the audit and hidden record show the actor and reason, and restore makes it public again. A real browser journey covers upload → schedule → live Job → publish → Board arrival → the author's unread notification and its persisted read state → annotate → thread → comment → vote across two identities (explicitly signing in through the development switcher), and asserts that a second reader sees an empty bell. A separate add-Challenger journey publishes a Comparison, adds a model from the menu (Base and existing models absent, ETA shown), proves the tab is author-only until it completes, and checks readers still have no Add control. An edit/delete journey proves inline comment editing, childless hard delete, parent tombstone with a surviving reply, live Board count and ticker retraction, inline message edit and tombstone, Annotation retagging and deletion, and that non-owners get no controls and a direct `PATCH` returns 403. A Board suite covers 48-item pages, the Load more fallback, the infinite-scroll sentinel, global sidebar counts, URL state across reload/back/forward, a single SSE subscription, loading/error/Retry and reduced motion. The ticket 17 suites add axe scans, keyboard-only flows, 768/360 stacking checks and 1440×900 screenshot baselines. It seeds an isolated `openweightmodels_e2e` database (with enough published fixtures to paginate) and Redis DB `1`, then starts its own web and worker servers.
 - Defects found and fixed: indented code blocks were incorrectly annotatable (they still render as code, but are no longer annotatable, matching `BACKEND.md` §7); Annotation, comment and reply vote controls gained accessible names.
 - `pnpm db:migrate` — `0001_fuzzy_tag.sql`, `0002_modern_lucky_pierre.sql` and `0003_shallow_odin.sql` applied; re-running is a no-op.
 - `pnpm db:seed` — **passes**; counts above.
@@ -136,7 +185,7 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 - `pnpm dev:worker` — boots and logs `consuming owm-runs with concurrency 4`. With `WORKER_HEALTH_PORT` set it also serves a liveness `/healthz`, which compose uses as the container health check.
 - `packages/core/test/local-stack.test.ts` — parses `docker-compose.yml` and asserts the five services, shared image, startup ordering, health checks, named data volumes and documented `.env.example` variables. It does not need Docker.
 - A real queue round-trip is covered by the worker integration test: enqueue → done → Job ready → one notification.
-- `pnpm build` — **passes**; `/new` and `/comparisons/[id]/job` are in the route manifest. The Job page is now a client component that renders `SiteHeader`, so the earlier `@phosphor-icons/react/dist/ssr` risk is verified by the build; `next.config.ts`'s `experimental.serverActions` also compiles on Next 16.4.2.
+- `pnpm build` — **passes**; `/new`, `/comparisons/[id]/job` and `/api/health` are in the route manifest. The Job page is now a client component that renders `SiteHeader`, so the earlier `@phosphor-icons/react/dist/ssr` risk is verified by the build; `next.config.ts`'s `experimental.serverActions` also compiles on Next 16.4.2.
 
 ---
 
@@ -144,8 +193,12 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 ### Other missing pieces
 
-- Production images and the AWS deployment (ticket 13). The current `Dockerfile` is a development target only.
-- AWS CDK stack, Dockerfiles, CI/CD, deployment.
+- CI/CD, GitHub OIDC deploys, budgets, CloudWatch alarms, an error tracker and
+  edge rate limiting (ticket 16). The staging release path is a script, not a
+  pipeline yet.
+- A real AWS deployment and smoke run of ticket 13. The CDK stacks and images
+  are synth/test-verified here; the owner must supply the account, domain,
+  Route 53 zone, SES identity and OpenRouter key (see `docs/DEPLOYMENT.md`).
 - Owner/legal review of the Terms and Privacy copy, and the bracketed placeholders in them. The behaviour they describe is implemented and tested; the wording is not legal advice (`docs/PRIVACY.md`).
 - A scheduled retention/pruning job for expired sessions and verification rows. They are inert today and are removed when the account is deleted, but nothing prunes them on a timer yet.
 
@@ -174,7 +227,10 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 ## 5. Suggested next order
 
-1. AWS staging (ticket 13), then the abuse/spend controls that depend on it (ticket 16).
+1. Owner-run AWS deployment of ticket 13, using `docs/DEPLOYMENT.md`, including
+   the SES sandbox magic-link and >5-minute SSE checks.
+2. Abuse/spend controls and the delivery pipeline (ticket 16), including
+   GitHub OIDC and CloudWatch alarms.
 
 ---
 
@@ -204,6 +260,11 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 | Handle onboarding service | `packages/core/src/services/identity.ts` |
 | Account deletion and export | `packages/core/src/services/account.ts`, `apps/web/src/app/api/account/` |
 | Account settings page | `apps/web/src/app/account/page.tsx`, `apps/web/src/components/account-settings.tsx` |
+| Health endpoint | `apps/web/src/app/api/health/route.ts`, `apps/web/src/lib/health.ts` |
+| SES mail | `apps/web/src/lib/mail.ts` |
+| Runtime config | `packages/core/src/db/client.ts`, `packages/core/src/redis.ts` |
+| Production seed | `packages/core/src/model-registry.ts`, `packages/core/src/db/bootstrap.ts` |
+| AWS staging | `infra/lib/foundation-stack.ts`, `infra/lib/app-stack.ts`, `infra/scripts/deploy.sh`, `docs/DEPLOYMENT.md` |
 | Legal pages and footer | `apps/web/src/app/terms`, `apps/web/src/app/privacy`, `apps/web/src/components/legal.tsx`, `site-footer.tsx`, `docs/PRIVACY.md` |
 | Contract | `BACKEND.md` |
 | Decisions | `docs/DECISIONS.md` |

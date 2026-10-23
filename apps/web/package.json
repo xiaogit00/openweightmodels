@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@aws-sdk/client-sesv2": "^3.1155.0",
     "@better-auth/drizzle-adapter": "^1.7.12",
     "@owm/core": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",

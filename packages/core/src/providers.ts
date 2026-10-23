@@ -1,4 +1,5 @@
 import type { ModelRow } from './queries';
+import { configuredAppUrl } from './app-url';
 
 export type GenerateInput = {
   model: ModelRow;
@@ -233,7 +234,7 @@ export class OpenAICompatibleProvider implements Provider {
           authorization: `Bearer ${this.apiKey}`,
           ...(model.provider === 'openrouter'
             ? {
-                'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
+                'HTTP-Referer': configuredAppUrl() ?? 'http://localhost:3000',
                 'X-Title': 'OpenWeightModels',
               }
             : {}),

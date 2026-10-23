@@ -14,22 +14,12 @@ import {
   votes,
 } from './db/schema';
 import { estimateTokens } from './domain/upload';
+import { modelRegistryRows } from './model-registry';
 
 loadEnv();
 
 const now = Date.now();
 const ago = (minutes: number) => new Date(now - minutes * 60_000);
-
-const MODELS = [
-  ['llama-3-3-70b', 'Llama 3.3 70B', 'L3', 'openrouter', 'meta-llama/llama-3.3-70b-instruct', 8],
-  ['qwen-2-5-72b', 'Qwen2.5 72B', 'Q2', 'openrouter', 'qwen/qwen-2.5-72b-instruct', 6],
-  ['deepseek-v3', 'DeepSeek V3', 'DS', 'openrouter', 'deepseek/deepseek-chat', 9],
-  ['mistral-large', 'Mistral Large', 'MI', 'openrouter', 'mistralai/mistral-large', 5],
-  ['gemma-2-27b', 'Gemma 2 27B', 'G2', 'openrouter', 'google/gemma-2-27b-it', 7],
-  ['phi-4', 'Phi-4', 'P4', 'openrouter', 'microsoft/phi-4', 4],
-  ['codestral', 'Codestral', 'CS', 'openrouter', 'mistralai/codestral-2501', 5],
-  ['qwen-2-5-coder', 'Qwen2.5 Coder', 'QC', 'openrouter', 'qwen/qwen-2.5-coder-32b-instruct', 6],
-] as const;
 
 const USERS = [
   ['mira', 'mira@openweightmodels.test', 'Mira'],
@@ -371,22 +361,7 @@ export async function seedDatabase() {
     .returning();
   const userMap = new Map(userRows.map((user) => [user.handle, user]));
 
-  const modelRows = await db
-    .insert(models)
-    .values(
-      MODELS.map(([slug, displayName, monogram, provider, apiModelId, etaSeconds]) => ({
-        id: uuidv7(),
-        slug,
-        displayName,
-        monogram,
-        provider,
-        apiModelId,
-        apiBase: 'https://openrouter.ai/api/v1',
-        etaSeconds,
-        enabled: true,
-      })),
-    )
-    .returning();
+  const modelRows = await db.insert(models).values(modelRegistryRows()).returning();
   const modelMap = new Map(modelRows.map((model) => [model.slug, model]));
 
   const comparisonIds: string[] = [];

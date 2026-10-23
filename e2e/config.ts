@@ -12,7 +12,7 @@ export const redisUrl = process.env.E2E_REDIS_URL ?? 'redis://localhost:6379/1';
 export const serverEnv: Record<string, string> = {
   DATABASE_URL: databaseUrl,
   REDIS_URL: redisUrl,
-  NEXT_PUBLIC_APP_URL: baseUrl,
+  APP_URL: baseUrl,
   BETTER_AUTH_SECRET: 'openweightmodels-e2e-secret-change-me',
   MAGIC_LINK_RATE_LIMIT_MAX: '50',
   ALLOW_DEV_USER_SWITCH: 'true',

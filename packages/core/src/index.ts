@@ -7,9 +7,11 @@ export * from './domain/upload';
 export * from './domain/markdown';
 export * from './domain/new-comparison';
 export * from './domain/handle';
+export * from './app-url';
 
 export * from './db/client';
 export * from './db/schema';
+export * from './model-registry';
 export * from './queries';
 export * from './events';
 export * from './redis';
@@ -26,3 +28,4 @@ export * from './services/identity';
 export * from './services/account';
 export * from './services/admin';
 export * from './services/moderation';
+export * from './services/model-registry';

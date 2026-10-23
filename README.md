@@ -4,7 +4,7 @@ A forum where people publish side-by-side comparisons of open-weight model outpu
 
 This repository is the production-intended implementation of the design handoff in `design_handoff_openweightmodels/`. The `v2` HTML files are the visual source of truth; `designs/styles.css` is only the prototype's base sheet and its tokens are overridden by every v2 screen.
 
-**Status: Milestone 1 feature-complete locally; M2 has started with Board pagination and email magic-link accounts.** The Board and Comparison screens, the New Comparison form, the live author-only Job page (SSE, Retry/Skip, Publish), the backend API and the generation worker exist, and the whole stack starts with one command. The Board pages 48 at a time with an infinite-scroll sentinel and a Load more fallback, global sidebar counts, URL-backed filters and a single stable SSE subscription. Sign-in is a single-use email magic link with handle onboarding; public pages stay readable anonymously. `/account` exports a member's own data as JSON and deletes the account on a typed confirmation, keeping published work under a `[deleted]` attribution. Terms and Privacy pages are linked from the shell; their copy is marked for owner/legal review. See `docs/IMPLEMENTATION-STATUS.md` for an exact snapshot.
+**Status: Milestone 1 feature-complete locally; M2 has started with Board pagination and email magic-link accounts.** The Board and Comparison screens, the New Comparison form, the live author-only Job page (SSE, Retry/Skip, Publish), the backend API and the generation worker exist, and the whole stack starts with one command. The Board pages 48 at a time with an infinite-scroll sentinel and a Load more fallback, global sidebar counts, URL-backed filters and a single stable SSE subscription. Sign-in is a single-use email magic link with handle onboarding; public pages stay readable anonymously. `/account` exports a member's own data as JSON and deletes the account on a typed confirmation, keeping published work under a `[deleted]` attribution. Terms and Privacy pages are linked from the shell; their copy is marked for owner/legal review. AWS staging infrastructure (CDK, production images and the migration-first release flow) is in `infra/`; see `docs/DEPLOYMENT.md`. See `docs/IMPLEMENTATION-STATUS.md` for an exact snapshot.
 
 ## Stack
 
@@ -127,6 +127,27 @@ provider and never bills you. `LIVE_PROVIDER_MODEL` overrides the default
 deterministic dev fixtures, and `pnpm db:reset` to drop and recreate the public
 schema (it refuses to run in production).
 
+### AWS staging
+
+The full procedure is in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). In short:
+
+```bash
+export AWS_REGION=eu-west-1
+export OWM_DOMAIN_NAME=staging.openweightmodels.com
+export OWM_HOSTED_ZONE_ID=Z0123456789   # or OWM_CERTIFICATE_ARN
+export OWM_HOSTED_ZONE_NAME=openweightmodels.com
+pnpm deploy:staging
+```
+
+This builds ARM64 web and worker images, pushes them to ECR, creates the CDK
+foundation stack, runs the database bootstrap task (migrations plus the Model
+registry, never development content), then creates/rolls the ECS services. The
+OpenRouter key is written once to Secrets Manager after the first deploy — it is
+never a commit, a `.env` value or a task environment. Staging uses SES for magic
+links through the web task role; in the SES sandbox only verified addresses
+receive mail. CloudWatch alarms, budgets, CI/CD and edge rate limits are ticket
+16.
+
 ### Checks
 
 ```bash
@@ -167,6 +188,7 @@ visual suite there.
 | `pnpm dev:worker` | BullMQ worker consuming the generation queue |
 | `pnpm db:generate` | Generate Drizzle SQL from schema |
 | `pnpm db:migrate` | Apply migrations |
+| `pnpm db:bootstrap` | Apply migrations and upsert the Model registry only (production) |
 | `pnpm db:init` | Apply migrations, seed only when the database is empty |
 | `pnpm db:seed` | Reset and seed dev data |
 | `pnpm db:reset` | Drop and recreate the public schema (refuses production) |
@@ -175,6 +197,8 @@ visual suite there.
 | `pnpm stack:reset` | Delete volumes, then rebuild and start |
 | `pnpm stack:logs` | Follow web and worker logs |
 | `pnpm stack:seed` | Reseed content inside the running stack |
+| `pnpm cdk:synth` | Synthesize the AWS staging templates |
+| `pnpm deploy:staging` | Build, push and release the staging stack |
 | `pnpm test` | Run the core and worker test suites |
 | `pnpm test:e2e` | Run the Playwright journey against an isolated database |
 | `pnpm typecheck` | Typecheck all workspace packages and the E2E suite |
@@ -187,8 +211,9 @@ visual suite there.
 | `BACKEND.md` | Concrete data model, API, jobs, SSE, quotas and edge-case semantics |
 | `GLOSSARY.md` | Canonical domain vocabulary |
 | `docs/DECISIONS.md` | Every settled decision, rejected alternative, edge case and open question |
-| `docs/adr/` | Architectural decisions 0001–0006 |
+| `docs/adr/` | Architectural decisions 0001–0007 |
 | `docs/IMPLEMENTATION-STATUS.md` | What is built, what is missing, known issues, next steps |
+| `docs/DEPLOYMENT.md` | AWS staging topology, first deploy, release, rollback, cost and smoke tests |
 
 ## Repository layout
 
@@ -197,8 +222,9 @@ apps/web                 Next.js app, API routes, UI
 apps/worker              BullMQ consumer for queued Runs, health endpoint
 packages/core            Drizzle schema, domain logic, queries, services, seed
 packages/core/drizzle    Generated SQL migrations
+infra                    AWS CDK staging stacks, deploy script and template tests
 docker-compose.yml       Local web + worker + Postgres + Redis + Mailpit
-Dockerfile               Shared development image for web and worker
+Dockerfile               Development, web and worker images
 docs/                    ADRs, decision log, implementation status
 design_handoff_openweightmodels/   Read-only design handoff
 ```

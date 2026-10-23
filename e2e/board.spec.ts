@@ -204,8 +204,11 @@ test('reduced motion stops the ticker', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
 
-  const animationName = await page
-    .locator('.marquee')
-    .evaluate((node) => getComputedStyle(node).animationName);
+  // The track exists even when there are no events. Hydration removes the
+  // marquee class for reduced motion; the CSS keeps animation off regardless.
+  const ticker = page.locator('[data-ticker]');
+  await expect(ticker).toBeVisible();
+  await expect(ticker).not.toHaveClass(/marquee/);
+  const animationName = await ticker.evaluate((node) => getComputedStyle(node).animationName);
   expect(animationName).toBe('none');
 });

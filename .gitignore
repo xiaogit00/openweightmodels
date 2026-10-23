@@ -10,3 +10,11 @@ coverage
 .DS_Store
 playwright-report
 test-results
+
+# AWS CDK
+cdk.out
+infra/cdk.out
+infra/.cdk.staging
+
+# CDK context cache may contain account-specific lookups
+infra/cdk.context.json

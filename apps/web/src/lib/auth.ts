@@ -9,6 +9,7 @@ import {
   authAccounts,
   authSessions,
   authVerifications,
+  configuredAppUrl,
   getDb,
   getUserByHandle,
   getUserById,
@@ -22,7 +23,17 @@ import { isDevelopmentIdentityAllowed } from './identity-policy';
 import { sendMagicLinkEmail } from './mail';
 
 const isProduction = process.env.NODE_ENV === 'production';
-const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+
+function appUrl() {
+  const configured = configuredAppUrl();
+  if (configured) return configured;
+  // `next build` evaluates this module in production mode without runtime
+  // configuration; the standalone server always has the value injected.
+  if (isProduction && process.env.NEXT_PHASE !== 'phase-production-build') {
+    throw new Error('APP_URL is not set');
+  }
+  return 'http://localhost:3000';
+}
 
 function authSecret() {
   const configured = process.env.BETTER_AUTH_SECRET;
@@ -47,9 +58,9 @@ function magicLinkRateLimitMax() {
  */
 export const auth = betterAuth({
   appName: 'OpenWeightModels',
-  baseURL: appUrl,
+  baseURL: appUrl(),
   secret: authSecret(),
-  trustedOrigins: [appUrl],
+  trustedOrigins: [appUrl()],
   database: drizzleAdapter(getDb(), {
     provider: 'pg',
     schema: {

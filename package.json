@@ -17,6 +17,7 @@
     "test:e2e": "tsx e2e/prepare.ts && playwright test",
     "db:generate": "pnpm --filter @owm/core db:generate",
     "db:migrate": "pnpm --filter @owm/core db:migrate",
+    "db:bootstrap": "pnpm --filter @owm/core db:bootstrap",
     "db:init": "pnpm --filter @owm/core db:init",
     "db:seed": "pnpm --filter @owm/core db:seed",
     "db:reset": "pnpm --filter @owm/core db:reset",
@@ -24,7 +25,9 @@
     "stack:down": "docker compose down",
     "stack:reset": "docker compose down --volumes --remove-orphans && docker compose up --build",
     "stack:logs": "docker compose logs -f web worker",
-    "stack:seed": "docker compose run --rm migrate node_modules/.bin/tsx packages/core/src/seed.ts"
+    "stack:seed": "docker compose run --rm migrate node_modules/.bin/tsx packages/core/src/seed.ts",
+    "cdk:synth": "pnpm --filter @owm/infra synth",
+    "deploy:staging": "bash infra/scripts/deploy.sh"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",

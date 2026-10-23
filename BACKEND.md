@@ -18,7 +18,7 @@ Related documents:
 - **Postgres**: canonical state for every Comparison, Job, Run, Annotation, Discussion and Vote.
 - **Redis**: BullMQ transport and SSE pub/sub only; never a source of truth.
 - **Local**: Docker Compose (web, worker, Postgres, Redis, Mailpit). Homebrew Postgres/Redis is also supported.
-- **Production**: AWS ECS Fargate (web + worker), ALB, RDS Postgres, node-based ElastiCache Redis, SES, ECR, Secrets Manager, CloudWatch, CDK TypeScript (ADR 0006).
+- **Production**: AWS ECS Fargate (web + worker), ALB, RDS Postgres, node-based ElastiCache Redis, SES, ECR, Secrets Manager, CloudWatch, CDK TypeScript (ADR 0006). Deployment and release procedure: `docs/DEPLOYMENT.md`.
 - **Realtime**: SSE with Redis pub/sub and Postgres replay; no WebSockets.
 - **Generation**: provider-agnostic OpenAI-compatible adapter. `MockProvider` is the default in development; OpenRouter is the first real adapter.
 - **Auth**: Better Auth email magic link, SES in production and Mailpit locally (ADR 0005). Sessions are cookie-based; a first-time account chooses a unique handle before it can write. A seeded development identity switcher (`POST /api/dev/user`) remains available outside production only.
@@ -354,6 +354,7 @@ Page routes: `/sign-in` requests a link, `/auth/complete` decides between onboar
 | Method | Path | Notes |
 |---|---|---|
 | `GET` | `/models` | enabled registry for pickers |
+| `GET` | `/api/health` | unauthenticated ALB/container health check; 200 with `degraded` when only Redis is down, 503 when Postgres is unreachable |
 | `GET` | `/admin/overview` | admin-only registry, published and hidden Comparisons, reports, suspended members and recent actions for the Admin page |
 | `PATCH` | `/admin/models/:id` | admin-only `{ enabled }` (M2) |
 | `POST` | `/admin/comparisons/:id/takedown` | admin-only `{ reason }`; hides a published Comparison (M2) |
@@ -592,4 +593,4 @@ server logs the link and records it for the development outbox
 still switches to a seeded identity without email; both development affordances
 return `404` in production.
 
-Setup and migration commands are documented in `README.md` and `docs/IMPLEMENTATION-STATUS.md`.
+Setup and migration commands are documented in `README.md` and `docs/IMPLEMENTATION-STATUS.md`. Production configuration uses `DB_HOST`/`DB_USER`/`DB_PASSWORD` (Secrets Manager) and `REDIS_HOST`/`REDIS_TLS` instead of URLs, `EMAIL_TRANSPORT=ses`, and `pnpm db:bootstrap` (migrations plus the Model registry, no development content) as the migration task. The release procedure is `docs/DEPLOYMENT.md`.

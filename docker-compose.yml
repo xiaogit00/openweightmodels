@@ -14,7 +14,7 @@ x-app-env: &app-env
   NODE_ENV: development
   DATABASE_URL: postgres://postgres:postgres@postgres:5432/openweightmodels
   REDIS_URL: redis://redis:6379
-  NEXT_PUBLIC_APP_URL: http://localhost:${WEB_PORT:-3000}
+  APP_URL: http://localhost:${WEB_PORT:-3000}
   EMAIL_FROM: OpenWeightModels <hello@openweightmodels.test>
   SMTP_URL: smtp://mailpit:1025
   BETTER_AUTH_SECRET: openweightmodels-development-secret-change-me

@@ -10,6 +10,9 @@ coverage
 dist
 playwright-report
 test-results
+cdk.out
+infra/cdk.out
+infra/.cdk.staging
 
 .git
 .github

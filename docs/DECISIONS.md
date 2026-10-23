@@ -193,6 +193,10 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 | 82 | SES starts in sandbox; production access is a launch gate | Sandbox only sends to verified addresses (200/day, 1/sec). |
 | 83 | pnpm workspace: `apps/web`, `apps/worker`, `packages/core`; Drizzle | Shared schema/domain without importing Next into the worker; SQL control. |
 | 84 | Tailwind v4 + Radix + Phosphor React + `next/font` | Matches the visual system and provides accessible primitives. |
+| 85 | Staging splits CDK into a foundation stack (data, images, secrets, task definitions) and an app stack (ALB, services); services reference task-definition families and the release script pins revisions after a migration task exits 0 | Migrations must land before new code serves traffic, and cross-stack task-ARN exports would block Foundation updates (ADR 0007). |
+| 86 | ECS injects database credentials as Secrets Manager `username`/`password` and the app assembles `DATABASE_URL`; Redis receives host/port/TLS and the provider key is a worker-only secret | No password or key appears in a plain task environment, and URL-special characters cannot corrupt the connection string. |
+| 87 | Production mail uses the SES v2 API through the web task role (`EMAIL_TRANSPORT=ses`); local Mailpit keeps SMTP | No SES SMTP credentials to create, store or rotate. |
+| 88 | `/api/health` returns 503 only when Postgres is unreachable; Redis failure reports `degraded` with 200 | Postgres is canonical, Redis loss is survivable and should not empty the ALB target group. |
 
 **Rejected**: Vercel + hosted queue (serverless SSE/worker rework); SQLite/in-process jobs; App Runner; Lambda/API Gateway; ElastiCache Serverless; Fly/Render once AWS was required; single-app repo; Prisma; shadcn's visual layer.
 
@@ -284,8 +288,8 @@ These are intentionally unresolved. Do not assume them.
 30. Resolved: the Board keeps one SSE subscription across sort/filter changes, anchored with `after` and resuming from `Last-Event-ID`.
 
 ### Infrastructure and operations
-31. AWS region, domain, DNS, TLS, CI/CD, CDK stack layout, secret rotation and backup/restore drills are undecided.
-32. RDS Multi-AZ timing and ElastiCache sizing/cost are undecided.
+31. AWS region, domain, DNS and TLS are deployment inputs documented in `docs/DEPLOYMENT.md`; the CDK stack layout, secret injection and release ordering are resolved by ADR 0007. CI/CD, secret rotation and backup/restore drills remain open (ticket 16).
+32. RDS Multi-AZ timing and ElastiCache sizing/cost are staging defaults in `docs/DEPLOYMENT.md`; production sizing is still undecided.
 33. CloudWatch alarms, on-call ownership and Sentry/error reporting are launch gates.
 34. SES production access must be requested; exact sender/domain is undecided.
 35. WAF and rate limiting at the edge are not specified.
