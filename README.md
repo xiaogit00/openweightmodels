@@ -214,6 +214,8 @@ visual suite there.
 | `docs/adr/` | Architectural decisions 0001–0007 |
 | `docs/IMPLEMENTATION-STATUS.md` | What is built, what is missing, known issues, next steps |
 | `docs/DEPLOYMENT.md` | AWS staging topology, first deploy, release, rollback, cost and smoke tests |
+| `docs/CODEBASE-TOUR.md` | Guided explanation of every stack layer, data model, end-to-end flows and extension points |
+| `docs/LABS.md` | Hands-on lab sessions for the database, parser, markdown offsets, API, queue, SSE, auth and moderation |
 
 ## Repository layout
 
