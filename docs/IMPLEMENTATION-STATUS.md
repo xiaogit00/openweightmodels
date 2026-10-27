@@ -58,7 +58,7 @@ Migration creates 16 tables: `users`, `models`, `comparisons`, `jobs`, `response
 Seed (`pnpm db:seed`) inserts:
 
 - 3 users: `mira` (admin), `kev`, `ana`
-- 8 models: Llama 3.3 70B, Qwen2.5 72B, DeepSeek V3, Mistral Large, Gemma 2 27B, Phi-4, Codestral, Qwen2.5 Coder
+- 9 models: Llama 3.3 70B, Qwen2.5 72B, DeepSeek V3, DeepSeek V4.1 Flash 1017, Mistral Large, Gemma 2 27B, Phi-4, Codestral, Qwen2.5 Coder
 - 16 published Comparisons matching the prototype
 - 42 Responses, 6 Annotations, 7 annotation messages, 4 Comments, 15 Votes
 - 4 activity events for the ticker
@@ -123,6 +123,10 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
 
 ### Production deployment (ticket 13)
 
+- **Live** at `https://staging.openweightmodels.net` (ap-southeast-1). The
+  deployment and the smoke pass completed on 2026-10-27; ticket 13 records the
+  evidence and the two faults found on the way (sandbox recipient-identity
+  permissions for SES, and a malformed provider secret).
 - `infra/` is a CDK TypeScript app with two stacks: `OwmStagingFoundation`
   (VPC, RDS Postgres 17, ElastiCache Redis 7 with `noeviction`, ECR, Secrets
   Manager, SES identity, CloudWatch log groups, ECS cluster and web/worker/
@@ -200,9 +204,8 @@ identity and run the smoke checklist in `docs/DEPLOYMENT.md`.
 - CI/CD, GitHub OIDC deploys, budgets, CloudWatch alarms, an error tracker and
   edge rate limiting (ticket 16). The staging release path is a script, not a
   pipeline yet.
-- A real AWS deployment and smoke run of ticket 13. The CDK stacks and images
-  are synth/test-verified here; the owner must supply the account, domain,
-  Route 53 zone, SES identity and OpenRouter key (see `docs/DEPLOYMENT.md`).
+- `deploy.sh` accepts any non-empty provider secret, so a malformed key is only
+  caught when a Run fails with a provider `401`.
 - Owner/legal review of the Terms and Privacy copy, and the bracketed placeholders in them. The behaviour they describe is implemented and tested; the wording is not legal advice (`docs/PRIVACY.md`).
 - A scheduled retention/pruning job for expired sessions and verification rows. They are inert today and are removed when the account is deleted, but nothing prunes them on a timer yet.
 
@@ -231,10 +234,11 @@ identity and run the smoke checklist in `docs/DEPLOYMENT.md`.
 
 ## 5. Suggested next order
 
-1. Owner-run AWS deployment of ticket 13, using `docs/DEPLOYMENT.md`, including
-   the SES sandbox magic-link and >5-minute SSE checks.
-2. Abuse/spend controls and the delivery pipeline (ticket 16), including
+1. Abuse/spend controls and the delivery pipeline (ticket 16), including
    GitHub OIDC and CloudWatch alarms.
+2. Release the `deepseek-v4-1-flash` registry entry to staging and re-upload the
+   DeepSeek V4.1 Flash base response, which is currently attributed to DeepSeek
+   V3 (`pnpm deploy:staging`).
 
 ---
 

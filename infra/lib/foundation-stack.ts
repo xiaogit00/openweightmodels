@@ -155,17 +155,23 @@ export class StagingFoundationStack extends Stack {
         properties: { 'maxmemory-policy': 'noeviction' },
       },
     );
-    const redis = new elasticache.CfnCacheCluster(this, 'Redis', {
-      clusterName: `${name}-redis`,
+    const redis = new elasticache.CfnReplicationGroup(this, 'Redis', {
+      replicationGroupId: `${name}-redis`,
+      replicationGroupDescription: `${name} Redis for BullMQ`,
       engine: 'redis',
       engineVersion: '7.1',
       cacheNodeType: config.cacheNodeType,
-      numCacheNodes: 1,
-      azMode: 'single-az',
+      numCacheClusters: 1,
+      // Cluster mode off: BullMQ talks to the single primary endpoint.
+      clusterMode: 'disabled',
+      automaticFailoverEnabled: false,
+      multiAzEnabled: false,
       cacheSubnetGroupName: redisSubnetGroup.ref,
       cacheParameterGroupName: redisParameterGroup.ref,
-      vpcSecurityGroupIds: [redisSecurityGroup.securityGroupId],
-      // In-transit TLS; access is additionally limited by the security group.
+      securityGroupIds: [redisSecurityGroup.securityGroupId],
+      // In-transit TLS. ElastiCache rejects TransitEncryptionEnabled on a
+      // plain CacheCluster for the Redis engine; it is only supported on a
+      // replication group (aws-cdk#27379).
       transitEncryptionEnabled: true,
       snapshotRetentionLimit: 0,
     });
@@ -174,6 +180,9 @@ export class StagingFoundationStack extends Stack {
       new ecr.Repository(this, id, {
         repositoryName: `${name}-${suffix}`,
         imageScanOnPush: true,
+        // The stacks are disposable; CloudFormation must be able to delete a
+        // repository that still contains the images pushed by a release.
+        emptyOnDelete: true,
         lifecycleRules: [
           {
             tagStatus: ecr.TagStatus.UNTAGGED,
@@ -212,11 +221,19 @@ export class StagingFoundationStack extends Stack {
     if (hostedZone && !config.sesIdentity.includes('@')) {
       // Publish the identity's DKIM tokens in the configured zone, even when
       // the identity is a parent or sibling of the app hostname.
+      //
+      // `DkimDNSTokenName*` is already the fully-qualified record name
+      // (`<token>._domainkey.<identity>`). `route53.CnameRecord` treats
+      // `recordName` as relative and appends the zone again, so use
+      // `CfnRecordSet` with the host name as-is (the same fix CDK applied to
+      // its own EmailIdentity construct in aws-cdk#21306).
       sesIdentity.dkimRecords.forEach((record, index) => {
-        new route53.CnameRecord(this, `SesDkimRecord${index + 1}`, {
-          zone: hostedZone,
-          recordName: record.name,
-          domainName: record.value,
+        new route53.CfnRecordSet(this, `SesDkimRecord${index + 1}`, {
+          hostedZoneId: hostedZone.hostedZoneId,
+          name: record.name,
+          type: 'CNAME',
+          resourceRecords: [record.value],
+          ttl: '1800',
         });
       });
     }
@@ -262,8 +279,8 @@ export class StagingFoundationStack extends Stack {
       DB_SSL: 'true',
     };
     const redisEnvironment = {
-      REDIS_HOST: redis.attrRedisEndpointAddress,
-      REDIS_PORT: redis.attrRedisEndpointPort,
+      REDIS_HOST: redis.attrPrimaryEndPointAddress,
+      REDIS_PORT: redis.attrPrimaryEndPointPort,
       REDIS_TLS: 'true',
     };
     const databaseSecrets = {
@@ -290,7 +307,19 @@ export class StagingFoundationStack extends Stack {
       assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
       description: 'Next.js runtime; may send magic-link mail through SES',
     });
-    sesIdentity.grantSendEmail(webTaskRole);
+    // SES authorises `SendEmail` against every identity in the request: the From
+    // identity, and each recipient that is a verified identity in this account
+    // (in the sandbox every recipient is one). `sesIdentity.grantSendEmail()`
+    // only covers the domain, so a verified recipient is denied with
+    // "not authorized to perform ses:SendEmail on ... identity/<recipient>".
+    // Scope this back to the sending domain once the account has production
+    // access and recipients are no longer identities.
+    webTaskRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['ses:SendEmail', 'ses:SendRawEmail'],
+        resources: [`arn:${this.partition}:ses:${this.region}:${this.account}:identity/*`],
+      }),
+    );
 
     this.webTaskDefinition = taskDefinition('WebTask', 'web', 512, 1024, webTaskRole);
     this.webTaskDefinition.addContainer('web', {
@@ -388,7 +417,7 @@ export class StagingFoundationStack extends Stack {
       value: `${database.dbInstanceEndpointAddress}:${database.dbInstanceEndpointPort}`,
     });
     new CfnOutput(this, 'RedisEndpoint', {
-      value: `${redis.attrRedisEndpointAddress}:${redis.attrRedisEndpointPort}`,
+      value: `${redis.attrPrimaryEndPointAddress}:${redis.attrPrimaryEndPointPort}`,
     });
     new CfnOutput(this, 'WebLogGroupName', { value: webLogs.logGroupName });
     new CfnOutput(this, 'WorkerLogGroupName', { value: workerLogs.logGroupName });

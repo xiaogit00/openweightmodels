@@ -139,16 +139,28 @@ describe('staging foundation', () => {
       MultiAZ: false,
       BackupRetentionPeriod: 7,
     });
-    foundation.hasResourceProperties('AWS::ElastiCache::CacheCluster', {
+    foundation.hasResourceProperties('AWS::ElastiCache::ReplicationGroup', {
       Engine: 'redis',
-      NumCacheNodes: 1,
+      NumCacheClusters: 1,
       TransitEncryptionEnabled: true,
-      AZMode: 'single-az',
+      ClusterMode: 'disabled',
+      AutomaticFailoverEnabled: false,
     });
+    // Redis transit encryption is only valid on a replication group; a plain
+    // CacheCluster with TransitEncryptionEnabled is rejected by ElastiCache.
+    foundation.resourceCountIs('AWS::ElastiCache::CacheCluster', 0);
     foundation.hasResourceProperties('AWS::ElastiCache::ParameterGroup', {
       CacheParameterGroupFamily: 'redis7',
       Properties: { 'maxmemory-policy': 'noeviction' },
     });
+  });
+
+  it('empties ECR repositories on stack deletion', () => {
+    const repositories = foundation.findResources('AWS::ECR::Repository');
+    expect(Object.keys(repositories)).toHaveLength(2);
+    for (const repository of Object.values(repositories) as Array<Record<string, any>>) {
+      expect(repository.Properties.EmptyOnDelete).toBe(true);
+    }
   });
 
   it('verifies the configured SES identity and publishes its DKIM records', () => {
@@ -162,6 +174,19 @@ describe('staging foundation', () => {
     );
     expect(cnames).toHaveLength(3);
 
+    // DkimDNSTokenName* is already a fully-qualified name; wrapping it in a
+    // relative CnameRecord appends the zone a second time and breaks SES
+    // verification (aws-cdk#21306).
+    const names = cnames.map((record) => record.Properties.Name as Record<string, any>);
+    expect(names.map((name) => name['Fn::GetAtt'][1]).sort()).toEqual([
+      'DkimDNSTokenName1',
+      'DkimDNSTokenName2',
+      'DkimDNSTokenName3',
+    ]);
+    for (const name of names) {
+      expect(JSON.stringify(name)).not.toContain('Fn::Join');
+    }
+
     const policies = foundation.findResources('AWS::IAM::Policy');
     const sesPolicies = (Object.values(policies) as Array<Record<string, any>>).filter(
       (policy) =>
@@ -169,6 +194,33 @@ describe('staging foundation', () => {
     );
     expect(sesPolicies).toHaveLength(1);
     expect(JSON.stringify(sesPolicies[0]?.Properties.Roles)).toContain('WebTaskRole');
+  });
+
+  it('lets the web task send to verified sandbox recipients', () => {
+    // SES authorises SendEmail against the From identity *and* each recipient
+    // that is a verified identity in the account. A domain-only grant produces
+    // "not authorized to perform ses:SendEmail on ... identity/<recipient>".
+    const roles = foundation.findResources('AWS::IAM::Role');
+    const webTaskRoleId = Object.keys(roles).find((id) => id.startsWith('WebTaskRole'));
+    expect(webTaskRoleId).toBeDefined();
+
+    const policies = foundation.findResources('AWS::IAM::Policy');
+    const webPolicy = Object.values(policies)
+      .map((policy) => policy as Record<string, any>)
+      .find((policy) => JSON.stringify(policy.Properties.Roles).includes(webTaskRoleId!));
+    expect(webPolicy).toBeDefined();
+
+    const sesResources = (webPolicy!.Properties.PolicyDocument.Statement as Array<
+      Record<string, any>
+    >)
+      .filter((statement) => JSON.stringify(statement.Action).includes('ses:SendEmail'))
+      .flatMap((statement) => [statement.Resource].flat());
+
+    expect(sesResources.length).toBeGreaterThan(0);
+    // The ARN is built with `${AWS::Partition}`, so match the rendered tail.
+    expect(JSON.stringify(sesResources)).toContain(
+      ':ses:eu-west-1:123456789012:identity/*',
+    );
   });
 
   it('keeps application logs for 30 days', () => {
@@ -270,6 +322,42 @@ describe('staging app', () => {
         expect.objectContaining({ MinCapacity: 1, MaxCapacity: 2 }),
       ]),
     );
+  });
+
+  it('creates the web service only after the target group is attached to the ALB', () => {
+    // The target group gains its load balancer when the HTTPS listener is
+    // created. ECS rejects a service whose target group is not yet attached, so
+    // the service must depend on that listener explicitly.
+    const listeners = app.findResources('AWS::ElasticLoadBalancingV2::Listener');
+    const httpsListener = Object.entries(listeners).find(
+      ([, listener]) => (listener as Record<string, any>).Properties.Port === 443,
+    );
+    expect(httpsListener).toBeDefined();
+    const [httpsListenerId] = httpsListener!;
+
+    const services = app.findResources('AWS::ECS::Service');
+    const webService = Object.entries(services).find(
+      ([, service]) =>
+        (service as Record<string, any>).Properties.ServiceName === 'test-staging-web',
+    );
+    expect(webService).toBeDefined();
+
+    const dependsOn = (webService![1] as Record<string, any>).DependsOn ?? [];
+    expect(dependsOn).toContain(httpsListenerId);
+  });
+
+  it('registers scaling targets only after their ECS service exists', () => {
+    // Application Auto Scaling resolves the service from the `resourceId`
+    // string, which is not a template reference, so the edge has to be explicit.
+    const serviceIds = Object.keys(app.findResources('AWS::ECS::Service'));
+    const targets = app.findResources('AWS::ApplicationAutoScaling::ScalableTarget');
+    expect(Object.keys(targets)).toHaveLength(serviceIds.length);
+
+    for (const [targetId, target] of Object.entries(targets)) {
+      const serviceId = serviceIds.find((id) => targetId.startsWith(id.replace(/Service$/, '')));
+      expect(serviceId, targetId).toBeDefined();
+      expect((target as Record<string, any>).DependsOn ?? []).toContain(serviceId);
+    }
   });
 
   it('points DNS at the ALB', () => {

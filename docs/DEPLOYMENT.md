@@ -39,7 +39,7 @@ ECS Fargate service `owm-staging-worker` (min 1, max 2, CPU target 70%)
 | Network | 2 AZs, public subnets for the ALB, private subnets with one NAT gateway | One NAT is the cheap staging choice; production should use one per AZ |
 | Web / worker | 0.5 vCPU / 1 GiB, ARM64 (Graviton) | Cheaper Fargate sizing for this load; images are built `linux/arm64` |
 | Postgres | 20 GB gp3, encrypted, 7-day backups, single-AZ, `db.t4g.micro` | Disposable staging data; deletion protection is off so the stack can be torn down |
-| Redis | One node, cluster mode off, `maxmemory-policy=noeviction`, in-transit TLS | BullMQ does not support ElastiCache Serverless and must not evict queue data |
+| Redis | One-node replication group, cluster mode off, `maxmemory-policy=noeviction`, in-transit TLS | BullMQ does not support ElastiCache Serverless and must not evict queue data; ElastiCache only supports TLS on a replication group, not a plain cache cluster |
 | Images | Two ECR repositories, scan on push, untagged images expire after 14 days | Separate web and worker images |
 | Secrets | RDS-generated master secret, generated Better Auth secret, empty OpenRouter secret | Injected with ECS `secrets`, never as plain task environment |
 | Mail | SES identity for the domain (or a verified address) | The web task role has `ses:SendEmail`; no SMTP credentials exist |
@@ -53,14 +53,30 @@ never appears in a task definition environment value.
 
 ## 2. Prerequisites
 
-- An AWS account and a region (the examples use `eu-west-1`).
+- An AWS account and a region (the examples use `eu-west-1`). Choose the region
+  nearest your users — for example `ap-southeast-1` in Singapore. Every
+  resource, the SES identity and the recipient verification must be in that
+  same region. The release script requires `AWS_REGION` (or
+  `AWS_DEFAULT_REGION`) in the environment; a region configured only in the CLI
+  profile is not enough.
 - A hostname you control, e.g. `staging.openweightmodels.com`, plus either:
   - the Route 53 hosted zone ID for the parent domain — CDK creates the ACM
     certificate with DNS validation, the ALB alias record and SES DKIM records;
   - or an already-issued ACM certificate ARN in the same region. You then point
     DNS at the ALB yourself.
+
+  `staging.openweightmodels.com` is only an example; use a domain you control.
+  If the domain is not already in Route 53, register it there, or create a
+  public hosted zone and delegate the registrar's name servers to it before
+  deploying. Without that delegation ACM validation cannot complete. Get the
+  actual zone ID with `aws route53 list-hosted-zones-by-name`; `deploy.sh`
+  checks that the zone exists and exits before creating resources if the ID is
+  the `Z...` placeholder.
 - SES: the account may still be in the sandbox. In staging, magic links only
-  reach **verified** addresses until production access is granted. When
+  reach **verified** addresses until production access is granted. SES
+  identities and recipient verifications are **regional** — verify them in the
+  deployment region. The SES console often defaults to `us-east-1`, which is
+  the wrong region for the `eu-west-1` examples. When
   `OWM_HOSTED_ZONE_ID` is supplied, CDK creates the SES domain identity and its
   DKIM records in that zone (set `OWM_HOSTED_ZONE_NAME` when the zone is a
   parent of the app hostname). An email identity instead requires clicking the
@@ -97,7 +113,7 @@ variables:
 |---|---|---|---|
 | `AWS_REGION` (or `AWS_DEFAULT_REGION`) | yes | — | Deployment region |
 | `OWM_DOMAIN_NAME` | yes | — | Public hostname, no scheme |
-| `OWM_HOSTED_ZONE_ID` | one of | — | Route 53 zone for certificate, DNS and DKIM |
+| `OWM_HOSTED_ZONE_ID` | one of | — | Actual Route 53 hosted zone ID for the domain (for example `Z0123456789ABCDEFGHIJ`; omit the `/hostedzone/` prefix) |
 | `OWM_HOSTED_ZONE_NAME` | no | `OWM_DOMAIN_NAME` | Zone name when the zone is a parent, e.g. `example.com` for `staging.example.com` |
 | `OWM_CERTIFICATE_ARN` | one of | — | Existing ACM certificate in the same region |
 | `OWM_SES_IDENTITY` | no | domain | Verified SES domain or email address |
@@ -124,9 +140,12 @@ The two stacks are emitted into `infra/cdk.out` (gitignored).
 ```bash
 export AWS_REGION=eu-west-1
 export OWM_DOMAIN_NAME=staging.openweightmodels.com
-export OWM_HOSTED_ZONE_ID=Z0123456789
+# Replace with the actual zone ID from Route 53; `Z...` is only a placeholder.
+export OWM_HOSTED_ZONE_ID=Z0123456789ABCDEFGHIJ
 export OWM_HOSTED_ZONE_NAME=openweightmodels.com
-export OWM_SES_IDENTITY=openweightmodels.com
+# Optional; defaults to OWM_DOMAIN_NAME. Matching the staging hostname keeps
+# the SES identity and the From address identical.
+export OWM_SES_IDENTITY=staging.openweightmodels.com
 pnpm deploy:staging
 ```
 
@@ -142,7 +161,9 @@ The first run:
 4. Re-deploys the Foundation stack so the task definitions reference those
    image tags.
 5. Refuses to continue if `PROVIDER` is not `mock` and the OpenRouter secret is
-   empty. Set it once:
+   empty. This is a guardrail, not a failed deployment: with the default
+   `openrouter` provider the first run always stops here after creating the
+   foundation and pushing images. Set the secret once and re-run:
    ```bash
    SECRET_ARN=$(aws cloudformation describe-stacks \
      --stack-name OwmStagingFoundation \
@@ -152,7 +173,9 @@ The first run:
      --secret-id "$SECRET_ARN" \
      --secret-string 'sk-or-...'
    ```
-   Re-run `pnpm deploy:staging` afterwards.
+   Re-run `pnpm deploy:staging` afterwards. For an infrastructure-only first
+   pass, run with `OWM_PROVIDER=mock`; the provider-key check is skipped and
+   you can set the key and re-run without `mock` later.
 6. Runs the migration/bootstrap task in the private subnets and waits for it to
    exit 0.
 7. Creates `OwmStagingApp`: HTTPS listener, HTTP redirect, DNS record, target
@@ -160,6 +183,9 @@ The first run:
 8. Pins each service to the newest task-definition revision and forces a new
    deployment, then waits for `services-stable`.
 9. Requests `https://<domain>/api/health` until it returns 200.
+
+The first deploy typically takes 30–60 minutes; RDS, ElastiCache, the NAT
+gateway and ACM validation dominate. Do not interrupt it.
 
 ### What the migration task does
 
@@ -196,7 +222,30 @@ web, so publishing keeps old tasks serving until new tasks are healthy.
 ## 6. Verify staging
 
 Run through this list once per environment (and after changes to auth, SSE or
-the worker):
+the worker).
+
+Before testing magic links, verify the sign-in address in SES **in the
+deployment region**, and wait for the domain identity to verify:
+
+```bash
+aws sesv2 get-email-identity --email-identity "${OWM_SES_IDENTITY:-$OWM_DOMAIN_NAME}" \
+  --region "$AWS_REGION" \
+  --query '{Verified:VerifiedForSendingStatus,Dkim:DkimAttributes.Status}'
+```
+
+Expect `Verified: true` and `Dkim: SUCCESS`. DKIM usually verifies in minutes
+but can take longer; until then SES rejects sends. Use the verified address for
+the sign-in step and check spam.
+
+SES authorises `SendEmail` against every identity in the request: the `From`
+identity and each recipient that is a verified identity in the account. In the
+sandbox every recipient is one, so the web task role is granted
+`ses:SendEmail`/`ses:SendRawEmail` on `identity/*` in the account rather than on
+the sending domain alone. A domain-only grant fails the send with
+`AccessDeniedException ... not authorized to perform 'ses:SendEmail' on resource
+...identity/<recipient>`, which is easy to misread as a verification problem.
+Narrow that grant back to the sending domain once the account has production
+access.
 
 - [ ] `https://<domain>/api/health` returns `{"status":"ok", ...}`.
 - [ ] The Board loads and pages.
@@ -210,7 +259,7 @@ the worker):
 - [ ] SSE survives more than five minutes without client traffic, and the
       heartbeat is visible every 20 seconds:
       ```bash
-      curl --max-time 330 -Ns https://<domain>/api/stream/board > /tmp/sse.txt
+      curl --max-time 330 -Ns https://<domain>/api/stream/board > /tmp/sse.txt || true
       grep -c ': ping' /tmp/sse.txt   # expect roughly 16
       ```
       The 4000-second ALB idle timeout is the backstop; the application
@@ -257,6 +306,48 @@ metrics are free. Alarms and a named owner are ticket 16.
 
 Never put a key in CDK context, `.env`, a task environment value or a commit.
 
+### Recovering a failed first create
+
+If a first create (`OwmStagingFoundation` or `OwmStagingApp`) fails,
+CloudFormation usually leaves the stack in `ROLLBACK_COMPLETE`. `deploy.sh`
+cannot update that stack, so delete it and wait before re-running:
+
+```bash
+STACK=OwmStagingApp   # or OwmStagingFoundation
+aws cloudformation describe-stacks --stack-name "$STACK" \
+  --query 'Stacks[0].StackStatus' --output text
+aws cloudformation delete-stack --stack-name "$STACK"
+aws cloudformation wait stack-delete-complete --stack-name "$STACK"
+```
+
+Deleting `OwmStagingApp` is safe: it holds only the ALB, listeners, DNS record,
+ECS services and scaling targets. Images, task definitions, data and secrets
+live in `OwmStagingFoundation` and are untouched.
+
+The notes below only apply when `OwmStagingFoundation` itself has to be
+recreated.
+
+Secrets Manager schedules deleted secrets for a recovery window, which reserves
+their names. If a subsequent create complains that a secret is already scheduled
+for deletion, list and force-delete the staging secrets:
+
+```bash
+aws secretsmanager list-secrets \
+  --query "SecretList[?starts_with(Name, 'owm-staging/')].Name" --output text
+aws secretsmanager delete-secret --secret-id owm-staging/<name> \
+  --force-delete-without-recovery
+```
+
+If ECR repositories survived the failure, delete them with `--force` before
+re-running; otherwise `deploy.sh` sees them and skips the Foundation create:
+
+```bash
+aws ecr delete-repository --repository-name owm-staging-web --force
+aws ecr delete-repository --repository-name owm-staging-worker --force
+```
+
+The `CDKToolkit` bootstrap stack is separate and should stay.
+
 ### Rollback
 
 Application rollback is a task-definition rollback; the database is not rolled
@@ -283,7 +374,8 @@ idempotent registry upsert.
 ### Cost
 
 Approximate monthly floor for one staging environment in `eu-west-1`, 730
-hours, before model spend and data transfer:
+hours, before model spend and data transfer (Singapore and other regions vary
+slightly):
 
 | Item | Approx. USD/month |
 |---|---|
@@ -296,10 +388,20 @@ hours, before model spend and data transfer:
 | ECR, CloudWatch Logs, SES | 3–8 |
 | **Total** | **≈ 130–160 + model spend** |
 
-Delete the environment with `cdk destroy OwmStagingApp OwmStagingFoundation`
-(RDS takes a final snapshot only if you enable one; staging is configured to be
-disposable). Avoid leaving the NAT gateway running when the environment is not
-in use.
+Delete the environment with the same configuration exports still set:
+
+```bash
+pnpm --filter @owm/infra exec cdk destroy OwmStagingApp OwmStagingFoundation
+```
+
+CDK needs to synthesize the app to destroy it, so keep `OWM_DOMAIN_NAME` and
+the hosted-zone/certificate variables exported. The ECR repositories are
+configured with `emptyOnDelete`, so the images pushed by a release do not block
+deletion. RDS takes a final snapshot only if you enable one; staging is
+configured to be disposable. The CDK bootstrap stack (`CDKToolkit`), the
+Route 53 hosted zone and the domain registration are not part of either stack
+and remain; delete the zone if you are not keeping the domain. Avoid leaving
+the NAT gateway running when the environment is not in use.
 
 ---
 

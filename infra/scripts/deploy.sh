@@ -30,6 +30,7 @@ cd "$ROOT"
 AWS_REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-}}"
 DOMAIN="${OWM_DOMAIN_NAME:-}"
 HOSTED_ZONE_ID="${OWM_HOSTED_ZONE_ID:-}"
+HOSTED_ZONE_ID="${HOSTED_ZONE_ID#/hostedzone/}"
 HOSTED_ZONE_NAME="${OWM_HOSTED_ZONE_NAME:-}"
 CERTIFICATE_ARN="${OWM_CERTIFICATE_ARN:-}"
 SES_IDENTITY="${OWM_SES_IDENTITY:-$DOMAIN}"
@@ -70,6 +71,21 @@ export AWS_REGION
 
 ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
 echo "Deploying $STACK_PREFIX to account $ACCOUNT in $AWS_REGION (image $TAG)"
+
+if [[ -n "$HOSTED_ZONE_ID" ]]; then
+  if ! ACTUAL_ZONE_NAME="$(aws route53 get-hosted-zone --id "$HOSTED_ZONE_ID" \
+      --query 'HostedZone.Name' --output text 2>/dev/null)"; then
+    echo "Route 53 hosted zone '$HOSTED_ZONE_ID' was not found in account $ACCOUNT." >&2
+    echo "Export the real zone ID (it starts with Z and is not the 'Z...' placeholder)." >&2
+    exit 1
+  fi
+  ACTUAL_ZONE_NAME="${ACTUAL_ZONE_NAME%.}"
+  echo "Using Route 53 hosted zone $ACTUAL_ZONE_NAME ($HOSTED_ZONE_ID)"
+  if [[ -n "$HOSTED_ZONE_NAME" && "$ACTUAL_ZONE_NAME" != "${HOSTED_ZONE_NAME%.}" ]]; then
+    echo "Hosted zone $HOSTED_ZONE_ID is $ACTUAL_ZONE_NAME, but OWM_HOSTED_ZONE_NAME is $HOSTED_ZONE_NAME." >&2
+    exit 1
+  fi
+fi
 
 CONTEXT=(
   -c "domainName=$DOMAIN"

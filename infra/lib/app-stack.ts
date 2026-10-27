@@ -81,7 +81,7 @@ export class StagingAppStack extends Stack {
       },
     });
 
-    alb.addListener('HttpsListener', {
+    const httpsListener = alb.addListener('HttpsListener', {
       port: 443,
       protocol: elbv2.ApplicationProtocol.HTTPS,
       certificates: [elbv2.ListenerCertificate.fromCertificateManager(certificate)],
@@ -109,7 +109,7 @@ export class StagingAppStack extends Stack {
     const webServiceName = `${name}-web`;
     const workerServiceName = `${name}-worker`;
 
-    new ecs.CfnService(this, 'WebService', {
+    const webService = new ecs.CfnService(this, 'WebService', {
       cluster: clusterName,
       taskDefinition: `${name}-web`,
       serviceName: webServiceName,
@@ -139,8 +139,14 @@ export class StagingAppStack extends Stack {
       enableExecuteCommand: false,
       propagateTags: 'SERVICE',
     });
+    // A target group only gains its load balancer when the listener that
+    // references it is created. `CfnService` links to the target group but not
+    // to the listener, so without this dependency CloudFormation can create the
+    // service first and ECS rejects it with "does not have an associated load
+    // balancer".
+    webService.node.addDependency(httpsListener);
 
-    new ecs.CfnService(this, 'WorkerService', {
+    const workerService = new ecs.CfnService(this, 'WorkerService', {
       cluster: clusterName,
       taskDefinition: `${name}-worker`,
       serviceName: workerServiceName,
@@ -167,12 +173,14 @@ export class StagingAppStack extends Stack {
     type ScalingRule = {
       id: string;
       serviceName: string;
+      service: ecs.CfnService;
       minCapacity: number;
       maxCapacity: number;
       targetUtilizationPercent: number;
     };
     const scalable = (rule: ScalingRule) => {
-      const { id, serviceName, minCapacity, maxCapacity, targetUtilizationPercent } = rule;
+      const { id, serviceName, service, minCapacity, maxCapacity, targetUtilizationPercent } =
+        rule;
       const target = new appscaling.ScalableTarget(this, `${id}ScalableTarget`, {
         serviceNamespace: appscaling.ServiceNamespace.ECS,
         scalableDimension: 'ecs:service:DesiredCount',
@@ -180,6 +188,10 @@ export class StagingAppStack extends Stack {
         minCapacity,
         maxCapacity,
       });
+      // `resourceId` is a plain string, so Application Auto Scaling would
+      // otherwise register the target before the ECS service exists and fail
+      // with "ECS service doesn't exist".
+      target.node.addDependency(service);
       target.scaleOnMetric(`${id}Cpu`, {
         metric: new cloudwatch.Metric({
           namespace: 'AWS/ECS',
@@ -200,6 +212,7 @@ export class StagingAppStack extends Stack {
     scalable({
       id: 'Web',
       serviceName: webServiceName,
+      service: webService,
       minCapacity: config.minWebTasks,
       maxCapacity: config.maxWebTasks,
       targetUtilizationPercent: 60,
@@ -207,6 +220,7 @@ export class StagingAppStack extends Stack {
     scalable({
       id: 'Worker',
       serviceName: workerServiceName,
+      service: workerService,
       minCapacity: config.minWorkerTasks,
       maxCapacity: config.maxWorkerTasks,
       targetUtilizationPercent: 70,

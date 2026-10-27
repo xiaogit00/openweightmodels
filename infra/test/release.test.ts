@@ -52,6 +52,14 @@ describe('staging release script', () => {
     );
   });
 
+  it('validates the hosted zone before creating any resources', () => {
+    expect(script).toContain('aws route53 get-hosted-zone');
+    expect(script).toContain('was not found');
+    expect(script.indexOf('get-hosted-zone')).toBeLessThan(
+      script.indexOf('deploy "$FOUNDATION"'),
+    );
+  });
+
   it('pins the image tag and the ARM64 platform', () => {
     expect(script).toContain('linux/arm64');
     expect(script).toContain('--target web');

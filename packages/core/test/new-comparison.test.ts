@@ -7,6 +7,7 @@ import {
   toggleChallenger,
   challengerDisabled,
 } from '../src/domain/new-comparison';
+import { MODEL_REGISTRY } from '../src/model-registry';
 
 const models = [
   { id: 'm-llama', slug: 'llama-3-3-70b', displayName: 'Llama 3.3 70B', etaSeconds: 8 },
@@ -36,6 +37,15 @@ describe('matchModelFromFrontMatter', () => {
 
   it('returns null for an unknown value so the form can ask the author to choose', () => {
     expect(matchModelFromFrontMatter('gpt-5', models)).toBeNull();
+  });
+
+  it('matches the curated DeepSeek V4.1 Flash entry by slug and display name', () => {
+    const registry = MODEL_REGISTRY.map((entry) => ({ ...entry, id: entry.slug }));
+    for (const value of ['deepseek-v4-1-flash', 'DeepSeek V4.1 Flash 1017']) {
+      expect(matchModelFromFrontMatter(value, registry)?.apiModelId, value).toBe(
+        'deepseek/deepseek-v4.1-flash-1017',
+      );
+    }
   });
 
   it('returns null when the file has no model key', () => {
