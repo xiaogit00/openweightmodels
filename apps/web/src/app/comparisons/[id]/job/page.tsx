@@ -1,3 +1,5 @@
+// This page is when you add a new comparison, it generates a new ID, 
+// and shows you the job page --> it's 
 import { notFound } from 'next/navigation';
 import { getJobForComparisonForAuthor } from '@owm/core';
 import { getCurrentUser } from '@/lib/auth';
