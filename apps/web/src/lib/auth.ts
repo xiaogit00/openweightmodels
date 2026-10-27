@@ -20,7 +20,7 @@ import {
 } from '@owm/core';
 import { MAGIC_LINK_TTL_SECONDS } from './auth-constants';
 import { isDevelopmentIdentityAllowed } from './identity-policy';
-import { sendMagicLinkEmail } from './mail';
+import { deliverMagicLink } from './magic-link';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -96,7 +96,7 @@ export const auth = betterAuth({
       // Store only a hash of the token; the emailed URL keeps the raw token.
       storeToken: 'hashed',
       sendMagicLink: async ({ email, url }) => {
-        await sendMagicLinkEmail({ email, url });
+        await deliverMagicLink({ email, url });
       },
     }),
     nextCookies(),

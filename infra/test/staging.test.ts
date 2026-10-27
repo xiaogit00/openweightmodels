@@ -125,6 +125,27 @@ describe('staging foundation', () => {
     expect(envValue(migrateContainer, 'DATABASE_URL')).toBeUndefined();
   });
 
+  it('forwards the sign-in allowlist to the web task only when configured', () => {
+    const findWeb = (template: ReturnType<typeof synth>['foundation']) => {
+      const tasks = Object.values(
+        template.findResources('AWS::ECS::TaskDefinition') as Record<string, any>,
+      );
+      const web = tasks.find((task) => task.Properties.Family === 'test-staging-web');
+      return container(web!.Properties, 'web');
+    };
+
+    const configured = synth(
+      testConfig({ signinAllowedEmails: 'owner@example.com,@example.test' }),
+    );
+    expect(envValue(findWeb(configured.foundation), 'SIGNIN_ALLOWED_EMAILS')).toBe(
+      'owner@example.com,@example.test',
+    );
+
+    // Unset must stay absent: an empty variable would be indistinguishable from
+    // "allow nobody" once it reaches the app.
+    expect(envValue(findWeb(foundation), 'SIGNIN_ALLOWED_EMAILS')).toBeUndefined();
+  });
+
   it('never puts a provider key in the template', () => {
     expect(JSON.stringify(foundation.toJSON())).not.toMatch(/sk-or-/);
     expect(JSON.stringify(foundation.toJSON())).not.toMatch(/openrouter\.ai\/api\/v1/);

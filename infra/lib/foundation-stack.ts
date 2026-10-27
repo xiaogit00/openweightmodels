@@ -334,6 +334,11 @@ export class StagingFoundationStack extends Stack {
         AWS_REGION: this.region,
         EMAIL_TRANSPORT: 'ses',
         EMAIL_FROM: config.emailFrom,
+        // Empty means "no restriction"; only set it for environments that
+        // should not accept strangers.
+        ...(config.signinAllowedEmails
+          ? { SIGNIN_ALLOWED_EMAILS: config.signinAllowedEmails }
+          : {}),
         ...databaseEnvironment,
         ...redisEnvironment,
       },

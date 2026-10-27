@@ -38,9 +38,13 @@ CMD ["apps/web/node_modules/.bin/next", "dev", "apps/web", "-H", "0.0.0.0", "-p"
 
 FROM deps AS build
 COPY . .
+# Baked into the routes manifest at build time; false keeps staging out of
+# search results. A public launch passes --build-arg ALLOW_SEARCH_INDEXING=true.
+ARG ALLOW_SEARCH_INDEXING=false
 # `next build` imports route modules; it needs syntactically valid values, not
 # a reachable database. Runtime configuration is injected by ECS.
 ENV NODE_ENV=production \
+    ALLOW_SEARCH_INDEXING=${ALLOW_SEARCH_INDEXING} \
     DATABASE_URL=postgres://build:build@127.0.0.1:5432/build \
     APP_URL=https://build.invalid \
     BETTER_AUTH_SECRET=openweightmodels-build-time-placeholder

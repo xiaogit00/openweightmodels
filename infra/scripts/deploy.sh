@@ -16,6 +16,8 @@
 #   OWM_HOSTED_ZONE_NAME (zone name when it is a parent of OWM_DOMAIN_NAME)
 #   OWM_EMAIL_FROM    (defaults to "OpenWeightModels <no-reply@DOMAIN>")
 #   OWM_PROVIDER      (defaults to openrouter)
+#   OWM_SIGNIN_ALLOWED_EMAILS  comma-separated allowlist; unset allows anyone
+#   OWM_ALLOW_SEARCH_INDEXING  true to allow crawlers in a public build (default false)
 #   OWM_STACK_PREFIX  (defaults to OwmStaging)
 #   OWM_NAME_PREFIX   (defaults to owm-staging)
 #   IMAGE_TAG         (defaults to the current git commit)
@@ -38,6 +40,7 @@ EMAIL_FROM="${OWM_EMAIL_FROM:-OpenWeightModels <no-reply@${DOMAIN}>}"
 PROVIDER="${OWM_PROVIDER:-openrouter}"
 STACK_PREFIX="${OWM_STACK_PREFIX:-OwmStaging}"
 NAME_PREFIX="${OWM_NAME_PREFIX:-owm-staging}"
+SIGNIN_ALLOWED_EMAILS="${OWM_SIGNIN_ALLOWED_EMAILS:-}"
 TAG="${IMAGE_TAG:-$(git rev-parse --short=12 HEAD)}"
 PLATFORM="${PLATFORM:-linux/arm64}"
 
@@ -105,6 +108,9 @@ fi
 if [[ -n "$CERTIFICATE_ARN" ]]; then
   CONTEXT+=(-c "certificateArn=$CERTIFICATE_ARN")
 fi
+if [[ -n "$SIGNIN_ALLOWED_EMAILS" ]]; then
+  CONTEXT+=(-c "signinAllowedEmails=$SIGNIN_ALLOWED_EMAILS")
+fi
 
 deploy() {
   local stack="$1"
@@ -141,7 +147,9 @@ aws ecr get-login-password --region "$AWS_REGION" |
 
 WEB_REPO="$(output "$FOUNDATION" WebRepositoryUri)"
 WORKER_REPO="$(output "$FOUNDATION" WorkerRepositoryUri)"
+INDEXING="${OWM_ALLOW_SEARCH_INDEXING:-false}"
 docker buildx build --platform "$PLATFORM" -f Dockerfile --target web \
+  --build-arg "ALLOW_SEARCH_INDEXING=$INDEXING" \
   -t "$WEB_REPO:$TAG" --push .
 docker buildx build --platform "$PLATFORM" -f Dockerfile --target worker \
   -t "$WORKER_REPO:$TAG" --push .

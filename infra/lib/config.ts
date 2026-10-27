@@ -17,6 +17,8 @@ export type StagingConfig = {
   sesIdentity: string;
   emailFrom: string;
   provider: string;
+  /** Optional comma-separated sign-in allowlist; unset allows any address. */
+  signinAllowedEmails?: string;
   imageTag: string;
   webDesiredCount: number;
   minWebTasks: number;
@@ -135,6 +137,7 @@ export function loadStagingConfig(app: App): StagingConfig {
     sesIdentity,
     emailFrom: stringContext(context, 'emailFrom') ?? defaultFrom,
     provider: stringContext(context, 'provider') ?? 'openrouter',
+    signinAllowedEmails: stringContext(context, 'signinAllowedEmails'),
     imageTag: stringContext(context, 'imageTag') ?? 'bootstrap',
     webDesiredCount,
     minWebTasks,

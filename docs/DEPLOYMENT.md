@@ -118,6 +118,8 @@ variables:
 | `OWM_CERTIFICATE_ARN` | one of | — | Existing ACM certificate in the same region |
 | `OWM_SES_IDENTITY` | no | domain | Verified SES domain or email address |
 | `OWM_EMAIL_FROM` | no | `OpenWeightModels <no-reply@domain>` | Magic-link sender |
+| `OWM_SIGNIN_ALLOWED_EMAILS` | no | unset (any address) | Comma-separated sign-in allowlist: `owner@example.com` for one address, `@example.com` for a domain |
+| `OWM_ALLOW_SEARCH_INDEXING` | no | `false` | Set `true` only for a public launch; it is a build argument, so it needs a rebuild |
 | `OWM_PROVIDER` | no | `openrouter` | `mock` for an infrastructure-only smoke test |
 | `OWM_STACK_PREFIX` | no | `OwmStaging` | CloudFormation stack prefix |
 | `OWM_NAME_PREFIX` | no | `owm-staging` | ECR, ECS and resource prefix |
@@ -197,6 +199,9 @@ idempotent and preserves an Admin's `enabled = false` on a Model.
 ---
 
 ## 5. Release sequence
+
+For the day-to-day loop — local development, the pre-release checks, then this
+command — see [`docs/ITERATING.md`](ITERATING.md).
 
 `pnpm deploy:staging` is the release command. It deliberately splits the
 deployment so schema changes land before new application code serves traffic:
