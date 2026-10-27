@@ -6,6 +6,7 @@ dist
 coverage
 .env
 .env.local
+staging.env
 *.log
 .DS_Store
 playwright-report
