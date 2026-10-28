@@ -1,31 +1,39 @@
 # OpenWeightModels
 
-A forum where people publish side-by-side comparisons of open-weight model responses to the same prompt.
+A forum where people publish side-by-side comparisons of open-weight and frontier models answering the same conversation.
 
 ## Comparisons
 
 **Comparison**:
-A user-authored post pairing one Base output with one or more Challenger responses to the same Prompt. Duplicates of a Prompt across Comparisons are allowed.
+A user-authored post pairing one Conversation's Base outputs with one or more Challengers' replies for every Turn. Its first Turn's Prompt is the headline shown on the Board. Duplicates of a Conversation across Comparisons are allowed.
 _Avoid_: thread, entry, run
 
+**Conversation**:
+The ordered Turns that every Model in a Comparison answers. A Conversation with a single Turn is still a Conversation.
+_Avoid_: chat, thread, transcript
+
+**Turn**:
+One user message and the assistant reply it elicits from each Model.
+_Avoid_: message (unqualified), exchange, round
+
 **Prompt**:
-The instruction that every Response in a Comparison answers.
-_Avoid_: question, task, input
+The user message of a Turn.
+_Avoid_: question, task, input, instruction
 
 **Base output**:
-The author-supplied Response, uploaded as markdown.
+The author-supplied assistant reply for each Turn, captured from the author's own session with the Base model.
 _Avoid_: base response, upload, reference answer
 
 **Base model**:
-The Model that generated the Base output.
+The Model that produced the Base outputs.
 _Avoid_: source model, primary model
 
 **Challenger**:
-A Model whose Response the platform generates for the Comparison's Prompt.
+A Model replayed through the whole Conversation by the platform.
 _Avoid_: competitor, opponent, comparison model
 
 **Response**:
-One Model's output within a Comparison, whether uploaded as the Base output or generated as a Challenger.
+One Model's assistant reply for one Turn, whether uploaded as a Base output or generated as a Challenger.
 _Avoid_: output (unqualified), completion, answer
 
 **Author**:
@@ -87,20 +95,32 @@ _Avoid_: moderator, staff
 ## Generation
 
 **Model**:
-An entry in the Model registry: an open-weight LLM available as a Base model or Challenger.
+An entry in the Model registry, available as a Base model or Challenger. It is either open-weight or frontier.
 _Avoid_: provider, endpoint
+
+**Open-weight model**:
+A Model whose weights are published, so it can be run by a provider or self-hosted.
+_Avoid_: open model, open-source model
+
+**Frontier model**:
+A closed Model available only through its vendor's API, at the current top capability tier.
+_Avoid_: proprietary model, commercial model, closed model (as the preferred term)
 
 **Model registry**:
 The curated catalogue of Models the platform can run.
 _Avoid_: model list, provider list
 
 **Job**:
-One batch of generation work for a Comparison: the initial Challenger set, or a later add-model request.
+One batch of generation work for a Comparison: the initial Challenger set, or a later add-model request. A Job contains one Replay per Challenger.
 _Avoid_: task, batch, run
 
 **Run**:
-One attempt to generate one Challenger's Response within a Job. A retry creates another attempt of the same Run.
-_Avoid_: task, job
+One attempt to produce one Response: a single Model's reply to a single Turn. A retry creates another attempt of the same Run.
+_Avoid_: task, job, generation
+
+**Replay**:
+One Challenger's Responses across every Turn of a Comparison, generated in Turn order. A Replay that is skipped stops at the first skipped Turn and leaves the later Turns unattempted.
+_Avoid_: chain, run (unqualified), conversation replay
 
 **Notification**:
 An in-app alert to a user. In v1 it exists only to tell an Author that a Job is ready.

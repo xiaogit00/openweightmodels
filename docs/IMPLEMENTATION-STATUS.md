@@ -2,6 +2,8 @@
 
 Snapshot for resuming work after a context clear. `BACKEND.md` is the contract; `docs/DECISIONS.md` is the decision record; `GLOSSARY.md` is the vocabulary; `design_handoff_openweightmodels/` remains the visual source of truth (v2 overrides `styles.css`).
 
+> **Next work:** the multi-turn Conversation rework is specified in `.scratch/openweightmodels/spec.md` (tickets 18–25, ADRs 0008–0010). Everything below describes the code as it exists today, before that rework.
+
 ---
 
 ## 1. Environment

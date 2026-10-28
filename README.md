@@ -1,6 +1,6 @@
 # OpenWeightModels
 
-A forum where people publish side-by-side comparisons of open-weight model outputs to the same prompt.
+A forum where people publish side-by-side comparisons of open-weight and frontier model outputs to the same conversation.
 
 This repository is the production-intended implementation of the design handoff in `design_handoff_openweightmodels/`. The `v2` HTML files are the visual source of truth; `designs/styles.css` is only the prototype's base sheet and its tokens are overridden by every v2 screen.
 
