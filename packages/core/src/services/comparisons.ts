@@ -6,12 +6,15 @@ import {
   jobs,
   models,
   responses,
+  turns,
 } from '../db/schema';
 import { CATEGORIES, type ComparisonCard } from '../domain/types';
 import { resolveMaxChallengers } from '../domain/new-comparison';
 import {
   estimateTokens,
   parseMarkdownUpload,
+  summariseMarkdown,
+  validateBaseOutput,
   validatePrompt,
   validateTitle,
 } from '../domain/upload';
@@ -75,8 +78,11 @@ async function assertQuota(userId: string) {
 
 export type CreateComparisonInput = {
   authorId: string;
-  fileName: string;
-  fileText: string;
+  /** Upload path: the markdown file and its name. */
+  fileName?: string;
+  fileText?: string;
+  /** Write path: the Base output, pasted instead of uploaded. */
+  baseOutput?: string;
   baseModelId: string;
   prompt: string;
   modelIds: string[];
@@ -91,6 +97,30 @@ export type CreateComparisonResult = {
   title: string;
 };
 
+type ResolvedBase = {
+  body: string;
+  /** The prompt the file carried, if it carried one. */
+  prompt: string | null;
+  /** Only a file gives a useful default title. */
+  titleFromFile: string | null;
+};
+
+function resolveBase(input: CreateComparisonInput): ResolvedBase {
+  if (input.fileText !== undefined) {
+    const parsed = parseMarkdownUpload(input.fileText, input.fileName ?? '');
+    return {
+      body: parsed.body,
+      prompt: parsed.prompt,
+      titleFromFile: parsed.titleFromFile,
+    };
+  }
+  return {
+    body: validateBaseOutput(input.baseOutput ?? ''),
+    prompt: null,
+    titleFromFile: null,
+  };
+}
+
 export async function createComparison(
   input: CreateComparisonInput,
 ): Promise<CreateComparisonResult> {
@@ -98,9 +128,14 @@ export async function createComparison(
   const db = getDb();
   await assertQuota(input.authorId);
 
-  const parsed = parseMarkdownUpload(input.fileText, input.fileName);
-  const prompt = validatePrompt(input.prompt || parsed.prompt || '');
-  const title = validateTitle(input.title || parsed.titleFromFile);
+  const base = resolveBase(input);
+  const prompt = validatePrompt(input.prompt || base.prompt || '');
+  const title = validateTitle(
+    input.title ||
+      base.titleFromFile ||
+      summariseMarkdown(prompt, 80) ||
+      'Untitled comparison',
+  );
   const categories = normaliseCategories(input.categories);
   const effort = clampEffort(input.effort);
   const challengerIds = [...new Set(input.modelIds)];
@@ -133,6 +168,7 @@ export async function createComparison(
 
   const comparisonId = uuidv7();
   const jobId = uuidv7();
+  const turnId = uuidv7();
   const baseResponseId = uuidv7();
   const challengerResponseIds = challengerIds.map(() => uuidv7());
 
@@ -141,6 +177,7 @@ export async function createComparison(
       id: comparisonId,
       authorId: input.authorId,
       title,
+      // The first Turn's Prompt is the headline; Turns hold the script.
       prompt,
       categories,
       effort,
@@ -154,13 +191,21 @@ export async function createComparison(
       status: 'scheduled',
     });
 
+    await tx.insert(turns).values({
+      id: turnId,
+      comparisonId,
+      position: 0,
+      prompt,
+    });
+
     await tx.insert(responses).values({
       id: baseResponseId,
       comparisonId,
+      turnId,
       modelId: input.baseModelId,
       isBase: true,
-      contentMd: parsed.body,
-      tokens: estimateTokens(parsed.body),
+      contentMd: base.body,
+      tokens: estimateTokens(base.body),
       latencyMs: 0,
       status: 'done',
       finishedAt: new Date(),
@@ -170,6 +215,7 @@ export async function createComparison(
       challengerIds.map((modelId, index) => ({
         id: challengerResponseIds[index]!,
         comparisonId,
+        turnId,
         jobId,
         modelId,
         isBase: false,
@@ -342,6 +388,16 @@ export async function addModelToComparison(
     .limit(1);
   if (existing) throw conflict('model_exists', 'That model already has a response here.');
 
+  // A Challenger's Replay starts at the first Turn. A single-Turn Comparison
+  // only has this one; ticket 20 extends a Replay across the remaining Turns.
+  const [firstTurn] = await db
+    .select({ id: turns.id })
+    .from(turns)
+    .where(eq(turns.comparisonId, comparisonId))
+    .orderBy(turns.position)
+    .limit(1);
+  if (!firstTurn) throw conflict('no_turns', 'That comparison has no turns to replay.');
+
   const jobId = uuidv7();
   const responseId = uuidv7();
 
@@ -350,6 +406,7 @@ export async function addModelToComparison(
     await tx.insert(responses).values({
       id: responseId,
       comparisonId,
+      turnId: firstTurn.id,
       jobId,
       modelId,
       isBase: false,

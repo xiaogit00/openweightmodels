@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   MAX_PROMPT_CHARS,
+  MAX_BASE_OUTPUT_CHARS,
   MAX_TITLE_CHARS,
   MAX_UPLOAD_BYTES,
   UploadValidationError,
@@ -8,6 +9,7 @@ import {
   estimateTokens,
   parseMarkdownUpload,
   summariseMarkdown,
+  validateBaseOutput,
   validateFileName,
   validateFileSize,
   validatePrompt,
@@ -193,6 +195,18 @@ describe('prompt and title validation', () => {
     expect(errorCode(() => validateTitle('x'.repeat(MAX_TITLE_CHARS + 1)))).toBe(
       'title_too_long',
     );
+  });
+
+  it('accepts a pasted Base output and trims its edges', () => {
+    expect(validateBaseOutput('\n  A pasted answer.  \n')).toBe('A pasted answer.');
+  });
+
+  it('rejects a blank, oversized or binary pasted Base output', () => {
+    expect(errorCode(() => validateBaseOutput('  \n '))).toBe('empty_body');
+    expect(errorCode(() => validateBaseOutput('x'.repeat(MAX_BASE_OUTPUT_CHARS + 1)))).toBe(
+      'output_too_long',
+    );
+    expect(errorCode(() => validateBaseOutput('answer\u0000rest'))).toBe('invalid_text');
   });
 });
 

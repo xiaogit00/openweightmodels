@@ -70,15 +70,25 @@ export type ScheduleEstimate = {
   hint: string;
 };
 
+export type BaseSource = 'upload' | 'write';
+
 export function describeSchedule(input: {
+  /** Which tab supplies the Base output. Defaults to the upload tab. */
+  baseSource?: BaseSource;
   hasFile: boolean;
+  /** Whether the "Write a prompt" tab has a pasted Base output. */
+  hasBaseOutput?: boolean;
   baseModelId: string | null;
   challengerIds: readonly string[];
   prompt: string;
   models: readonly SelectableModel[];
 }): ScheduleEstimate {
-  if (!input.hasFile) {
+  const baseSource = input.baseSource ?? 'upload';
+  if (baseSource === 'upload' && !input.hasFile) {
     return { ready: false, hint: 'Upload a base output to continue' };
+  }
+  if (baseSource === 'write' && !input.hasBaseOutput) {
+    return { ready: false, hint: 'Paste the base output to continue' };
   }
   if (!input.baseModelId) {
     return { ready: false, hint: 'Pick the model that generated it' };

@@ -3,7 +3,17 @@
  * Board pagination (48 per page). Runs after the deterministic dev seed.
  */
 import { uuidv7 } from 'uuidv7';
-import { CATEGORIES, closeDb, comparisons, getDb, jobs, models, responses, users } from '@owm/core';
+import {
+  CATEGORIES,
+  closeDb,
+  comparisons,
+  getDb,
+  jobs,
+  models,
+  responses,
+  turns,
+  users,
+} from '@owm/core';
 
 const COUNT = 56;
 
@@ -18,11 +28,13 @@ async function main() {
 
   const now = Date.now();
   const comparisonRows: Array<typeof comparisons.$inferInsert> = [];
+  const turnRows: Array<typeof turns.$inferInsert> = [];
   const jobRows: Array<typeof jobs.$inferInsert> = [];
   const responseRows: Array<typeof responses.$inferInsert> = [];
 
   for (let index = 0; index < COUNT; index += 1) {
     const comparisonId = uuidv7();
+    const turnId = uuidv7();
     const jobId = uuidv7();
     const author = userRows[index % userRows.length]!;
     const baseModel = modelRows[index % modelRows.length]!;
@@ -45,11 +57,18 @@ async function main() {
       commentCount: index % 7,
       annotationCount: index % 4,
     });
+    turnRows.push({
+      id: turnId,
+      comparisonId,
+      position: 0,
+      prompt: `${title}: explain the trade-offs of a bounded queue.`,
+    });
     jobRows.push({ id: jobId, comparisonId, status: 'ready', finishedAt: publishedAt });
     responseRows.push(
       {
         id: uuidv7(),
         comparisonId,
+        turnId,
         jobId,
         modelId: baseModel.id,
         isBase: true,
@@ -62,6 +81,7 @@ async function main() {
       {
         id: uuidv7(),
         comparisonId,
+        turnId,
         jobId,
         modelId: challengerModel.id,
         isBase: false,
@@ -76,6 +96,7 @@ async function main() {
 
   await db.transaction(async (tx) => {
     await tx.insert(comparisons).values(comparisonRows);
+    await tx.insert(turns).values(turnRows);
     await tx.insert(jobs).values(jobRows);
     await tx.insert(responses).values(responseRows);
   });

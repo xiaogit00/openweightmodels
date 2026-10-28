@@ -10,6 +10,7 @@ import {
   comparisons,
   models,
   responses,
+  turns,
   users,
   votes,
 } from './db/schema';
@@ -339,7 +340,7 @@ export async function seedDatabase() {
 
   await sql.unsafe(`truncate table
     votes, annotation_messages, annotations, comments, job_events, activity_events,
-    notifications, responses, jobs, comparisons, models, reports, users
+    notifications, turns, responses, jobs, comparisons, models, reports, users
     restart identity cascade`);
 
   // One transaction so a failed seed rolls back to an empty database, which
@@ -376,8 +377,12 @@ export async function seedDatabase() {
     const publishedAt = ago(row.minutesAgo);
     const isFirst = comparisonIds.length === 0;
     const baseContent = isFirst ? LLAMA_BASE : `${row.s0}\n\nThis is the uploaded base output for this prompt.`;
+    const headline = isFirst
+      ? 'Write a thread-safe sliding-window rate limiter in Go. It should allow N requests per window per key, and explain the trade-offs of your approach.'
+      : row.title;
 
     const comparisonId = uuidv7();
+    const turnId = uuidv7();
     const annotationCount = isFirst ? 6 : row.notes;
     const commentCount = isFirst ? 4 : row.comments;
 
@@ -385,9 +390,7 @@ export async function seedDatabase() {
       id: comparisonId,
       authorId: author.id,
       title: row.title,
-      prompt: isFirst
-        ? 'Write a thread-safe sliding-window rate limiter in Go. It should allow N requests per window per key, and explain the trade-offs of your approach.'
-        : row.title,
+      prompt: headline,
       categories: [row.cat],
       effort: row.effort,
       baseModelId: baseModel.id,
@@ -398,9 +401,17 @@ export async function seedDatabase() {
       annotationCount,
     });
 
+    await db.insert(turns).values({
+      id: turnId,
+      comparisonId,
+      position: 0,
+      prompt: headline,
+    });
+
     await db.insert(responses).values({
       id: uuidv7(),
       comparisonId,
+      turnId,
       modelId: baseModel.id,
       isBase: true,
       contentMd: baseContent,
@@ -426,6 +437,7 @@ export async function seedDatabase() {
       await db.insert(responses).values({
         id: uuidv7(),
         comparisonId,
+        turnId,
         modelId: model.id,
         isBase: false,
         contentMd: content,

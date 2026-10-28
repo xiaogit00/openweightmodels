@@ -39,13 +39,39 @@ export async function POST(request: Request) {
     const user = await requireUser();
     const form = await request.formData();
     const file = form.get('file');
-    if (!(file instanceof File)) {
-      return json({ error: { code: 'file_required', message: 'Upload a base output.' } }, { status: 400 });
+    const baseOutput = String(form.get('base_output') ?? '');
+    const hasFile = file instanceof File;
+    const hasBaseOutput = Boolean(baseOutput.trim());
+
+    if (!hasFile && !hasBaseOutput) {
+      return json(
+        {
+          error: {
+            code: 'file_required',
+            message: 'Upload a base output or paste one.',
+          },
+        },
+        { status: 400 },
+      );
+    }
+    if (hasFile && hasBaseOutput) {
+      return json(
+        {
+          error: {
+            code: 'base_conflict',
+            message: 'Provide either a file or a pasted base output, not both.',
+          },
+        },
+        { status: 400 },
+      );
     }
 
-    validateFileSize(file.size);
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const fileText = decodeUtf8(bytes);
+    let uploaded: { fileName: string; fileText: string } | null = null;
+    if (file instanceof File) {
+      validateFileSize(file.size);
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      uploaded = { fileName: file.name, fileText: decodeUtf8(bytes) };
+    }
 
     const baseModelId = String(form.get('base_model_id') ?? '');
     const prompt = String(form.get('prompt') ?? '');
@@ -62,8 +88,7 @@ export async function POST(request: Request) {
 
     const result = await createComparison({
       authorId: user.id,
-      fileName: file.name,
-      fileText,
+      ...(uploaded ?? { baseOutput }),
       baseModelId,
       prompt,
       modelIds,

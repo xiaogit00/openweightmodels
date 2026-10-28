@@ -125,6 +125,29 @@ export const comparisons = pgTable(
   ],
 );
 
+/**
+ * One user message in a Conversation. A Comparison with a single Prompt has
+ * exactly one Turn; `comparisons.prompt` stays as the denormalised headline so
+ * Board search and the Job page never need a join to find the first Prompt.
+ */
+export const turns = pgTable(
+  'turns',
+  {
+    id: id(),
+    comparisonId: uuid('comparison_id')
+      .notNull()
+      .references(() => comparisons.id, { onDelete: 'cascade' }),
+    /** Zero-based position in reading order. */
+    position: smallint('position').notNull(),
+    prompt: text('prompt').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('turns_comparison_position_unique').on(t.comparisonId, t.position),
+    index('turns_comparison_idx').on(t.comparisonId),
+  ],
+);
+
 export const jobs = pgTable(
   'jobs',
   {
@@ -147,6 +170,9 @@ export const responses = pgTable(
     comparisonId: uuid('comparison_id')
       .notNull()
       .references(() => comparisons.id, { onDelete: 'cascade' }),
+    turnId: uuid('turn_id')
+      .notNull()
+      .references(() => turns.id, { onDelete: 'cascade' }),
     jobId: uuid('job_id').references(() => jobs.id, { onDelete: 'set null' }),
     modelId: uuid('model_id')
       .notNull()
@@ -163,11 +189,14 @@ export const responses = pgTable(
     finishedAt: timestamp('finished_at', { withTimezone: true, mode: 'date' }),
   },
   (t) => [
-    uniqueIndex('responses_comparison_model_unique').on(t.comparisonId, t.modelId),
-    uniqueIndex('responses_one_base_unique')
-      .on(t.comparisonId)
+    // One Model answers a Turn at most once; the script is never duplicated
+    // per Model because the Turn stores the Prompt.
+    uniqueIndex('responses_turn_model_unique').on(t.turnId, t.modelId),
+    uniqueIndex('responses_one_base_per_turn_unique')
+      .on(t.turnId)
       .where(sql`${t.isBase} = true`),
     index('responses_job_idx').on(t.jobId),
+    index('responses_comparison_idx').on(t.comparisonId),
   ],
 );
 
@@ -454,6 +483,7 @@ export const schema = {
   users,
   models,
   comparisons,
+  turns,
   jobs,
   responses,
   annotations,

@@ -96,15 +96,12 @@ describe.skipIf(!available)('real provider through the Job pipeline', () => {
         expect(response.contentMd).toBe('Streamed answer');
       }
 
-      // Every Challenger answers the same Prompt; only the provider model differs.
+      // Every Challenger answers the same Turn. With one Turn the message array
+      // holds only that user message — no Base replies, no assistant history.
       expect(providerServer.requests).toHaveLength(2);
-      expect(
-        providerServer.requests.map(
-          (request) => (request.body.messages as Array<{ content: string }>)[0]?.content,
-        ),
-      ).toEqual([
-        'Explain a sliding-window rate limiter with Go code.',
-        'Explain a sliding-window rate limiter with Go code.',
+      expect(providerServer.requests.map((request) => request.body.messages)).toEqual([
+        [{ role: 'user', content: 'Explain a sliding-window rate limiter with Go code.' }],
+        [{ role: 'user', content: 'Explain a sliding-window rate limiter with Go code.' }],
       ]);
       // The registry's api_model_id is what the provider is asked for.
       expect(providerServer.requests.map((request) => request.body.model)).toEqual([

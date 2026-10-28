@@ -132,4 +132,38 @@ describe('describeSchedule', () => {
       }),
     ).toEqual({ ready: true, hint: '2 hosted API calls · ~9s' });
   });
+
+  it('asks for a pasted base output on the write tab instead of a file', () => {
+    expect(
+      describeSchedule({
+        ...valid,
+        baseSource: 'write',
+        hasFile: false,
+        hasBaseOutput: false,
+      }),
+    ).toMatchObject({ ready: false, hint: 'Paste the base output to continue' });
+  });
+
+  it('schedules a written prompt once the reply, base model and challenger are present', () => {
+    expect(
+      describeSchedule({
+        ...valid,
+        baseSource: 'write',
+        hasFile: false,
+        hasBaseOutput: true,
+      }),
+    ).toEqual({ ready: true, hint: '1 hosted API call · ~6s' });
+  });
+
+  it('still requires a prompt on the write tab', () => {
+    expect(
+      describeSchedule({
+        ...valid,
+        baseSource: 'write',
+        hasFile: false,
+        hasBaseOutput: true,
+        prompt: '  ',
+      }),
+    ).toMatchObject({ ready: false, hint: 'Add a prompt to schedule' });
+  });
 });

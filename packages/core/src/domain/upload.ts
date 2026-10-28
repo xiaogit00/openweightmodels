@@ -3,6 +3,11 @@ import { parseDocument } from 'yaml';
 export const MAX_UPLOAD_BYTES = 1024 * 1024;
 export const MAX_PROMPT_CHARS = 10_000;
 export const MAX_TITLE_CHARS = 200;
+/**
+ * A pasted Base output is bounded like the replayed text a whole Conversation
+ * may hold, so one request cannot carry an unbounded body.
+ */
+export const MAX_BASE_OUTPUT_CHARS = 100_000;
 export const ALLOWED_EXTENSIONS = ['.md', '.markdown', '.txt'] as const;
 
 export class UploadValidationError extends Error {
@@ -154,6 +159,27 @@ export function validatePrompt(prompt: string) {
     throw new UploadValidationError(
       'prompt_too_long',
       `Prompts are limited to ${MAX_PROMPT_CHARS.toLocaleString()} characters.`,
+    );
+  }
+  return trimmed;
+}
+
+/**
+ * The "Write a prompt" path pastes the Base output instead of uploading a file.
+ */
+export function validateBaseOutput(output: string) {
+  const trimmed = output.trim();
+  if (!trimmed) {
+    throw new UploadValidationError('empty_body', 'Paste the base output.');
+  }
+  // Postgres text cannot store NUL, and a pasted output with one is not text.
+  if (trimmed.includes('\u0000')) {
+    throw new UploadValidationError('invalid_text', 'That base output does not look like text.');
+  }
+  if (trimmed.length > MAX_BASE_OUTPUT_CHARS) {
+    throw new UploadValidationError(
+      'output_too_long',
+      `Base outputs are limited to ${MAX_BASE_OUTPUT_CHARS.toLocaleString()} characters.`,
     );
   }
   return trimmed;

@@ -43,6 +43,13 @@
       "when": 1792681368942,
       "tag": "0005_stiff_mandroid",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793174158530,
+      "tag": "0006_damp_baron_strucker",
+      "breakpoints": true
     }
   ]
 }

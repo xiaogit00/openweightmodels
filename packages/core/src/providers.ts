@@ -1,9 +1,20 @@
 import type { ModelRow } from './queries';
 import { configuredAppUrl } from './app-url';
 
+/** One turn of the conversation sent to a provider. */
+export type ChatMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
 export type GenerateInput = {
   model: ModelRow;
-  prompt: string;
+  /**
+   * The message array for this Turn: the Conversation's user messages so far,
+   * interleaved with this Model's own earlier replies. The Base model's replies
+   * never appear.
+   */
+  messages: ChatMessage[];
   attempt: number;
   onToken: (chunk: string) => void | Promise<void>;
 };
@@ -164,9 +175,18 @@ function textFor(model: ModelRow, prompt: string) {
   return genericText(model, prompt);
 }
 
+/** The mock answers the latest user message. */
+function latestPrompt(messages: ChatMessage[]) {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message?.role === 'user') return message.content;
+  }
+  return '';
+}
+
 export class MockProvider implements Provider {
-  async generate({ model, prompt, attempt, onToken }: GenerateInput): Promise<GenerateResult> {
-    const text = textFor(model, prompt);
+  async generate({ model, messages, attempt, onToken }: GenerateInput): Promise<GenerateResult> {
+    const text = textFor(model, latestPrompt(messages));
     const chunks = text.match(/\S+\s*/g) ?? [text];
     const failOnce = process.env.MOCK_FAIL_ONCE === 'true';
     const failModel = process.env.MOCK_FAIL_MODEL;
@@ -220,7 +240,7 @@ export class OpenAICompatibleProvider implements Provider {
     return base.endsWith('/chat/completions') ? base : `${base}/chat/completions`;
   }
 
-  async generate({ model, prompt, onToken }: GenerateInput): Promise<GenerateResult> {
+  async generate({ model, messages, onToken }: GenerateInput): Promise<GenerateResult> {
     const url = this.endpoint(model);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -241,7 +261,7 @@ export class OpenAICompatibleProvider implements Provider {
         },
         body: JSON.stringify({
           model: model.apiModelId ?? model.slug,
-          messages: [{ role: 'user', content: prompt }],
+          messages,
           temperature: 0.7,
           max_tokens: 4096,
           stream: true,

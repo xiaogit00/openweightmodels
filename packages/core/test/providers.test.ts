@@ -62,7 +62,7 @@ describe('OpenAI-compatible provider', () => {
     const chunks: string[] = [];
     const result = await provider.generate({
       model: model({ apiBase: providerServer.baseUrl }),
-      prompt: 'Say hello',
+      messages: [{ role: 'user', content: 'Say hello' }],
       attempt: 0,
       onToken: (chunk) => {
         chunks.push(chunk);
@@ -96,16 +96,16 @@ describe('OpenAI-compatible provider', () => {
     cleanups.push(providerServer.close);
 
     const provider = new OpenAICompatibleProvider('test-key');
-    const prompt = 'Explain a sliding-window rate limiter.';
+    const messages = [{ role: 'user' as const, content: 'Explain a sliding-window rate limiter.' }];
     await provider.generate({
       model: model({ slug: 'first', apiModelId: 'vendor/first', apiBase: providerServer.baseUrl }),
-      prompt,
+      messages,
       attempt: 0,
       onToken: () => {},
     });
     await provider.generate({
       model: model({ slug: 'second', apiModelId: 'vendor/second', apiBase: providerServer.baseUrl }),
-      prompt,
+      messages,
       attempt: 0,
       onToken: () => {},
     });
@@ -113,7 +113,7 @@ describe('OpenAI-compatible provider', () => {
     const [{ body: first }, { body: second }] = providerServer.requests;
     expect(first).toEqual(
       expect.objectContaining({
-        messages: [{ role: 'user', content: prompt }],
+        messages,
         temperature: 0.7,
         max_tokens: 4096,
         stream: true,
@@ -139,7 +139,7 @@ describe('OpenAI-compatible provider', () => {
     const error = (await provider
       .generate({
         model: model({ apiBase: providerServer.baseUrl }),
-        prompt: 'Say hello',
+        messages: [{ role: 'user', content: 'Say hello' }],
         attempt: 0,
         onToken: () => {},
       })
@@ -167,7 +167,7 @@ describe('OpenAI-compatible provider', () => {
     await expect(
       provider.generate({
         model: model({ apiBase: providerServer.baseUrl }),
-        prompt: 'Say hello',
+        messages: [{ role: 'user', content: 'Say hello' }],
         attempt: 0,
         onToken: () => {},
       }),
@@ -186,7 +186,7 @@ describe('OpenAI-compatible provider', () => {
     const error = (await provider
       .generate({
         model: model({ apiBase: providerServer.baseUrl }),
-        prompt: 'Say hello',
+        messages: [{ role: 'user', content: 'Say hello' }],
         attempt: 0,
         onToken: () => {},
       })

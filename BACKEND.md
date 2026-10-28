@@ -78,7 +78,7 @@ Provider API keys live in environment variables / AWS Secrets Manager, never in 
 | `id` | uuid PK | |
 | `author_id` | uuid FK users | |
 | `title` | text | 1–200 characters |
-| `prompt` | text | 1–10,000 characters; **immutable after scheduling** |
+| `prompt` | text | the first Turn's Prompt, kept as the headline for Board search and the Job page; immutable after scheduling |
 | `categories` | text[] | subset of the fixed Category list |
 | `effort` | smallint | 1–3 |
 | `base_model_id` | uuid FK models | |
@@ -95,6 +95,18 @@ Provider API keys live in environment variables / AWS Secrets Manager, never in 
 **Visibility invariant**: a Comparison is readable when `status = 'published' AND deleted_at IS NULL AND takedown_at IS NULL`. Its Author can also read a non-deleted draft or ready Comparison. An Admin can read a non-deleted Comparison only while it is taken down, so they can review and restore it. Everyone else gets `404`, not `403`, for a draft, deleted or taken-down Comparison. A deleted Comparison is hidden from everyone; a taken-down Comparison keeps its Responses and Discussion but is hidden from its Author and the public.
 
 **Mutability invariant**: `prompt` and the Base output freeze at scheduling. `title`, `categories` and `effort` remain editable by the Author.
+
+### `turns`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid PK | |
+| `comparison_id` | uuid FK comparisons | |
+| `position` | smallint | zero-based reading order |
+| `prompt` | text | the user message for this Turn; 1–10,000 characters |
+| `created_at` | timestamptz | |
+
+A Comparison has at least one Turn; a single-Prompt Comparison has exactly one. The Prompt lives on the Turn, so it is stored once even when several Models answer it. `UNIQUE (comparison_id, position)` keeps the order total. Existing Comparisons were backfilled from `comparisons.prompt` with `position = 0`.
 
 ### `jobs`
 
@@ -113,9 +125,10 @@ A Comparison may have multiple Jobs over its lifetime: one for the initial chall
 |---|---|---|
 | `id` | uuid PK | |
 | `comparison_id` | uuid FK | |
-| `job_id` | uuid FK jobs null | null for the uploaded Base output |
+| `turn_id` | uuid FK turns | the Turn this Model answered |
+| `job_id` | uuid FK jobs null | null for the uploaded or pasted Base output |
 | `model_id` | uuid FK models | |
-| `is_base` | boolean | exactly one true per Comparison |
+| `is_base` | boolean | exactly one true per Turn |
 | `content_md` | text | raw markdown; immutable once `done` |
 | `tokens` | integer | |
 | `latency_ms` | integer null | |
@@ -127,8 +140,8 @@ A Comparison may have multiple Jobs over its lifetime: one for the initial chall
 
 Constraints:
 
-- `UNIQUE (comparison_id, model_id)` — no duplicate model runs in one Comparison.
-- Partial unique index on `(comparison_id) WHERE is_base = true` — one Base output.
+- `UNIQUE (turn_id, model_id)` — no duplicate model runs on one Turn.
+- Partial unique index on `(turn_id) WHERE is_base = true` — one Base output per Turn.
 - Retry keeps the same row and increments `attempt`; it does not create a second Response.
 - A failed Run may be retried or skipped. A skipped Run counts as settled but produces no content.
 
@@ -419,13 +432,14 @@ The Board loads facets once per page, patches them from `comparison.published` S
 
 `POST /comparisons` multipart fields:
 
-> **Replaced by tickets 20–21.** Creation takes a parsed Turn script, or a pasted Prompt plus Base reply for a one-Turn Comparison. The field list below is the current single-Prompt shape.
+> **Replaced by tickets 20–21.** Creation will take a parsed multi-Turn script. Today it accepts either one uploaded Base output or one pasted Prompt plus Base output, and writes a single Turn.
 
-- `file` — required, `.md`/`.markdown`/`.txt`, ≤1 MB, valid UTF-8
+- `file` — upload tab: `.md`/`.markdown`/`.txt`, ≤1 MB, valid UTF-8
+- `base_output` — write tab: the Base model's reply, ≤100,000 chars. Exactly one of `file` or `base_output` is required; sending both is rejected with `base_conflict`
 - `base_model_id` — required, enabled model
 - `prompt` — required after front-matter fallback, ≤10,000 chars
 - `model_ids` / `model_ids[]` — 1–4 enabled challengers, unique, excludes the base
-- `title` — required after filename fallback, ≤200 chars
+- `title` — required after filename or prompt-summary fallback, ≤200 chars
 - `categories` — zero or more values from the fixed Category list
 - `effort` — 1, 2 or 3
 
@@ -501,7 +515,7 @@ Both use `text/event-stream`, monotonic `id:` values, `Last-Event-ID` replay fro
 
 > **Replaced by ticket 20.** The provider receives the accumulated message array for a Turn, each Challenger is a Replay across every Turn, and Retry and Skip operate per Turn.
 
-1. **Schedule.** `POST /comparisons` validates the upload and quota, writes the Comparison (`generating`), Base Response (`done`), Job (`scheduled`) and one queued Response per Challenger in one transaction. It then enqueues **one BullMQ job per Run** and logs `job.scheduled`.
+1. **Schedule.** `POST /comparisons` validates the upload or pasted reply and quota, writes the Comparison (`generating`), its single Turn, Base Response (`done`), Job (`scheduled`) and one queued Response per Challenger in one transaction. It then enqueues **one BullMQ job per Run** and logs `job.scheduled`.
 2. **Resolve.** The model registry row is loaded at write time. Disabled or unknown models are rejected before a Job exists; an unknown model at run time is marked `failed`.
 3. **Run.** Each worker claims the Response with an atomic `queued → calling` update (a duplicate delivery then no-ops), sets the Job to `running`, and calls the provider with:
    - a single user message containing the Prompt,
@@ -558,7 +572,7 @@ Annotatable runs are leaf text nodes and fenced code blocks for which the raw ma
 - **50 Runs per user per day** (`RUNS_PER_DAY`), counting Challenger Responses.
 - **4 concurrent provider calls** globally (`PROVIDER_CONCURRENCY`), enforced by worker concurrency.
 - **4 challengers per Comparison** (`MAX_CHALLENGERS`).
-- Duplicate runs for the same model in one Comparison are rejected by a unique index.
+- A Model answers a Turn at most once (`UNIQUE (turn_id, model_id)`), and a Comparison holds at most one Replay per Model: the API rejects adding a Model that already appears in any Turn of that Comparison.
 - Generation parameters are identical across Challengers so comparisons are fair.
 - `responses.cost_usd` stores provider-reported cost; not displayed in v1.
 - Exceeding a quota returns `429 rate_limited`.

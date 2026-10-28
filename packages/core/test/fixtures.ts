@@ -1,7 +1,7 @@
 import { eq, inArray } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 import { getDb } from '../src/db/client';
-import { comparisons, jobs, models, responses, users } from '../src/db/schema';
+import { comparisons, jobs, models, responses, turns, users } from '../src/db/schema';
 import type { Category, ComparisonStatus, ResponseStatus } from '../src/domain/types';
 
 export type FixtureOptions = {
@@ -102,6 +102,7 @@ export async function createJobFixture(options: FixtureOptions = {}) {
   const userId = options.authorId ?? uuidv7();
   const comparisonId = uuidv7();
   const jobId = uuidv7();
+  const turnId = uuidv7();
   const handle = options.authorHandle ?? `fixture-${tag}`;
 
   if (!options.authorId) {
@@ -124,10 +125,17 @@ export async function createJobFixture(options: FixtureOptions = {}) {
     annotationCount: options.annotationCount ?? 0,
   });
   await db.insert(jobs).values({ id: jobId, comparisonId, status: 'scheduled' });
+  await db.insert(turns).values({
+    id: turnId,
+    comparisonId,
+    position: 0,
+    prompt: 'Explain a sliding-window rate limiter with Go code.',
+  });
   const baseResponseId = uuidv7();
   await db.insert(responses).values({
     id: baseResponseId,
     comparisonId,
+    turnId,
     modelId: baseModel.id,
     isBase: true,
     contentMd: 'A base answer, frozen at scheduling time.',
@@ -143,6 +151,7 @@ export async function createJobFixture(options: FixtureOptions = {}) {
       challengerModels.map((model) => ({
         id: uuidv7(),
         comparisonId,
+        turnId,
         jobId,
         modelId: model.id,
         isBase: false,

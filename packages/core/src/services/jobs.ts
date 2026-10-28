@@ -6,6 +6,7 @@ import {
   models,
   notifications,
   responses,
+  turns,
   users,
 } from '../db/schema';
 import { logActivity, logJobEvent } from '../events';
@@ -75,10 +76,20 @@ export async function processRun(responseId: string) {
     .from(models)
     .where(eq(models.id, response.modelId))
     .limit(1);
-  if (!model) {
+
+  // The Turn holds the script; a Response only points at it. Reading the Turn
+  // here keeps the provider call independent of `comparisons.prompt`.
+  const [turn] = await db
+    .select()
+    .from(turns)
+    .where(eq(turns.id, response.turnId))
+    .limit(1);
+
+  if (!model || !turn) {
+    const error = model ? 'Unknown turn' : 'Unknown model';
     await db
       .update(responses)
-      .set({ status: 'failed', error: 'Unknown model', finishedAt: new Date() })
+      .set({ status: 'failed', error, finishedAt: new Date() })
       .where(and(eq(responses.id, responseId), eq(responses.status, 'queued')));
     if (response.jobId) {
       await enqueueAutoSkip(responseId, response.attempt);
@@ -151,7 +162,7 @@ export async function processRun(responseId: string) {
     const provider = getProvider(model);
     const result = await provider.generate({
       model,
-      prompt: comparison.prompt,
+      messages: [{ role: 'user', content: turn.prompt }],
       attempt: response.attempt,
       onToken: async (chunk) => {
         text += chunk;
