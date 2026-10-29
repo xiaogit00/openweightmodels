@@ -23,6 +23,8 @@ import {
 } from '@owm/core/client';
 import { SiteHeader } from './site-header';
 import { ComparisonPreview } from './comparison-preview';
+import { Chip } from './ui/chip';
+import { InitialsBadge } from './ui/initials-badge';
 import { groupReplays, type ReplayState } from '@/lib/job-replays';
 import { isResponseStatus, responseErrorMessage, type JobStreamEvent } from '@/lib/run-events';
 import { cn } from '@/lib/utils';
@@ -67,7 +69,7 @@ function replayPresentation(replay: ReplayState): RunPresentation {
     return {
       label: replay.failedRun?.error || 'API timeout',
       icon: WarningCircle,
-      colour: 'text-neutral-200',
+      colour: 'text-danger',
     };
   }
   if (replay.status === 'stopped') {
@@ -83,7 +85,7 @@ function replayPresentation(replay: ReplayState): RunPresentation {
         replay.latencyMs !== null ? ` · ${(replay.latencyMs / 1000).toFixed(1)}s` : ''
       }`,
       icon: CheckCircle,
-      colour: 'text-neutral-200',
+      colour: 'text-neutral-300',
     };
   }
   if (replay.status === 'calling' || replay.status === 'streaming') {
@@ -95,7 +97,7 @@ function replayPresentation(replay: ReplayState): RunPresentation {
       spinning: true,
     };
   }
-  return { label: 'Queued', icon: Clock, colour: 'text-neutral-400' };
+  return { label: 'Queued', icon: Clock, colour: 'text-neutral-500' };
 }
 
 function errorText(error: unknown) {
@@ -306,44 +308,48 @@ export function JobSummary({ view }: { view: JobView }) {
     <div className="flex min-h-screen flex-col">
       <SiteHeader handle={view.authorHandle} variant="page" showNew={false} />
 
-      <main className="mx-auto grid w-full max-w-[1120px] grid-cols-1 gap-8 px-5 pb-14 pt-[22px] lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="anim-rise flex min-w-0 flex-col gap-5">
-          <div className="flex flex-col gap-1">
-            <span className="flex flex-wrap items-center gap-x-[6px] text-[11px] font-medium uppercase tracking-[0.04em] text-neutral-500">
+      <main className="mx-auto grid w-full max-w-[1200px] grid-cols-1 gap-8 px-5 pb-16 pt-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:pt-9">
+        <div className="anim-rise flex min-w-0 flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] font-normal leading-[1.5] text-neutral-400">
               <span data-relative-time>
                 Job #{view.jobId.slice(-4).toUpperCase()} · Scheduled {view.scheduledAt} UTC
               </span>
-              <span aria-hidden="true">·</span>
+              <span aria-hidden="true" className="text-neutral-600">
+                ·
+              </span>
               <span
                 role="status"
                 aria-live="polite"
-                className="flex items-center gap-[5px] normal-case tracking-normal"
+                className="flex items-center gap-1.5"
               >
                 <span
                   className={cn(
-                    'h-[6px] w-[6px] rounded-[2px]',
-                    connection === 'live' ? 'bg-accent anim-pulse' : 'bg-neutral-500',
+                    'h-[6px] w-[6px] rounded-full',
+                    connection === 'live'
+                      ? 'bg-accent anim-pulse'
+                      : 'bg-neutral-500',
                   )}
                 />
                 <span className={connection === 'live' ? 'text-accent-200' : 'text-neutral-400'}>
                   {connectionLabel}
                 </span>
               </span>
-            </span>
-            <h1 className="m-0 font-heading text-[18px] font-medium leading-[1.2] tracking-[-0.015em] [text-wrap:pretty]">
+            </div>
+            <h1 className="m-0 max-w-[820px] break-words font-heading text-[30px] font-medium leading-[1.15] tracking-[-0.02em] text-text [text-wrap:pretty]">
               {view.comparison.title}
             </h1>
           </div>
 
-          <div className="grid grid-cols-2 gap-1 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
             {STAGES.map((stage, index) => {
               const complete = index < stageIndex || settled;
               const current = index === stageIndex && !settled;
               return (
-                <div key={stage} className="flex min-w-0 flex-col gap-[6px]">
+                <div key={stage} className="flex min-w-0 flex-col gap-2">
                   <div
                     className={cn(
-                      'h-[3px] rounded-[2px]',
+                      'h-[3px] rounded-[1px]',
                       complete
                         ? 'bg-accent'
                         : current
@@ -353,21 +359,18 @@ export function JobSummary({ view }: { view: JobView }) {
                   />
                   <span
                     className={cn(
-                      'flex items-center gap-[5px] text-[11px] font-medium',
+                      'flex items-center gap-1.5 text-[12px] font-medium leading-[1.4]',
                       index <= stageIndex || settled
                         ? 'text-text'
                         : 'text-neutral-500',
                     )}
                   >
                     {complete ? (
-                      <Check size={12} weight="bold" />
+                      <Check size={12} weight="bold" className="flex-none" />
                     ) : current ? (
-                      <CircleNotch
-                        size={12}
-                        className="anim-spin"
-                        />
+                      <CircleNotch size={12} className="anim-spin flex-none" />
                     ) : (
-                      <Circle size={12} />
+                      <Circle size={12} className="flex-none" />
                     )}
                     <span className="truncate">{stage}</span>
                   </span>
@@ -376,17 +379,19 @@ export function JobSummary({ view }: { view: JobView }) {
             })}
           </div>
 
-          <div className="flex flex-col rounded-[2px] bg-surface">
-            <div className="flex items-center gap-[10px] border-b border-neutral-800 px-[14px] py-3">
-              <span className="rounded-[2px] border border-accent-700 px-[6px] py-1 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-accent-200">
+          <section
+            aria-label="Replays"
+            className="overflow-hidden rounded-lg border border-neutral-700 bg-bg"
+          >
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-neutral-800 px-5 py-4">
+              <span className="rounded-xs border border-accent-700 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase leading-[1.4] tracking-[0.08em] text-accent-200">
                 Base
               </span>
-              <span className="text-[12px] font-medium">
+              <span className="min-w-0 truncate text-[13.5px] font-medium text-text">
                 {view.baseModel?.name ?? 'Base model'}
               </span>
-              <div className="flex-1" />
-              <span className="flex items-center gap-1 text-[12px] font-normal text-neutral-400">
-                <CheckCircle size={13} />
+              <span className="ml-auto flex flex-none items-center gap-1.5 text-[12.5px] font-normal text-neutral-400">
+                <CheckCircle size={14} className="flex-none text-neutral-500" />
                 Uploaded
               </span>
             </div>
@@ -400,37 +405,36 @@ export function JobSummary({ view }: { view: JobView }) {
               return (
                 <div
                   key={replay.key}
-                  className="flex flex-col gap-[7px] border-b border-neutral-800 px-[14px] py-3 last:border-b-0"
+                  className="flex flex-col gap-2.5 border-b border-neutral-800 px-5 py-4 last:border-b-0"
                 >
-                  <div className="flex flex-wrap items-center gap-[10px]">
-                    <span className="grid h-[22px] w-[22px] flex-none place-items-center rounded-[2px] bg-neutral-700 text-[10.5px] font-semibold">
-                      {replay.monogram}
+                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
+                    <InitialsBadge initials={replay.monogram} size={22} />
+                    <span className="min-w-0 max-w-full truncate text-[13.5px] font-medium text-text">
+                      {replay.modelName}
                     </span>
-                    <span className="text-[12px] font-medium">{replay.modelName}</span>
-                    <span className="rounded-[2px] border border-neutral-700 px-[5px] py-[1px] text-[10.5px] font-medium text-neutral-400">
+                    <Chip className="h-[22px] flex-none text-[11px] text-neutral-300">
                       turn {replay.turnNumber} of {replay.turnCount}
-                    </span>
-                    <div className="flex-1" />
+                    </Chip>
                     <span
                       className={cn(
-                        'flex max-w-[230px] items-center gap-[5px] whitespace-nowrap text-[12px] font-medium',
+                        'flex min-w-0 max-w-full items-center gap-1.5 text-[12.5px] font-medium sm:ml-auto sm:max-w-[260px]',
                         display.colour,
                       )}
                       title={display.label}
                     >
                       <Icon
-                        size={13}
+                        size={14}
                         className={cn('flex-none', display.spinning && 'anim-spin')}
-                        />
+                      />
                       <span className="truncate">{display.label}</span>
                     </span>
                     {actionRun && (
-                      <span className="flex items-center gap-[6px]">
+                      <span className="flex flex-none items-center gap-2">
                         <button
                           type="button"
                           onClick={() => void handleRunAction(actionRun, 'retry')}
                           disabled={Boolean(pending)}
-                          className="btn-secondary h-[26px] px-[10px] disabled:opacity-45"
+                          className="btn-secondary h-7 px-3 text-[12px]"
                         >
                           {pending === 'retry' ? 'Retrying…' : 'Retry'}
                         </button>
@@ -438,7 +442,7 @@ export function JobSummary({ view }: { view: JobView }) {
                           type="button"
                           onClick={() => void handleRunAction(actionRun, 'skip')}
                           disabled={Boolean(pending)}
-                          className="btn-secondary h-[26px] px-[10px] disabled:opacity-45"
+                          className="btn-secondary h-7 px-3 text-[12px]"
                         >
                           {pending === 'skip' ? 'Skipping…' : 'Skip remaining'}
                         </button>
@@ -451,11 +455,11 @@ export function JobSummary({ view }: { view: JobView }) {
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-valuenow={replay.progress}
-                    className="h-[3px] overflow-hidden rounded-[2px] bg-neutral-800"
+                    className="h-[3px] w-full overflow-hidden rounded-[1px] bg-neutral-800"
                   >
                     <div
                       className={cn(
-                        'h-[3px] rounded-[2px] transition-[width] duration-300',
+                        'h-full rounded-[1px] transition-[width] duration-300',
                         replay.status === 'failed'
                           ? 'bg-neutral-500'
                           : replay.status === 'done'
@@ -466,70 +470,72 @@ export function JobSummary({ view }: { view: JobView }) {
                     />
                   </div>
                   {rowError && (
-                    <span className="text-[11px] font-normal text-danger" role="alert">
+                    <span className="text-[12px] font-normal text-danger" role="alert">
                       {rowError}
                     </span>
                   )}
                 </div>
               );
             })}
-          </div>
+          </section>
 
           {settled ? (
             <div
-              className="anim-rise-slow flex flex-col gap-2 rounded-[2px] border border-accent bg-accent-900 px-4 py-[14px]"
+              className="anim-rise-slow flex flex-col gap-3 rounded-lg border border-accent-700 bg-accent-900 px-5 py-5"
               aria-live="polite"
             >
-              <div className="flex flex-wrap items-center gap-3">
-                <CheckCircle size={20} className="flex-none text-accent-200" />
-                <div className="flex min-w-[200px] flex-1 flex-col gap-[2px]">
-                  <span className="font-heading text-[13px] font-medium">
+              <div className="flex flex-wrap items-start gap-3">
+                <CheckCircle size={22} className="flex-none text-accent-200" />
+                <div className="flex min-w-[200px] flex-1 flex-col gap-1">
+                  <span className="font-heading text-[15px] font-medium leading-[1.3]">
                     {published ? 'Your comparison is on the board' : 'Your comparison is ready'}
                   </span>
-                  <span className="text-[12px] font-normal text-neutral-300">
+                  <span className="text-[13px] font-normal leading-[1.55] text-neutral-300">
                     {doneCount} {doneCount === 1 ? 'challenger' : 'challengers'} generated.
                     {published
                       ? ' It is live for everyone to read, annotate and discuss.'
                       : ' Review it, or publish straight to the live board.'}
                   </span>
                 </div>
-                <Link
-                  href={`/comparisons/${view.comparison.id}`}
-                  className="btn-secondary h-8 whitespace-nowrap"
-                >
-                  {published ? 'View comparison' : 'Review first'}
-                </Link>
-                {!published && (
-                  <button
-                    type="button"
-                    onClick={() => void publish()}
-                    disabled={doneCount < 1 || publishing}
-                    className="btn-primary h-8 whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-45"
-                    title={
-                      doneCount < 1
-                        ? 'Publish needs at least one finished response.'
-                        : undefined
-                    }
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link
+                    href={`/comparisons/${view.comparison.id}`}
+                    className="btn-secondary h-8 whitespace-nowrap"
                   >
-                    <Broadcast size={13} />
-                    {publishing ? 'Publishing…' : 'Publish to board'}
-                  </button>
-                )}
+                    {published ? 'View comparison' : 'Review first'}
+                  </Link>
+                  {!published && (
+                    <button
+                      type="button"
+                      onClick={() => void publish()}
+                      disabled={doneCount < 1 || publishing}
+                      className="btn-primary h-8 whitespace-nowrap"
+                      title={
+                        doneCount < 1
+                          ? 'Publish needs at least one finished response.'
+                          : undefined
+                      }
+                    >
+                      <Broadcast size={13} />
+                      {publishing ? 'Publishing…' : 'Publish to board'}
+                    </button>
+                  )}
+                </div>
               </div>
               {!published && doneCount < 1 && (
-                <span className="pl-[32px] text-[11px] font-normal text-neutral-400">
+                <span className="text-[12px] font-normal text-neutral-400 sm:pl-[34px]">
                   Publish is unavailable until at least one challenger finishes generating.
                 </span>
               )}
               {publishError && (
-                <span className="pl-[32px] text-[11px] font-normal text-danger" role="alert">
+                <span className="text-[12px] font-normal text-danger sm:pl-[34px]" role="alert">
                   {publishError}
                 </span>
               )}
             </div>
           ) : (
-            <span className="flex items-center gap-[6px] text-[12px] font-normal text-neutral-500">
-              <Bell size={13} />
+            <span className="flex items-center gap-2 text-[13px] font-normal text-neutral-500">
+              <Bell size={14} className="flex-none" />
               You can leave this page — we&apos;ll notify you when it&apos;s done.
             </span>
           )}

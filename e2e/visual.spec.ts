@@ -138,8 +138,8 @@ test('Job at 1440px', async ({ page }) => {
     const styles = getComputedStyle(main);
     return { maxWidth: styles.maxWidth, paddingLeft: styles.paddingLeft };
   });
-  expect(metrics.maxWidth).toBe('1120px');
-  expect(metrics.paddingLeft).toBe('20px');
+  expect(metrics.maxWidth).toBe('1200px');
+  expect(metrics.paddingLeft).toBe('32px');
 
   await screenshot(page, 'job-1440.png');
 });
