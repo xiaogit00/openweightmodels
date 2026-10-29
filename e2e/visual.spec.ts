@@ -38,11 +38,16 @@ function masks(page: Page): Locator[] {
   ];
 }
 
-async function screenshot(page: Page, name: string) {
+async function screenshot(page: Page, name: string, maskColor = '#0a0c0b') {
+  // The Next.js dev indicator lives in a fixed shadow root that a screenshot
+  // mask cannot reach. It is not part of the app, so hide it for the capture.
+  await page.addStyleTag({
+    content: 'nextjs-portal { display: none !important; }',
+  });
   await expect(page).toHaveScreenshot(name, {
     animations: 'disabled',
     maxDiffPixelRatio: PIXEL_TOLERANCE,
-    maskColor: '#0a0c0b',
+    maskColor,
     mask: masks(page),
   });
 }
@@ -101,6 +106,23 @@ test('Comparison at 1440px', async ({ page }) => {
   expect(metrics.paddingLeft).toBe('32px');
 
   await screenshot(page, 'comparison-1440.png');
+});
+
+test.describe('light theme', () => {
+  // Ticket 05: the annotated Comparison has a light baseline beside the dark
+  // one, so both palettes are reviewed as pixels rather than only by eye.
+  test.use({ colorScheme: 'light' });
+
+  test('Comparison annotations at 1440px', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await signInAs(page, 'mira');
+    const comparison = await annotatedComparison(page);
+    await page.goto(`/comparisons/${comparison.id}?annotations=1`);
+    await expect(page.getByRole('heading', { name: comparison.title })).toBeVisible();
+    await expect(page.locator('[data-annotation-span]').first()).toBeVisible();
+
+    await screenshot(page, 'comparison-annotations-light-1440.png', '#ffffff');
+  });
 });
 
 test('New Comparison at 1440px', async ({ page }) => {
