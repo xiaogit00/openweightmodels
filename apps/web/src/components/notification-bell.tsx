@@ -108,7 +108,7 @@ export function NotificationBell() {
             <span
               aria-hidden="true"
               data-notification-dot
-              className="absolute -right-1 -top-1 grid h-[15px] min-w-[15px] place-items-center rounded-full bg-accent px-1 text-[10px] font-semibold leading-none text-on-accent"
+              className="absolute -right-1 -top-1 grid h-[15px] min-w-[15px] place-items-center rounded-full bg-accent px-1 text-[10.5px] font-semibold leading-none text-on-accent"
             >
               {unread > 9 ? '9+' : unread}
             </span>

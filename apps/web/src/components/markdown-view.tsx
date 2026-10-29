@@ -80,12 +80,19 @@ function RunText({
           onOpen(annotation.id, event.currentTarget);
         }}
         style={{
+          // The accent fills the dark code background in both themes. Keeping
+          // one translucent strength keeps `--code-fg` above 4.5:1 in dark,
+          // where lime is much brighter than the light theme's red; the open
+          // code span is marked with a ring instead of a stronger fill.
           background: code
-            ? `color-mix(in oklab, var(--color-accent) ${open ? 48 : 30}%, transparent)`
+            ? 'color-mix(in oklab, var(--color-accent) 30%, transparent)'
             : open
               ? 'var(--color-accent-800)'
               : 'var(--color-accent-900)',
-          boxShadow: 'inset 0 -1.5px 0 var(--color-accent)',
+          boxShadow:
+            code && open
+              ? 'inset 0 0 0 1px var(--color-accent), inset 0 -1.5px 0 var(--color-accent)'
+              : 'inset 0 -1.5px 0 var(--color-accent)',
           cursor: 'pointer',
           borderRadius: 2,
         }}

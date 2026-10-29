@@ -95,7 +95,7 @@ export function ComparisonPreview({
                 tone="base"
               />
               <span className="truncate">{base?.name ?? 'Base model'}</span>
-              <span className="flex-none rounded-xs border border-accent-700 px-[5px] text-[9px] font-semibold uppercase leading-4 tracking-[0.08em] text-accent-200">
+              <span className="flex-none rounded-xs border border-accent-700 px-[5px] text-[10.5px] font-semibold uppercase leading-4 tracking-[0.08em] text-accent-200">
                 BASE
               </span>
             </div>
