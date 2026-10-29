@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenWeightModels — current UI snapshots</title>
+    <style>
+      @font-face {
+        font-family: "JetBrains Mono";
+        font-style: normal;
+        font-weight: 400 600;
+        font-display: swap;
+        src: url("assets/fonts/051742360c26797e-s.p.1bkzbscqrt8rl.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Space Grotesk";
+        font-style: normal;
+        font-weight: 500 600;
+        font-display: swap;
+        src: url("assets/fonts/0c89a48fa5027cee-s.p.2cyn07wtgehh0.woff2") format("woff2");
+      }
+
+      :root {
+        --bg: #0a0c0b;
+        --surface: #121513;
+        --text: #e8ebe8;
+        --accent: #a3e635;
+        --accent-200: #d9f99d;
+        --accent-300: #bef264;
+        --accent-900: #17240b;
+        --neutral-300: #a9ada9;
+        --neutral-400: #858a86;
+        --neutral-500: #8b908c;
+        --neutral-700: #2e3330;
+        --neutral-800: #1d211f;
+        --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        --heading: "Space Grotesk", system-ui, sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--mono);
+        font-size: 13px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      a { color: var(--accent-300); text-decoration: none; }
+      a:hover { color: var(--accent-200); }
+
+      .wrap {
+        width: min(1180px, calc(100% - 40px));
+        margin: 0 auto;
+      }
+
+      header {
+        border-bottom: 1px solid var(--neutral-800);
+        padding: 34px 0 26px;
+      }
+
+      .kicker {
+        margin: 0 0 10px;
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--neutral-500);
+      }
+
+      h1 {
+        margin: 0;
+        font-family: var(--heading);
+        font-size: 26px;
+        font-weight: 500;
+        letter-spacing: -0.02em;
+      }
+
+      .lede {
+        max-width: 760px;
+        margin: 10px 0 0;
+        color: var(--neutral-400);
+      }
+
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 18px;
+        margin-top: 18px;
+        font-size: 11px;
+        color: var(--neutral-500);
+      }
+
+      main { padding: 28px 0 44px; }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 12px;
+      }
+
+      .card {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid var(--neutral-700);
+        border-radius: 2px;
+        background: var(--surface);
+      }
+
+      .shot {
+        display: block;
+        height: 230px;
+        overflow: hidden;
+        border-bottom: 1px solid var(--neutral-800);
+        background: var(--bg);
+      }
+
+      .shot img {
+        display: block;
+        width: 100%;
+        height: auto;
+        transition: opacity 120ms ease-out;
+      }
+
+      .shot:hover img { opacity: 0.82; }
+
+      .body {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: 7px;
+        padding: 13px 14px 15px;
+      }
+
+      h2 {
+        margin: 0;
+        font-family: var(--heading);
+        font-size: 15px;
+        font-weight: 500;
+      }
+
+      .body p { margin: 0; color: var(--neutral-400); font-size: 12px; }
+
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-top: 2px;
+      }
+
+      .tag {
+        padding: 1px 6px;
+        border: 1px solid var(--neutral-700);
+        border-radius: 2px;
+        font-size: 10px;
+        color: var(--neutral-300);
+      }
+
+      .tag.accent {
+        border-color: #3f6212;
+        color: var(--accent-200);
+      }
+
+      .open {
+        margin-top: auto;
+        padding-top: 8px;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--accent-300);
+      }
+
+      .notes {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 12px;
+        margin-top: 28px;
+      }
+
+      .note {
+        border: 1px solid var(--neutral-800);
+        border-radius: 2px;
+        padding: 14px 15px;
+        background: var(--surface);
+      }
+
+      .note h3 {
+        margin: 0 0 6px;
+        font-family: var(--heading);
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .note p, .note li {
+        margin: 0;
+        color: var(--neutral-400);
+        font-size: 12px;
+      }
+
+      .note ul { margin: 0; padding-left: 17px; }
+
+      code {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--accent-200);
+      }
+
+      footer {
+        border-top: 1px solid var(--neutral-800);
+        padding: 18px 0 30px;
+        color: var(--neutral-500);
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="wrap">
+        <p class="kicker">OpenWeightModels · design review bundle</p>
+        <h1>Current UI snapshots</h1>
+        <p class="lede">
+          Static HTML captures of the live product at 1440×900, with realistic seeded
+          content: a board of community comparisons, the new-comparison form, and the
+          side-by-side comparison view with annotations and discussion.
+        </p>
+        <div class="meta">
+          <span>Captured 29 October 2026</span>
+          <span>Desktop · 1440×900</span>
+          <span>Seeded dummy data (16 comparisons, 3 users)</span>
+          <span>Scripts removed · controls are inert</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <div class="grid">
+        <a class="card" href="board.html">
+          <span class="shot"><img src="screenshots/board.png" alt="Board screenshot" /></span>
+          <span class="body">
+            <h2>Board</h2>
+            <p>
+              The public feed: sticky header with search, live activity ticker, filter
+              sidebar, sort tabs, and a dense grid of comparison cards.
+            </p>
+            <span class="tags">
+              <span class="tag accent">Main screen</span>
+              <span class="tag">Signed in as @mira</span>
+              <span class="tag">Live sort</span>
+              <span class="tag">Filters + ticker</span>
+            </span>
+            <span class="open">Open board.html →</span>
+          </span>
+        </a>
+
+        <a class="card" href="new-comparison.html">
+          <span class="shot"><img src="screenshots/new-comparison.png" alt="New comparison screenshot" /></span>
+          <span class="body">
+            <h2>New comparison — filled</h2>
+            <p>
+              The create flow after uploading a base output: imported file summary and
+              turn preview, model picker with selected challengers, details, and the live
+              “On the board” card preview.
+            </p>
+            <span class="tags">
+              <span class="tag accent">Main screen</span>
+              <span class="tag">Filled state</span>
+              <span class="tag">3 challengers</span>
+              <span class="tag">Live card preview</span>
+            </span>
+            <span class="open">Open new-comparison.html →</span>
+          </span>
+        </a>
+
+        <a class="card" href="comparison.html">
+          <span class="shot"><img src="screenshots/comparison.png" alt="Comparison screenshot" /></span>
+          <span class="body">
+            <h2>Comparison — annotations off</h2>
+            <p>
+              The reading view: prompt header, base response pinned left, challenger tabs
+              right, then the discussion composer and threads.
+            </p>
+            <span class="tags">
+              <span class="tag accent">Main screen</span>
+              <span class="tag">Reading state</span>
+              <span class="tag">Discussion</span>
+            </span>
+            <span class="open">Open comparison.html →</span>
+          </span>
+        </a>
+
+        <a class="card" href="comparison-annotated.html">
+          <span class="shot"><img src="screenshots/comparison-annotated.png" alt="Annotated comparison screenshot" /></span>
+          <span class="body">
+            <h2>Comparison — annotations on</h2>
+            <p>
+              The same comparison with the annotation overlay enabled: highlighted spans,
+              kind filters, and the annotation hint in the toolbar.
+            </p>
+            <span class="tags">
+              <span class="tag">State variant</span>
+              <span class="tag">6 annotations</span>
+              <span class="tag">Bug · Good · Question</span>
+            </span>
+            <span class="open">Open comparison-annotated.html →</span>
+          </span>
+        </a>
+
+        <a class="card" href="comparison-turns.html">
+          <span class="shot"><img src="screenshots/comparison-turns.png" alt="Multi-turn comparison screenshot" /></span>
+          <span class="body">
+            <h2>Comparison — multi-turn</h2>
+            <p>
+              A two-turn conversation: the prompt and both models’ replies are grouped per
+              turn, with a turn rail to jump between turns and per-turn response panes.
+            </p>
+            <span class="tags">
+              <span class="tag">State variant</span>
+              <span class="tag">2 turns</span>
+              <span class="tag">Turn navigation</span>
+            </span>
+            <span class="open">Open comparison-turns.html →</span>
+          </span>
+        </a>
+
+        <a class="card" href="new-comparison-empty.html">
+          <span class="shot"><img src="screenshots/new-comparison-empty.png" alt="Empty new comparison screenshot" /></span>
+          <span class="body">
+            <h2>New comparison — empty</h2>
+            <p>
+              The first-run state: the upload dropzone, the “How to get this file”
+              guidance, the empty model picker, and the disabled submit button.
+            </p>
+            <span class="tags">
+              <span class="tag">State variant</span>
+              <span class="tag">Empty form</span>
+              <span class="tag">Guidance panel</span>
+            </span>
+            <span class="open">Open new-comparison-empty.html →</span>
+          </span>
+        </a>
+      </div>
+
+      <div class="notes">
+        <div class="note">
+          <h3>About the files</h3>
+          <p>
+            Each screen is a standalone HTML file with the app’s CSS inlined and its fonts
+            copied into <code>assets/fonts</code>. No build step or server is needed — open
+            any file directly in a browser. Links between the captured screens work;
+            other links and every button are disabled.
+          </p>
+        </div>
+        <div class="note">
+          <h3>What still works</h3>
+          <ul>
+            <li>Hover, focus and active styles</li>
+            <li>The board’s scrolling live ticker</li>
+            <li>Sticky header, sidebar and annotation toolbar positioning</li>
+            <li>Responsive layout if the window is resized</li>
+          </ul>
+        </div>
+        <div class="note">
+          <h3>What this is not</h3>
+          <p>
+            These are faithful snapshots of the current product, not prototypes of a new
+            direction. Data is deterministic dev seed content (models, users, comments and
+            annotations are fictional). The interface is dense and desktop-first by design.
+          </p>
+        </div>
+        <div class="note">
+          <h3>Full-size screenshots</h3>
+          <p>
+            Full-page PNGs live in <code>screenshots/</code>. The images above are cropped
+            at the top of each page for quick comparison.
+          </p>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        OpenWeightModels · community comparisons of open-weight and frontier model outputs.
+      </div>
+    </footer>
+  </body>
+</html>
