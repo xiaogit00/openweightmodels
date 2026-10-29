@@ -9,7 +9,6 @@ import {
   DotsThree,
   Highlighter,
   PaperPlaneRight,
-  PencilSimple,
   Trash,
   X,
 } from '@phosphor-icons/react';
@@ -39,6 +38,12 @@ import {
   type JobStreamEvent,
 } from '@/lib/run-events';
 import { ComparisonHead } from './comparison/comparison-head';
+import {
+  ActionsMenu,
+  InlineEditor,
+  actionItemClass,
+  deleteButtonClass,
+} from './comparison/content-actions';
 import {
   ComparisonResponses,
   copyResponseText,
@@ -90,229 +95,6 @@ function TurnBadge({ turn }: { turn: { number: number; total: number } }) {
     >
       Turn {turn.number} of {turn.total}
     </span>
-  );
-}
-
-const actionItem =
-  'flex h-7 items-center gap-1.5 rounded-[2px] px-2 text-left text-[11.5px] font-medium text-neutral-200 transition-colors hover:bg-neutral-700 disabled:opacity-45';
-
-const deleteButton =
-  'h-7 flex-1 rounded-[2px] border border-danger px-2 text-[11px] font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-45';
-
-function InlineEditor({
-  label,
-  value,
-  onChange,
-  onSave,
-  onCancel,
-  busy,
-  error,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  onSave: () => void;
-  onCancel: () => void;
-  busy: boolean;
-  error: string | null;
-}) {
-  const cancelRef = useRef<HTMLButtonElement>(null);
-
-  return (
-    <div
-      className="flex flex-col gap-1.5"
-      onKeyDown={(event) => {
-        if (event.key !== 'Escape') return;
-        event.preventDefault();
-        event.stopPropagation();
-        onCancel();
-      }}
-    >
-      <textarea
-        aria-label={label}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key !== 'Escape') return;
-          event.preventDefault();
-          event.stopPropagation();
-          // First Escape keeps the draft and moves to Cancel; a second Escape
-          // (from Cancel) discards it deliberately.
-          cancelRef.current?.focus();
-        }}
-        maxLength={5000}
-        rows={3}
-        autoFocus
-        className="resize-y rounded-[2px] border border-neutral-700 bg-bg p-2 text-[12.5px] leading-[1.5] text-text focus:border-accent"
-      />
-      {error && <ErrorLine message={error} />}
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          disabled={busy || !value.trim()}
-          onClick={onSave}
-          className="btn-secondary h-7 disabled:opacity-45"
-        >
-          {busy ? 'Saving…' : 'Save'}
-        </button>
-        <button
-          ref={cancelRef}
-          type="button"
-          disabled={busy}
-          onClick={onCancel}
-          onKeyDown={(event) => {
-            if (event.key !== 'Escape') return;
-            event.preventDefault();
-            event.stopPropagation();
-            onCancel();
-          }}
-          className="btn-secondary h-7"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/**
- * One kebab menu for owner-only content. Delete asks for confirmation in the
- * menu, then closes itself when the API accepts the change.
- */
-function ActionsMenu({
-  label,
-  noun,
-  onEdit,
-  onDelete,
-}: {
-  label: string;
-  noun: string;
-  onEdit: () => void;
-  onDelete: () => Promise<string | null>;
-}) {
-  const [open, setOpen] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const confirmRef = useRef<HTMLButtonElement>(null);
-  const deleteRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (confirming) confirmRef.current?.focus();
-  }, [confirming]);
-
-  const close = () => {
-    setOpen(false);
-    setConfirming(false);
-    setError(null);
-  };
-
-  const cancelConfirm = () => {
-    setConfirming(false);
-    setError(null);
-    requestAnimationFrame(() => deleteRef.current?.focus());
-  };
-
-  const confirm = async () => {
-    setBusy(true);
-    setError(null);
-    const message = await onDelete();
-    setBusy(false);
-    if (message) {
-      setError(message);
-      return;
-    }
-    close();
-  };
-
-  return (
-    <Popover.Root
-      open={open}
-      onOpenChange={(value) => {
-        if (value) {
-          setOpen(true);
-          setError(null);
-        } else {
-          close();
-        }
-      }}
-    >
-      <Popover.Trigger asChild>
-        <button
-          type="button"
-          aria-label={label}
-          data-actions-trigger
-          className="grid h-6 w-6 place-items-center rounded-[2px] text-neutral-500 transition-colors hover:bg-neutral-700 hover:text-text"
-        >
-          <DotsThree size={16} weight="bold" />
-        </button>
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content
-          align="end"
-          sideOffset={4}
-          data-popover
-          data-actions-menu
-          aria-label={`${noun} actions`}
-          className="z-50 flex w-[180px] flex-col gap-[2px] rounded-[2px] border border-neutral-700 bg-neutral-800 p-1.5 shadow-lg"
-        >
-          {confirming ? (
-            <>
-              <span className="px-1 pb-1 text-[11px] leading-[1.4] text-neutral-300">
-                Delete this {noun}?
-              </span>
-              {error && (
-                <span className="px-1 pb-1 text-[11px] text-danger" role="alert">
-                  {error}
-                </span>
-              )}
-              <div className="flex gap-1.5">
-                <button
-                  ref={confirmRef}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void confirm()}
-                  className={deleteButton}
-                >
-                  {busy ? 'Deleting…' : 'Delete'}
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={cancelConfirm}
-                  className="btn-secondary h-7 flex-1"
-                >
-                  Cancel
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  close();
-                  onEdit();
-                }}
-                className={actionItem}
-              >
-                <PencilSimple size={13} />
-                Edit
-              </button>
-              <button
-                ref={deleteRef}
-                type="button"
-                onClick={() => setConfirming(true)}
-                className={actionItem}
-              >
-                <Trash size={13} />
-                Delete
-              </button>
-            </>
-          )}
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
   );
 }
 
@@ -414,7 +196,7 @@ function AnnotationActions({
                   type="button"
                   disabled={busy}
                   onClick={() => void confirm()}
-                  className={deleteButton}
+                  className={deleteButtonClass}
                 >
                   {busy ? 'Deleting…' : 'Delete'}
                 </button>
@@ -466,7 +248,7 @@ function AnnotationActions({
                 ref={deleteRef}
                 type="button"
                 onClick={() => setConfirming(true)}
-                className={actionItem}
+                className={actionItemClass}
               >
                 <Trash size={13} />
                 Delete annotation
