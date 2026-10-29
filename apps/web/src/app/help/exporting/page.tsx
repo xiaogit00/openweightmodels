@@ -42,7 +42,7 @@ function Step({ number, title, children }: { number: number; title: string; chil
     <li className="flex gap-2.5">
       <span
         aria-hidden
-        className="grid h-5 w-5 flex-none place-items-center rounded-[2px] border border-accent-700 text-[10.5px] font-medium text-accent-200"
+        className="grid h-5 w-5 flex-none place-items-center rounded-sm border border-accent-700 text-[10.5px] font-medium text-accent-200"
       >
         {number}
       </span>
@@ -69,15 +69,15 @@ export default async function ExportGuidePage() {
       <main className="mx-auto w-full max-w-[680px] px-5 py-12">
         <div className="flex flex-col gap-1.5">
           <span className="micro-label uppercase">Guide</span>
-          <h1 className="m-0 font-heading text-[20px] font-medium leading-[1.2]">
+          <h1 className="m-0 font-heading text-[30px] font-medium leading-[1.15] tracking-[-0.02em]">
             How to export a chat
           </h1>
-          <p className="m-0 text-[11px] text-neutral-500">
+          <p className="m-0 text-[12.5px] text-neutral-500">
             Turn a conversation into the markdown file this site compares.
           </p>
         </div>
 
-        <div className="legal-prose mt-6 flex flex-col gap-6 text-[12.5px] leading-[1.65] text-neutral-300">
+        <div className="legal-prose mt-6 flex flex-col gap-6 text-[14.5px] leading-[1.65] text-neutral-300">
           <section>
             <p>
               A comparison starts from one of your own conversations with a model.
@@ -123,14 +123,14 @@ export default async function ExportGuidePage() {
             <h2>What the file looks like</h2>
             <p>
               AI Exporter writes a source line, then alternating{' '}
-              <code className="font-mono text-[11.5px]"># you asked</code> and{' '}
-              <code className="font-mono text-[11.5px]"># &lt;model&gt; response</code>{' '}
-              sections. The <code className="font-mono text-[11.5px]">message time:</code>{' '}
-              lines, <code className="font-mono text-[11.5px]">---</code> separators
+              <code className="font-mono text-[12px]"># you asked</code> and{' '}
+              <code className="font-mono text-[12px]"># &lt;model&gt; response</code>{' '}
+              sections. The <code className="font-mono text-[12px]">message time:</code>{' '}
+              lines, <code className="font-mono text-[12px]">---</code> separators
               and the exporter footer are decoration: we remove them before saving.
               The chat URL is never stored.
             </p>
-            <pre className="code-block text-[11.5px]">{EXAMPLE}</pre>
+            <pre className="code-block">{EXAMPLE}</pre>
           </section>
 
           <section>
@@ -151,7 +151,7 @@ export default async function ExportGuidePage() {
               </li>
             </ul>
             <p>
-              A plain markdown file, or one with <code className="font-mono text-[11.5px]">prompt:</code>{' '}
+              A plain markdown file, or one with <code className="font-mono text-[12px]">prompt:</code>{' '}
               front-matter, still works as a one-turn comparison. Those formats have
               no turn boundaries, so the whole body becomes the Base output.
             </p>
@@ -182,7 +182,7 @@ export default async function ExportGuidePage() {
                   <td>“Turn 2 has an empty “# you asked” section.”</td>
                   <td>
                     Re-export the conversation and make sure every prompt is included
-                    in its <code className="font-mono text-[11.5px]"># you asked</code>{' '}
+                    in its <code className="font-mono text-[12px]"># you asked</code>{' '}
                     section.
                   </td>
                 </tr>
@@ -190,7 +190,7 @@ export default async function ExportGuidePage() {
                   <td>“Turn 1 has a reply but no prompt.”</td>
                   <td>
                     Re-export the conversation so every reply follows a{' '}
-                    <code className="font-mono text-[11.5px]"># you asked</code>{' '}
+                    <code className="font-mono text-[12px]"># you asked</code>{' '}
                     section.
                   </td>
                 </tr>
@@ -198,7 +198,7 @@ export default async function ExportGuidePage() {
                   <td>“This file has AI Exporter metadata but no “# you asked” sections.”</td>
                   <td>
                     Export the whole conversation again. The export must contain the
-                    alternating <code className="font-mono text-[11.5px]"># you asked</code>{' '}
+                    alternating <code className="font-mono text-[12px]"># you asked</code>{' '}
                     and response sections, not just the page header and footer.
                   </td>
                 </tr>
@@ -269,12 +269,12 @@ export default async function ExportGuidePage() {
                 download={SAMPLE_EXPORT_NAME}
                 className="btn-secondary"
               >
-                <DownloadSimple size={13} />
+                <DownloadSimple size={14} aria-hidden />
                 Download a sample export
               </a>
-              <Link href="/new" className="btn-primary h-8">
+              <Link href="/new" className="btn-primary">
                 Start a comparison
-                <ArrowRight size={13} />
+                <ArrowRight size={14} aria-hidden />
               </Link>
             </div>
           </section>

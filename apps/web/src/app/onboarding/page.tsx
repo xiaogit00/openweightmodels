@@ -29,15 +29,15 @@ export default async function OnboardingPage({
       <main className="mx-auto flex w-full max-w-[440px] flex-col gap-5 px-5 py-12">
         <div className="flex flex-col gap-1.5">
           <span className="micro-label uppercase">One more step</span>
-          <h1 className="m-0 font-heading text-[20px] font-medium leading-[1.2]">
+          <h1 className="m-0 font-heading text-[30px] font-medium leading-[1.15] tracking-[-0.02em]">
             Choose your handle
           </h1>
-          <p className="m-0 text-[12px] leading-[1.55] text-neutral-400">
+          <p className="m-0 text-[13.5px] leading-[1.55] text-neutral-400">
             Your handle is your public identity on the Board. You can read without one,
             but you need a handle to publish, annotate, comment or vote.
           </p>
         </div>
-        <div className="rounded-[2px] border border-neutral-800 bg-surface p-4">
+        <div className="rounded-lg border border-neutral-800 bg-surface p-5">
           <HandleForm next={next} />
         </div>
       </main>

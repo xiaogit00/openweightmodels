@@ -40,26 +40,26 @@ export function SignInForm({
   if (sentTo) {
     return (
       <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2 text-[13px] font-medium text-accent-200">
-          <EnvelopeSimple size={16} />
+        <div className="flex items-center gap-2 text-[14.5px] font-medium text-accent-200">
+          <EnvelopeSimple size={17} aria-hidden />
           Check your inbox
         </div>
-        <p className="m-0 text-[12px] leading-[1.55] text-neutral-300">
+        <p className="m-0 text-[13.5px] leading-[1.55] text-neutral-300">
           We sent a single-use sign-in link to <span className="text-text">{sentTo}</span>.
           It expires in {MAGIC_LINK_TTL_MINUTES} minutes.
         </p>
-        <p className="m-0 text-[11px] leading-[1.5] text-neutral-500">
+        <p className="m-0 text-[12.5px] leading-[1.5] text-neutral-400">
           No mail? Check spam, or request another link. Locally, the link is also printed
           in the web server log when Mailpit is not running.
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => void requestLink(sentTo)}
             disabled={pending}
-            className="btn-secondary h-8"
+            className="btn-secondary"
           >
-            <PaperPlaneRight size={13} />
+            <PaperPlaneRight size={14} aria-hidden />
             {pending ? 'Sending…' : 'Send another link'}
           </button>
           <button
@@ -68,12 +68,12 @@ export function SignInForm({
               setSentTo(null);
               setError(null);
             }}
-            className="btn-ghost h-8"
+            className="btn-ghost"
           >
             Use a different email
           </button>
         </div>
-        {error && <p className="m-0 text-[11px] text-danger">{error}</p>}
+        {error && <p role="alert" className="m-0 text-[13px] text-danger">{error}</p>}
       </div>
     );
   }
@@ -102,18 +102,18 @@ export function SignInForm({
         value={email}
         onChange={(event) => setEmail(event.target.value)}
         placeholder="you@example.com"
-        className="h-9 rounded-[2px] border border-neutral-700 bg-surface px-2.5 text-[12px] text-text focus:border-accent"
+        className="field h-10"
       />
-      <p className="m-0 text-[11px] leading-[1.5] text-neutral-500">
+      <p className="m-0 text-[12.5px] leading-[1.5] text-neutral-500">
         We email a single-use link — no password. Your address is private; only your
         handle is public.
       </p>
-      {error && <p className="m-0 text-[11px] text-danger">{error}</p>}
-      <button type="submit" disabled={pending} className="btn-primary h-9">
-        <PaperPlaneRight size={14} />
+      {error && <p role="alert" className="m-0 text-[13px] text-danger">{error}</p>}
+      <button type="submit" disabled={pending} className="btn-primary h-10">
+        <PaperPlaneRight size={15} aria-hidden />
         {pending ? 'Sending…' : 'Email me a sign-in link'}
       </button>
-      <p className="m-0 text-[11px] text-neutral-500">
+      <p className="m-0 text-[12.5px] text-neutral-500">
         Reading is open to everyone. Sign in only when you want to write.{' '}
         <Link href="/" className="text-neutral-300 underline">
           Back to the Board
