@@ -49,7 +49,7 @@ export function validateFileName(name: string) {
   if (!ALLOWED_EXTENSIONS.some((extension) => lower.endsWith(extension))) {
     throw new UploadValidationError(
       'unsupported_file_type',
-      'Use a .md, .markdown or .txt file.',
+      'Use a .md, .markdown or .txt file. If your chat is in another format, export it as markdown first.',
     );
   }
 }
@@ -58,22 +58,31 @@ export function validateFileSize(size: number) {
   if (size > MAX_UPLOAD_BYTES) {
     throw new UploadValidationError(
       'file_too_large',
-      `Files must be ${MAX_UPLOAD_BYTES / 1024} KB or smaller.`,
+      `Files must be ${MAX_UPLOAD_BYTES / 1024} KB or smaller. Export only the turns you want to compare and try again.`,
     );
   }
   if (size === 0) {
-    throw new UploadValidationError('empty_file', 'That file is empty.');
+    throw new UploadValidationError(
+      'empty_file',
+      'That file is empty. Export the conversation again, or download the sample export to check the format.',
+    );
   }
 }
 
 export function decodeUtf8(bytes: Uint8Array) {
   if (bytes.includes(0)) {
-    throw new UploadValidationError('binary_file', 'That file does not look like text.');
+    throw new UploadValidationError(
+      'binary_file',
+      'That file does not look like text. Export the conversation as markdown and upload the .md file.',
+    );
   }
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   } catch {
-    throw new UploadValidationError('invalid_utf8', 'That file is not valid UTF-8.');
+    throw new UploadValidationError(
+      'invalid_utf8',
+      'That file is not valid UTF-8. Re-export it as markdown and try again.',
+    );
   }
 }
 
@@ -92,7 +101,7 @@ function extractFrontMatter(text: string) {
   if (!match) {
     throw new UploadValidationError(
       'invalid_front_matter',
-      'The YAML front-matter is missing its closing --- line.',
+      'The YAML front-matter is missing its closing --- line. Add the line, or remove the front-matter and upload plain markdown.',
     );
   }
 
@@ -121,7 +130,7 @@ export function parseMarkdownUpload(text: string, fileName: string): ParsedUploa
     } catch (error) {
       throw new UploadValidationError(
         'invalid_front_matter',
-        `Could not parse the YAML front-matter: ${(error as Error).message}`,
+        `Could not parse the YAML front-matter: ${(error as Error).message}. Fix the YAML, or remove the front-matter and upload plain markdown.`,
       );
     }
 
@@ -129,25 +138,31 @@ export function parseMarkdownUpload(text: string, fileName: string): ParsedUploa
       if (typeof value !== 'object' || Array.isArray(value)) {
         throw new UploadValidationError(
           'invalid_front_matter',
-          'Front-matter must be a mapping of keys to values.',
+          'Front-matter must be a mapping of keys to values. Fix the YAML, or remove the front-matter and upload plain markdown.',
         );
       }
       const record = value as Record<string, unknown>;
       if (record.prompt !== undefined) {
         if (typeof record.prompt !== 'string') {
-          throw new UploadValidationError('invalid_prompt', '`prompt:` must be a string.');
+          throw new UploadValidationError(
+            'invalid_prompt',
+            '`prompt:` must be a string. Quote the prompt, or remove the key.',
+          );
         }
         prompt = record.prompt.trim();
         if (prompt.length > MAX_PROMPT_CHARS) {
           throw new UploadValidationError(
             'prompt_too_long',
-            `Prompts are limited to ${MAX_PROMPT_CHARS.toLocaleString()} characters.`,
+            `Prompts are limited to ${MAX_PROMPT_CHARS.toLocaleString()} characters. Shorten this prompt and try again.`,
           );
         }
       }
       if (record.model !== undefined) {
         if (typeof record.model !== 'string') {
-          throw new UploadValidationError('invalid_model', '`model:` must be a string.');
+          throw new UploadValidationError(
+            'invalid_model',
+            '`model:` must be a string. Quote the model name, or remove the key.',
+          );
         }
         model = record.model.trim() || null;
       }
@@ -156,7 +171,10 @@ export function parseMarkdownUpload(text: string, fileName: string): ParsedUploa
 
   const trimmedBody = body.replace(/^\n+/, '').trimEnd();
   if (!trimmedBody.trim()) {
-    throw new UploadValidationError('empty_body', 'The file has no response body.');
+    throw new UploadValidationError(
+      'empty_body',
+      'The file has no reply text. Export the conversation again so every turn includes its reply.',
+    );
   }
 
   return {
@@ -171,12 +189,15 @@ export function parseMarkdownUpload(text: string, fileName: string): ParsedUploa
 export function validatePrompt(prompt: string) {
   const trimmed = prompt.trim();
   if (!trimmed) {
-    throw new UploadValidationError('prompt_required', 'A prompt is required.');
+    throw new UploadValidationError(
+      'prompt_required',
+      'Add a prompt for the first turn.',
+    );
   }
   if (trimmed.length > MAX_PROMPT_CHARS) {
     throw new UploadValidationError(
       'prompt_too_long',
-      `Prompts are limited to ${MAX_PROMPT_CHARS.toLocaleString()} characters.`,
+      `Prompts are limited to ${MAX_PROMPT_CHARS.toLocaleString()} characters. Shorten this prompt and try again.`,
     );
   }
   return trimmed;
@@ -188,16 +209,22 @@ export function validatePrompt(prompt: string) {
 export function validateBaseOutput(output: string) {
   const trimmed = output.trim();
   if (!trimmed) {
-    throw new UploadValidationError('empty_body', 'Paste the base output.');
+    throw new UploadValidationError(
+      'empty_body',
+      'Paste the base output, or upload a conversation file instead.',
+    );
   }
   // Postgres text cannot store NUL, and a pasted output with one is not text.
   if (trimmed.includes('\u0000')) {
-    throw new UploadValidationError('invalid_text', 'That base output does not look like text.');
+    throw new UploadValidationError(
+      'invalid_text',
+      'That base output does not look like text. Paste plain text or upload a markdown file.',
+    );
   }
   if (trimmed.length > MAX_BASE_OUTPUT_CHARS) {
     throw new UploadValidationError(
       'output_too_long',
-      `Base outputs are limited to ${MAX_BASE_OUTPUT_CHARS.toLocaleString()} characters.`,
+      `Base outputs are limited to ${MAX_BASE_OUTPUT_CHARS.toLocaleString()} characters. Shorten this reply and try again.`,
     );
   }
   return trimmed;
@@ -212,12 +239,15 @@ export function validateTurnScript(
   input: readonly ConversationTurnInput[],
 ): ConversationTurnInput[] {
   if (!input.length) {
-    throw new UploadValidationError('empty_conversation', 'Add at least one turn.');
+    throw new UploadValidationError(
+      'empty_conversation',
+      'Add at least one turn before scheduling.',
+    );
   }
   if (input.length > MAX_CONVERSATION_TURNS) {
     throw new UploadValidationError(
       'too_many_turns',
-      `A conversation can hold at most ${MAX_CONVERSATION_TURNS} turns.`,
+      `A conversation can hold at most ${MAX_CONVERSATION_TURNS} turns, but this one has ${input.length}. Export only the turns you want to compare and try again.`,
     );
   }
 
@@ -233,7 +263,7 @@ export function validateTurnScript(
   if (characters > MAX_CONVERSATION_CHARS) {
     throw new UploadValidationError(
       'conversation_too_long',
-      `A conversation can hold at most ${MAX_CONVERSATION_CHARS.toLocaleString()} characters.`,
+      `A conversation can hold at most ${MAX_CONVERSATION_CHARS.toLocaleString()} characters across all prompts and replies, but this one has ${characters.toLocaleString()}. Remove or shorten some turns and try again.`,
     );
   }
 
@@ -245,7 +275,9 @@ export function validateConversationBytes(text: string) {
   if (bytes > MAX_CONVERSATION_BYTES) {
     throw new UploadValidationError(
       'conversation_too_large',
-      `Conversation files must be ${MAX_CONVERSATION_BYTES / 1024} KB or smaller.`,
+      `Conversation files must be ${
+        MAX_CONVERSATION_BYTES / 1024
+      } KB or smaller. Export only the turns you want to compare and try again.`,
     );
   }
 }

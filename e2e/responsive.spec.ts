@@ -83,6 +83,16 @@ async function screens(page: Page) {
         await expect(page.getByText('Calling hosted APIs', { exact: true }).first()).toBeVisible();
       },
     },
+    {
+      name: 'Export guide',
+      path: '/help/exporting',
+      assert: async () => {
+        await expect(
+          page.getByRole('heading', { name: 'How to export a chat' }),
+        ).toBeVisible();
+        await expect(page.getByRole('link', { name: /Download a sample export/ })).toBeVisible();
+      },
+    },
   ];
 }
 

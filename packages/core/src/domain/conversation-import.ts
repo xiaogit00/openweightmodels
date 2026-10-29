@@ -212,13 +212,13 @@ function importExporter(lines: readonly string[], fileName: string): Conversatio
     if (looksLikeRawChat(lines.join('\n'))) {
       throw new UploadValidationError(
         'raw_chat_paste',
-        'That looks like a chat pasted straight from a chat window. Export it with the AI Exporter extension and upload the .md file.',
+        'That looks like text pasted straight from a chat window. Export the conversation with the AI Exporter extension and upload the .md file instead.',
       );
     }
     if (looksLikeExporterChrome(lines.join('\n'))) {
       throw new UploadValidationError(
         'no_sections',
-        'This file has exporter metadata but no “# you asked” sections. Re-export the conversation and try again.',
+        'This file has AI Exporter metadata but no “# you asked” sections. Re-export the whole conversation and upload the new .md file.',
       );
     }
     return importLegacy(lines.join('\n'), fileName, 'markdown');
@@ -227,7 +227,7 @@ function importExporter(lines: readonly string[], fileName: string): Conversatio
   if (sections[0]!.kind !== 'user') {
     throw new UploadValidationError(
       'missing_user_message',
-      'The file starts with a response instead of a user message. Re-export the conversation and try again.',
+      'Turn 1 has a reply but no prompt. Re-export the conversation so every reply follows a “# you asked” section.',
     );
   }
 
@@ -250,7 +250,7 @@ function importExporter(lines: readonly string[], fileName: string): Conversatio
         if (!body) {
           throw new UploadValidationError(
             'empty_prompt',
-            `Turn ${turnNumber} has no user message.`,
+            `Turn ${turnNumber} has an empty “# you asked” section. Re-export the conversation and make sure every prompt is included.`,
           );
         }
         pendingPrompt = body;
@@ -260,7 +260,7 @@ function importExporter(lines: readonly string[], fileName: string): Conversatio
       if (!body) {
         throw new UploadValidationError(
           'empty_prompt',
-          `Turn ${turnNumber} has no user message.`,
+          `Turn ${turnNumber} has an empty “# you asked” section. Re-export the conversation and make sure every prompt is included.`,
         );
       }
       pendingPrompt = `${pendingPrompt}\n\n${body}`;
@@ -271,7 +271,7 @@ function importExporter(lines: readonly string[], fileName: string): Conversatio
     if (pendingPrompt === null) {
       throw new UploadValidationError(
         'missing_user_message',
-        `Turn ${turnNumber} has a response but no user message.`,
+        `Turn ${turnNumber} has a reply but no prompt. Re-export the conversation so every reply follows a “# you asked” section.`,
       );
     }
 
@@ -281,7 +281,7 @@ function importExporter(lines: readonly string[], fileName: string): Conversatio
     if (!body) {
       throw new UploadValidationError(
         'empty_reply',
-        `Turn ${turnNumber} has no reply from ${name}.`,
+        `Turn ${turnNumber} has no reply from ${name}. Make sure every prompt has a reply in the chat, re-export the conversation, and upload it again.`,
       );
     }
 
@@ -303,21 +303,21 @@ function importExporter(lines: readonly string[], fileName: string): Conversatio
     const name = vendor ? vendorLabel(vendor) : 'the model';
     throw new UploadValidationError(
       'missing_reply',
-      `Turn ${turnNumber} has no reply from ${name}.`,
+      `Turn ${turnNumber} has no reply from ${name}. Make sure every prompt has a reply in the chat, re-export the conversation, and upload it again.`,
     );
   }
 
   if (!turns.length) {
     throw new UploadValidationError(
       'no_sections',
-      'No conversation turns were found. Re-export the conversation and try again.',
+      'No conversation turns were found. Re-export the conversation with AI Exporter, or upload plain markdown as a one-turn comparison.',
     );
   }
 
   if (turns.length > MAX_CONVERSATION_TURNS) {
     throw new UploadValidationError(
       'too_many_turns',
-      `A conversation can hold at most ${MAX_CONVERSATION_TURNS} turns.`,
+      `A conversation can hold at most ${MAX_CONVERSATION_TURNS} turns, but this file has ${turns.length}. Export only the turns you want to compare and try again.`,
     );
   }
 

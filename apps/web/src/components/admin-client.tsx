@@ -629,8 +629,8 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
               Model registry
             </h2>
             <p className="m-0 text-[11px] text-neutral-500">
-              Disabled Models leave every picker and cannot start new Runs. Existing
-              Responses stay readable.
+              Disabled Models leave every picker and cannot answer new turns.
+              Existing Responses stay readable.
             </p>
           </div>
           <div

@@ -201,7 +201,7 @@ function TurnStateLine({
           <MinusCircle size={14} className="mt-px shrink-0" />
           {turnNumber === stoppedAtTurn
             ? `Stopped at turn ${stoppedAtTurn}${turnCount ? ` of ${turnCount}` : ''} — this comparison ends here.`
-            : `Skipped — this Replay stopped at turn ${stoppedAtTurn}.`}
+            : `Skipped — this Challenger stopped at turn ${stoppedAtTurn}.`}
         </span>
       );
     }
@@ -728,7 +728,7 @@ function AddModelMenu({
             atCap
               ? `A comparison can hold at most ${maxChallengers} challengers.`
               : multiTurn
-                ? 'Replay every turn with a new model.'
+                ? 'Compare every turn with a new model.'
                 : 'Generate another response from the same prompt.'
           }
           className={cn(
@@ -759,7 +759,7 @@ function AddModelMenu({
           {confirming ? (
             <>
               <span className="px-2 pb-1 pt-1.5 text-[10px] font-medium tracking-[0.06em] text-neutral-500">
-                REPLAY EVERY TURN
+                COMPARE EVERY TURN
               </span>
               <span className="flex items-center gap-2 px-2 pb-1 text-[12px] font-medium text-text">
                 <span className="monogram !h-[18px] !w-[18px] !text-[10px]">
@@ -771,7 +771,7 @@ function AddModelMenu({
                 data-add-replay-confirmation
                 className="px-2 pb-1.5 text-[11.5px] leading-[1.5] text-neutral-300"
               >
-                {confirming.name} replays {turnCount}{' '}
+                {confirming.name} answers {turnCount}{' '}
                 {turnCount === 1 ? 'turn' : 'turns'} · {calls} {callLabel}.
               </span>
               {addError && (
@@ -801,7 +801,7 @@ function AddModelMenu({
           ) : (
             <>
               <span className="px-2 pb-1 pt-1.5 text-[10px] font-medium tracking-[0.06em] text-neutral-500">
-                {multiTurn ? 'REPLAY THE CONVERSATION' : 'GENERATE ANOTHER RESPONSE'}
+                {multiTurn ? 'COMPARE EVERY TURN' : 'GENERATE ANOTHER RESPONSE'}
               </span>
               {models.map((model) => (
                 <button
@@ -835,8 +835,8 @@ function AddModelMenu({
               )}
               <span className="px-2 pb-1 pt-1.5 text-[11px] leading-[1.4] text-neutral-500">
                 {multiTurn
-                  ? 'Replays every turn for the model you pick.'
-                  : 'Runs the same prompt through the model\u2019s hosted API.'}
+                  ? 'Compares every turn for the model you pick.'
+                  : 'Sends the same prompt to the model\u2019s hosted API.'}
               </span>
             </>
           )}
@@ -2168,7 +2168,7 @@ export function ComparisonView(props: ComparisonPageData) {
                         : failed
                           ? `${response.model.name} — failed: ${response.error ?? 'API timeout'}`
                           : inProgress || pending
-                            ? `${response.model.name} — Replay in progress`
+                            ? `${response.model.name} — generating replies`
                             : undefined
                     }
                     title={
@@ -2177,7 +2177,7 @@ export function ComparisonView(props: ComparisonPageData) {
                         : failed
                           ? response.error ?? 'API timeout'
                           : inProgress
-                            ? 'Replay in progress'
+                            ? 'Generating replies'
                             : undefined
                     }
                     className={cn(
@@ -2197,7 +2197,7 @@ export function ComparisonView(props: ComparisonPageData) {
                         data-replay-in-progress
                         className="rounded-[2px] border border-accent-700 px-1 py-0.5 text-[10px] font-medium leading-none text-accent-200"
                       >
-                        Replay in progress
+                        Generating replies
                       </span>
                     )}
                     {failed && <WarningCircle size={12} className="text-danger" />}

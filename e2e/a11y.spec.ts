@@ -80,4 +80,13 @@ test.describe('automated accessibility scan', () => {
     });
     await expectNoSeriousViolations(page, 'Job');
   });
+
+  test('Export guide', async ({ page }) => {
+    await signInAs(page, 'mira');
+    await page.goto('/help/exporting');
+    await expect(
+      page.getByRole('heading', { name: 'How to export a chat' }),
+    ).toBeVisible();
+    await expectNoSeriousViolations(page, 'Export guide');
+  });
 });

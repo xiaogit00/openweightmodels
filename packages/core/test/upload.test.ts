@@ -43,7 +43,9 @@ describe('file validation', () => {
     })();
 
     expect(error?.code).toBe('unsupported_file_type');
-    expect(error?.message).toBe('Use a .md, .markdown or .txt file.');
+    expect(error?.message).toBe(
+      'Use a .md, .markdown or .txt file. If your chat is in another format, export it as markdown first.',
+    );
   });
 
   it('accepts a file exactly at the 0.5 MB limit and rejects one byte more', () => {
@@ -53,6 +55,30 @@ describe('file validation', () => {
 
   it('rejects an empty file', () => {
     expect(errorCode(() => validateFileSize(0))).toBe('empty_file');
+  });
+
+  it('names the problem and the fix for empty and oversized files', () => {
+    const empty = (() => {
+      try {
+        validateFileSize(0);
+      } catch (caught) {
+        return caught as UploadValidationError;
+      }
+      return null;
+    })();
+    expect(empty?.message).toContain('Export the conversation again');
+    expect(empty?.message).toContain('sample export');
+
+    const large = (() => {
+      try {
+        validateFileSize(MAX_UPLOAD_BYTES + 1);
+      } catch (caught) {
+        return caught as UploadValidationError;
+      }
+      return null;
+    })();
+    expect(large?.message).toContain('500 KB or smaller');
+    expect(large?.message).toContain('Export only the turns');
   });
 
   it('decodes valid UTF-8, including multi-byte characters', () => {

@@ -60,7 +60,7 @@ export default async function PrivacyPage() {
                 Sign-in session: a session token, its expiry, IP address and browser user
                 agent; a hashed magic-link token with its expiry
               </td>
-              <td>Keep you signed in, prevent link replay, and secure the service</td>
+              <td>Keep you signed in, prevent link reuse, and secure the service</td>
               <td>The operator only.</td>
             </tr>
             <tr>
@@ -69,7 +69,7 @@ export default async function PrivacyPage() {
                 upload, and generated Challenger Responses with model, token count,
                 latency and provider-reported cost
               </td>
-              <td>To run and display the Comparison</td>
+              <td>To generate and display the Comparison</td>
               <td>
                 Published Comparisons are public. Drafts, Jobs and unpublished work are
                 visible only to you (and silently hidden from everyone else).
@@ -98,7 +98,7 @@ export default async function PrivacyPage() {
             </tr>
             <tr>
               <td>Public activity ticker lines, such as &ldquo;@handle published …&rdquo;</td>
-              <td>Live Board activity and reconnect replay</td>
+              <td>Live Board activity and catch-up after a reconnect</td>
               <td>Public.</td>
             </tr>
           </tbody>
@@ -197,7 +197,7 @@ export default async function PrivacyPage() {
             <tr>
               <td>Public activity ticker lines</td>
               <td>
-                Kept for the live Board and reconnect replay. Lines for content or an
+                Kept for the live Board and catch-up after a reconnect. Lines for content or an
                 account that is removed are deleted. There is no scheduled pruning job
                 yet; the retained window is the database&rsquo;s full history.
               </td>

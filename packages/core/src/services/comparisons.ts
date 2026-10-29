@@ -469,7 +469,7 @@ export async function addModelToComparison(
     .where(eq(turns.comparisonId, comparisonId))
     .orderBy(turns.position);
   if (!turnRows.length) {
-    throw conflict('no_turns', 'That comparison has no turns to replay.');
+    throw conflict('no_turns', 'That comparison has no turns to compare.');
   }
 
   const jobId = uuidv7();

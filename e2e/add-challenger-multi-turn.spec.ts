@@ -50,7 +50,7 @@ test('add a Challenger to a published multi-Turn Comparison replays every Turn',
 
   const confirmation = menu.locator('[data-add-replay-confirmation]');
   await expect(confirmation).toBeVisible();
-  await expect(confirmation).toContainText('replays 3 turns');
+  await expect(confirmation).toContainText('answers 3 turns');
   await expect(confirmation).toContainText('3 hosted API calls');
 
   // Cancelling keeps the comparison untouched.

@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Check,
@@ -37,6 +38,8 @@ import {
 } from '@owm/core/client';
 import { SiteHeader } from './site-header';
 import { ComparisonPreview } from './comparison-preview';
+import { HowToGetThisFile } from './how-to-get-this-file';
+import { EXPORT_GUIDE_PATH, LIMITS_LABEL } from '@/lib/export-guidance';
 import { cn, plural } from '@/lib/utils';
 
 export type FormModel = SelectableModel & {
@@ -49,37 +52,35 @@ type LoadedFile = {
   sizeLabel: string;
 };
 
-const SAMPLE_FILE_NAME = 'ratelimiter.md';
-const SAMPLE_TITLE = 'Rate limiter in Go with sliding windows';
-const SAMPLE_TEXT = `---
-prompt: Write a thread-safe sliding-window rate limiter in Go. Allow N requests per window per key, and explain the trade-offs.
-model: llama-3-3-70b
----
+type FormError = {
+  code: string;
+  message: string;
+};
 
-Here's a sliding-window rate limiter that tracks request timestamps per key. It's safe for concurrent use: every key has its own mutex, and the window is trimmed on every request.
-
-\`\`\`go
-type window struct {
-    mu    sync.Mutex
-    stamps []time.Time
-}
-
-func (w *window) allow(now time.Time, limit int, span time.Duration) bool {
-    w.mu.Lock()
-    defer w.mu.Unlock()
-    cutoff := now.Add(-span)
-    for len(w.stamps) > 0 && w.stamps[0].Before(cutoff) {
-        w.stamps = w.stamps[1:]
-    }
-    if len(w.stamps) >= limit {
-        return false
-    }
-    w.stamps = append(w.stamps, now)
-    return true
-}
-\`\`\`
-
-The trade-off is memory: a sliding-window log is exact, but it stores one timestamp per accepted request. A ring buffer or a coarse fixed window uses less memory at the cost of bursts at the boundary.`;
+/** Upload refusals the export guide can explain, including server re-parses. */
+const UPLOAD_ERROR_CODES = new Set([
+  'unsupported_file_type',
+  'file_too_large',
+  'empty_file',
+  'binary_file',
+  'invalid_utf8',
+  'invalid_front_matter',
+  'invalid_prompt',
+  'invalid_model',
+  'prompt_too_long',
+  'empty_body',
+  'invalid_text',
+  'output_too_long',
+  'conversation_too_large',
+  'conversation_too_long',
+  'too_many_turns',
+  'empty_prompt',
+  'missing_user_message',
+  'empty_reply',
+  'missing_reply',
+  'no_sections',
+  'raw_chat_paste',
+]);
 
 function Step({
   number,
@@ -196,12 +197,12 @@ export function NewComparisonClient({
   const [categories, setCategories] = useState<string[]>([]);
   const [effort, setEffort] = useState(2);
   const [dragging, setDragging] = useState(false);
-  const [fileError, setFileError] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<FormError | null>(null);
   const [modelNotice, setModelNotice] = useState<string | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<FormError | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // The upload tab replays every Turn; the write tab is always one Turn.
+  // The upload tab compares every Turn; the write tab is always one Turn.
   const turnCount =
     baseSource === 'upload' ? loaded?.imported.turns.length ?? 1 : 1;
   const schedule = describeSchedule({
@@ -289,8 +290,12 @@ export function NewComparisonClient({
     } catch (error) {
       setFileError(
         error instanceof UploadValidationError
-          ? error.message
-          : 'That file could not be read as text.',
+          ? { code: error.code, message: error.message }
+          : {
+              code: 'unreadable_file',
+              message:
+                'That file could not be read as text. Export the conversation as markdown and try again.',
+            },
       );
     }
   }
@@ -345,20 +350,31 @@ export function NewComparisonClient({
 
       const response = await fetch('/api/comparisons', { method: 'POST', body });
       const payload = (await response.json().catch(() => null)) as
-        | { id?: string; error?: { message?: string } }
+        | { id?: string; error?: { code?: string; message?: string } }
         | null;
 
       if (!response.ok || !payload?.id) {
-        throw new Error(
+        const failure = new Error(
           payload?.error?.message ?? 'Could not schedule this comparison. Try again.',
-        );
+        ) as Error & { code?: string };
+        failure.code = payload?.error?.code;
+        throw failure;
       }
 
       router.push(`/comparisons/${payload.id}/job`);
     } catch (error) {
-      setSubmitError(
-        error instanceof Error ? error.message : 'Could not schedule this comparison. Try again.',
-      );
+      setSubmitError({
+        code:
+          error instanceof UploadValidationError
+            ? error.code
+            : error instanceof Error && 'code' in error && error.code
+              ? String(error.code)
+              : 'schedule_failed',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Could not schedule this comparison. Try again.',
+      });
       setSubmitting(false);
     }
   }
@@ -374,8 +390,8 @@ export function NewComparisonClient({
               New comparison
             </h1>
             <span className="text-[12px] font-normal text-neutral-400">
-              Upload a base output or write one, then pick who to compare it against.
-              We&apos;ll run the same prompt through each model&apos;s hosted API.
+              Upload a conversation or write one prompt, then pick who to compare it
+              against. We&apos;ll send every turn to each model&apos;s hosted API.
             </span>
           </div>
 
@@ -462,21 +478,7 @@ export function NewComparisonClient({
                         read automatically
                       </span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const sample = new File([SAMPLE_TEXT], SAMPLE_FILE_NAME, {
-                          type: 'text/markdown',
-                        });
-                        void loadFile(sample, {
-                          title: SAMPLE_TITLE,
-                          categories: ['Coding'],
-                        });
-                      }}
-                      className="self-start text-[12px] font-medium text-neutral-400 transition-colors hover:text-accent-200"
-                    >
-                      Use a sample file
-                    </button>
+                    <HowToGetThisFile />
                   </>
                 ) : (
                   <div className="flex flex-col gap-[10px] rounded-[2px] bg-surface p-3">
@@ -583,6 +585,9 @@ export function NewComparisonClient({
                         : ''}{' '}
                       · ~{estimatedTokens.toLocaleString('en-US')} input tokens per model
                     </p>
+                    <p className="text-[11px] font-normal leading-[1.45] text-neutral-500">
+                      Limits: {LIMITS_LABEL}
+                    </p>
 
                     {modelNotice && (
                       <p
@@ -629,13 +634,21 @@ export function NewComparisonClient({
             )}
 
             {baseSource === 'upload' && fileError && (
-              <p
+              <div
                 role="alert"
-                className="flex items-start gap-[6px] text-[11px] font-normal leading-[1.45] text-danger"
+                className="flex flex-col gap-[3px] text-[11px] font-normal leading-[1.45] text-danger"
               >
-                <WarningCircle size={13} className="mt-px flex-none" />
-                {fileError}
-              </p>
+                <p className="flex items-start gap-[6px]">
+                  <WarningCircle size={13} className="mt-px flex-none" />
+                  {fileError.message}
+                </p>
+                <Link
+                  href={EXPORT_GUIDE_PATH}
+                  className="ml-[19px] font-medium text-accent-300 hover:text-accent-200"
+                >
+                  See how to fix an export
+                </Link>
+              </div>
             )}
           </section>
 
@@ -797,13 +810,23 @@ export function NewComparisonClient({
           </section>
 
           {submitError && (
-            <p
+            <div
               role="alert"
-              className="flex items-start gap-[6px] rounded-[2px] border border-danger/40 bg-danger/10 px-3 py-2 text-[12px] font-normal leading-[1.45] text-danger"
+              className="flex flex-col gap-[4px] rounded-[2px] border border-danger/40 bg-danger/10 px-3 py-2 text-[12px] font-normal leading-[1.45] text-danger"
             >
-              <X size={14} className="mt-px flex-none" />
-              {submitError}
-            </p>
+              <p className="flex items-start gap-[6px]">
+                <X size={14} className="mt-px flex-none" />
+                {submitError.message}
+              </p>
+              {baseSource === 'upload' && UPLOAD_ERROR_CODES.has(submitError.code) && (
+                <Link
+                  href={EXPORT_GUIDE_PATH}
+                  className="ml-5 font-medium text-accent-300 hover:text-accent-200"
+                >
+                  See how to fix an export
+                </Link>
+              )}
+            </div>
           )}
 
           <div className="flex flex-wrap items-center gap-3 pt-[6px]">
@@ -820,7 +843,7 @@ export function NewComparisonClient({
               {submitting ? 'Scheduling…' : 'Schedule comparison'}
             </button>
             <span className="text-[12px] font-normal text-neutral-500">
-              {submitting ? 'Creating the job and queueing its runs…' : schedule.hint}
+              {submitting ? 'Creating the job and queueing its turns…' : schedule.hint}
             </span>
           </div>
         </form>

@@ -170,7 +170,8 @@ describe('AI Exporter import', () => {
     ].join('\n');
     expect(errorCode(() => parseConversationUpload(empty, 'empty.md'))).toEqual({
       code: 'empty_reply',
-      message: 'Turn 1 has no reply from Claude.',
+      message:
+        'Turn 1 has no reply from Claude. Make sure every prompt has a reply in the chat, re-export the conversation, and upload it again.',
     });
 
     const missing = [
@@ -183,7 +184,8 @@ describe('AI Exporter import', () => {
     ].join('\n');
     expect(errorCode(() => parseConversationUpload(missing, 'missing.md'))).toEqual({
       code: 'missing_reply',
-      message: 'Turn 2 has no reply from Claude.',
+      message:
+        'Turn 2 has no reply from Claude. Make sure every prompt has a reply in the chat, re-export the conversation, and upload it again.',
     });
   });
 
@@ -252,6 +254,85 @@ describe('AI Exporter import', () => {
     expect(tokens).toBeGreaterThan(
       estimateConversationInputTokens(imported.turns.slice(0, 1)),
     );
+  });
+});
+
+describe('refusal copy', () => {
+  function exporterWith(turnCount: number, prompt = 'Question', reply = 'Answer') {
+    const lines = ['> From: https://chat.example/abc'];
+    for (let turn = 1; turn <= turnCount; turn += 1) {
+      lines.push(
+        '',
+        '# you asked',
+        '',
+        `message time: 2026-10-28 13:0${turn}:00`,
+        '',
+        `${prompt} ${turn}`,
+        '',
+        '---',
+        '',
+        '# deepseek response',
+        '',
+        `message time: 2026-10-28 13:0${turn}:04`,
+        '',
+        `${reply} ${turn}`,
+        '',
+        '---',
+      );
+    }
+    lines.push('Powered by [AI Exporter](https://saveai.net)');
+    return lines.join('\n');
+  }
+
+  it('names the problem and the fix for a turn-count refusal', () => {
+    const tooMany = errorCode(() =>
+      parseConversationUpload(exporterWith(7), 'seven.md'),
+    );
+    expect(tooMany?.code).toBe('too_many_turns');
+    expect(tooMany?.message).toContain('at most 6 turns');
+    expect(tooMany?.message).toContain('this file has 7');
+    expect(tooMany?.message).toContain('Export only the turns');
+  });
+
+  it('names the character limit and the fix for an over-long Conversation', () => {
+    const long = exporterWith(6, 'p'.repeat(9_990), 'r'.repeat(9_990));
+    const result = errorCode(() => parseConversationUpload(long, 'long.md'));
+
+    expect(result?.code).toBe('conversation_too_long');
+    expect(result?.message).toContain('100,000 characters');
+    expect(result?.message).toContain('across all prompts and replies');
+    expect(result?.message).toContain('Remove or shorten some turns');
+  });
+
+  it('points exporter metadata, raw pastes and empty replies at the next step', () => {
+    const noSections = errorCode(() =>
+      parseConversationUpload(
+        '> From: https://chat.example/abc\n\nPowered by [AI Exporter](https://saveai.net)',
+        'chrome.md',
+      ),
+    );
+    expect(noSections?.code).toBe('no_sections');
+    expect(noSections?.message).toContain('Re-export the whole conversation');
+
+    const paste = errorCode(() =>
+      parseConversationUpload(
+        'You: Summarise this.\nChatGPT: Here is a summary.',
+        'paste.md',
+      ),
+    );
+    expect(paste?.code).toBe('raw_chat_paste');
+    expect(paste?.message).toContain('Export the conversation with');
+    expect(paste?.message).toContain('instead');
+
+    const noReply = errorCode(() =>
+      parseConversationUpload(
+        ['# you asked', 'A question', '# claude response', ''].join('\n'),
+        'reply.md',
+      ),
+    );
+    expect(noReply?.code).toBe('empty_reply');
+    expect(noReply?.message).toContain('Turn 1');
+    expect(noReply?.message).toContain('re-export the conversation');
   });
 });
 
