@@ -110,16 +110,32 @@ test('New Comparison at 1440px', async ({ page }) => {
   const metrics = await page.evaluate(() => {
     const form = document.querySelector('form')!;
     const main = form.parentElement!;
+    const aside = main.querySelector('aside')!;
     const styles = getComputedStyle(main);
+    const formBox = form.getBoundingClientRect();
+    const asideBox = aside.getBoundingClientRect();
     return {
       maxWidth: styles.maxWidth,
-      columns: styles.gridTemplateColumns.split(' ').map((value) => Number.parseFloat(value)),
+      display: styles.display,
+      flexWrap: styles.flexWrap,
+      columnGap: styles.columnGap,
+      padding: styles.padding,
+      formWidth: formBox.width,
+      asideWidth: asideBox.width,
+      sideBySide:
+        Math.abs(formBox.top - asideBox.top) < 2 && asideBox.left > formBox.left,
     };
   });
-  expect(metrics.maxWidth).toBe('1120px');
-  // Form column plus the 300px live preview.
-  expect(metrics.columns.at(-1)).toBeCloseTo(300, 0);
-  expect(metrics.columns.length).toBe(2);
+  expect(metrics.maxWidth).toBe('1200px');
+  // A wrapping flex row: the form grows, the live preview caps at 360px and
+  // drops under the form on narrow screens.
+  expect(metrics.display).toBe('flex');
+  expect(metrics.flexWrap).toBe('wrap');
+  expect(metrics.columnGap).toBe('48px');
+  expect(metrics.padding).toBe('40px 32px 80px');
+  expect(metrics.sideBySide).toBe(true);
+  expect(metrics.asideWidth).toBeLessThanOrEqual(360);
+  expect(metrics.formWidth).toBeGreaterThan(metrics.asideWidth);
 
   await screenshot(page, 'new-comparison-1440.png');
 });
