@@ -174,6 +174,11 @@ export type JobRunState = {
   error: string | null;
   attempt: number;
   progress: number;
+  turnId: string;
+  /** One-based Turn number this Response answers. */
+  turnNumber: number;
+  /** Number of Turns in the whole Conversation. */
+  turnCount: number;
 };
 
 /**

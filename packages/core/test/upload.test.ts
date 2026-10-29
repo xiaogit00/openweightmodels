@@ -46,7 +46,7 @@ describe('file validation', () => {
     expect(error?.message).toBe('Use a .md, .markdown or .txt file.');
   });
 
-  it('accepts a file exactly at the 1 MB limit and rejects one byte more', () => {
+  it('accepts a file exactly at the 0.5 MB limit and rejects one byte more', () => {
     expect(() => validateFileSize(MAX_UPLOAD_BYTES)).not.toThrow();
     expect(errorCode(() => validateFileSize(MAX_UPLOAD_BYTES + 1))).toBe('file_too_large');
   });

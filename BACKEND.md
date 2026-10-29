@@ -2,7 +2,7 @@
 
 Status: **accepted implementation contract**, with one rework in progress (below). This file supersedes `design_handoff_openweightmodels/BACKEND.md` wherever the two disagree. The design handoff remains the visual source of truth.
 
-> **Rework in progress: multi-turn Conversations.** The target is a Comparison of one Conversation's Turns (ADR 0008), AI Exporter markdown as the canonical Base output format (ADR 0009), and frontier models as first-class registry entries (ADR 0010). The settled design is `.scratch/openweightmodels/spec.md`; tickets 18–25 carry the work. Sections **2, 4 (comparison creation), 5, 6 and 7** below still describe the single-Prompt implementation and are replaced by ticket 20. Do not build new work against them — and update them in the same change that makes them false.
+> **Rework in progress: multi-turn Conversations.** The target is a Comparison of one Conversation's Turns (ADR 0008), AI Exporter markdown as the canonical Base output format (ADR 0009), and frontier models as first-class registry entries (ADR 0010). The settled design is `.scratch/openweightmodels/spec.md`; tickets 18–25 carry the work. Ticket 20 made creation, the Replay lifecycle and the Job/Comparison reads Turn-aware; **section 6** still describes the legacy single-Turn parser until ticket 21 lands the AI Exporter importer.
 
 Related documents:
 
@@ -432,24 +432,27 @@ The Board loads facets once per page, patches them from `comparison.published` S
 
 `POST /comparisons` multipart fields:
 
-> **Replaced by tickets 20–21.** Creation will take a parsed multi-Turn script. Today it accepts either one uploaded Base output or one pasted Prompt plus Base output, and writes a single Turn.
+Exactly one of `file`, `base_output` or `turns` supplies the Conversation; sending more than one is rejected with `base_conflict`.
 
-- `file` — upload tab: `.md`/`.markdown`/`.txt`, ≤1 MB, valid UTF-8
-- `base_output` — write tab: the Base model's reply, ≤100,000 chars. Exactly one of `file` or `base_output` is required; sending both is rejected with `base_conflict`
+- `file` — upload path: `.md`/`.markdown`/`.txt`, ≤0.5 MB, valid UTF-8; currently one Turn (the AI Exporter parser lands in ticket 21)
+- `base_output` — write path: the Base model's reply, ≤100,000 chars
+- `turns` — turn-script path: a JSON array of `{ "prompt": string, "baseOutput": string }`, 1–6 entries. Each Prompt is ≤10,000 chars; Prompts plus Base replies across the Conversation are ≤100,000 chars. This is the path the import confirmation will call.
 - `base_model_id` — required, enabled model
-- `prompt` — required after front-matter fallback, ≤10,000 chars
+- `prompt` — fills the first Turn when the source did not carry one; ≤10,000 chars
 - `model_ids` / `model_ids[]` — 1–4 enabled challengers, unique, excludes the base
-- `title` — required after filename or prompt-summary fallback, ≤200 chars
+- `title` — required after filename or first-Prompt-summary fallback, ≤200 chars
 - `categories` — zero or more values from the fixed Category list
 - `effort` — 1, 2 or 3
+
+Creation enforces the 6-Turn, 0.5 MB and 100,000-character limits before writing anything, so an oversized Conversation never leaves a queued Job behind.
 
 ### Responses and jobs
 
 | Method | Path | Notes |
 |---|---|---|
-| `POST` | `/responses/:id/retry` | author; failed only |
-| `POST` | `/responses/:id/skip` | author; failed/queued only; finalises the Job |
-| `GET` | `/jobs/:id` | author-only; job + Comparison + Base model/snippet + first Challenger snippet + Runs |
+| `POST` | `/responses/:id/retry` | author; failed Turn only; resumes its Replay from that Turn |
+| `POST` | `/responses/:id/skip` | author; failed/queued Turn only; cascades skipped to every later Turn of that Challenger, then finalises the Job |
+| `GET` | `/jobs/:id` | author-only; job + Comparison + Base model/snippet + first Challenger snippet + one Run per Turn, each carrying `turnNumber`/`turnCount` |
 | `GET` | `/stream/jobs/:id` | author-only SSE |
 
 ### Annotations
@@ -513,20 +516,21 @@ Both use `text/event-stream`, monotonic `id:` values, `Last-Event-ID` replay fro
 
 ## 5. Job pipeline
 
-> **Replaced by ticket 20.** The provider receives the accumulated message array for a Turn, each Challenger is a Replay across every Turn, and Retry and Skip operate per Turn.
+A **Replay** is one Challenger's Responses across every Turn, generated in Turn order. Different Challengers replay in parallel; Turns within one Replay are strictly sequential. Retry and Skip operate on one Turn's Response.
 
-1. **Schedule.** `POST /comparisons` validates the upload or pasted reply and quota, writes the Comparison (`generating`), its single Turn, Base Response (`done`), Job (`scheduled`) and one queued Response per Challenger in one transaction. It then enqueues **one BullMQ job per Run** and logs `job.scheduled`.
+1. **Schedule.** `POST /comparisons` validates the Conversation, limits and quota, then writes the Comparison (`generating`), every Turn, one Base Response (`done`) per Turn, the Job (`scheduled`) and one queued Response per Challenger per Turn in one transaction. It enqueues only the **first Turn of each Replay** and logs `job.scheduled`. A later Turn stays queued until its predecessor succeeds.
 2. **Resolve.** The model registry row is loaded at write time. Disabled or unknown models are rejected before a Job exists; an unknown model at run time is marked `failed`.
-3. **Run.** Each worker claims the Response with an atomic `queued → calling` update (a duplicate delivery then no-ops), sets the Job to `running`, and calls the provider with:
-   - a single user message containing the Prompt,
-   - `temperature: 0.7`,
-   - `max_tokens: 4096`,
-   - `stream: true`,
-   - a 120-second timeout.
-4. **Stream.** The worker appends chunks, updates `tokens` and `response.status` at most every 500 ms, and emits `response.status` job events.
-5. **Finish.** On success it stores `content_md`, final tokens, latency and provider cost, sets `done`, then attempts to finalise the Job. On failure it stores the error, sets `failed`, schedules the attempt-scoped 24-hour auto-skip, then attempts to finalise.
-6. **Finalise.** `finalizeJob` locks the Job row, checks every Run; if all are `done`/`skipped`, it sets the Job `ready`, moves a `generating` Comparison to `ready`, inserts a `job.ready` notification for the Author, emits `job.ready`, and writes `run.finished` activity only if the Comparison is already published. That activity carries the settled `card`, so the Board can replace a live card's model list, snippets and counts when an added Challenger completes.
-7. **Publish.** Explicit `POST /publish` sets `published_at`, `status = published`, and emits `comparison.published` with the full card payload.
+3. **Run.** Each worker claims the Response with an atomic `queued → calling` update (a duplicate delivery then no-ops), sets the Job to `running`, and calls the provider with the Turn's message array:
+   - the Conversation's user messages 1..*n*,
+   - interleaved with **this Model's own** done Responses 1..*n-1*,
+   - never the Base model's replies, another Challenger's replies, or reasoning content,
+   - `temperature: 0.7`, `max_tokens: 4096`, `stream: true`, a 120-second timeout.
+   A worker whose earlier Turn is not done no-ops, so out-of-order delivery cannot break the Replay.
+4. **Stream.** The worker appends chunks, updates `tokens` and `response.status` at most every 500 ms, and emits `response.status` job events. Each Turn carries its own status, tokens, latency, error and attempt.
+5. **Finish.** On success it stores `content_md`, final tokens, latency and provider cost, sets that Turn `done`, and enqueues the next queued Turn of the same Replay. On failure it stores the error and sets only that Turn `failed`; later Turns stay queued. It schedules the attempt-scoped 24-hour auto-skip, which cascades skipped through the rest of that Replay, then attempts to finalise.
+6. **Retry / Skip.** Retry re-queues the failed Turn and resumes the Replay when it succeeds. Skip marks that Turn and every later queued/failed Turn of the same Challenger `skipped`; done Turns are kept. Auto-skip takes the same path.
+7. **Finalise.** `finalizeJob` locks the Job row, checks every Run; if all are `done`/`skipped`, it sets the Job `ready`, moves a `generating` Comparison to `ready`, inserts a `job.ready` notification for the Author, emits `job.ready`, and writes `run.finished` activity only if the Comparison is already published. That activity carries the settled `card`, so the Board can replace a live card's model list, snippets and counts when an added Challenger completes.
+8. **Publish.** Explicit `POST /publish` requires the whole Job to be ready (every Replay finished or stopped) and sets `published_at`, `status = published`, then emits `comparison.published` with the full card payload. A stopped Replay keeps its done Turns and its skipped tail visible so readers can see where it ended.
 
 **Redis loss**: Postgres is authoritative. Non-terminal Runs can be re-enqueued from Postgres; the SSE stream falls back to polling. Redis must run with `maxmemory-policy: noeviction`; ElastiCache Serverless is not supported for BullMQ.
 
@@ -534,9 +538,9 @@ Both use `text/event-stream`, monotonic `id:` values, `Last-Event-ID` replay fro
 
 ## 6. Upload parsing
 
-> **Replaced by tickets 21 and 25.** AI Exporter markdown is the canonical format (ADR 0009); the front-matter and bare-markdown rules below survive only as one-Turn fallbacks.
+> **Extends in tickets 21 and 25.** AI Exporter markdown is the canonical format (ADR 0009); the front-matter and bare-markdown rules below survive as one-Turn fallbacks until the importer lands. Ticket 20 already enforces the 0.5 MB conversation limit and accepts an explicit turn script.
 
-- Accept `.md`, `.markdown`, `.txt`, **1 MB** maximum.
+- Accept `.md`, `.markdown`, `.txt`, **0.5 MB** maximum.
 - Reject null bytes, invalid UTF-8 and empty bodies.
 - Front matter is optional. It must start and end with a `---` line. Parse with a core YAML schema and **`maxAliasCount: 0`**; no custom tags.
 - Only `prompt:` and `model:` are read. Both must be strings if present. Other keys are ignored.

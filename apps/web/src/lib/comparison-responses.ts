@@ -16,6 +16,7 @@ export type ComparisonResponseView = {
   status: ResponseStatus;
   error: string | null;
   model: { slug: string; name: string; monogram: string };
+  turn: { id: string; position: number; prompt: string };
   blocks: Block[];
 };
 
@@ -27,20 +28,29 @@ export type ComparisonResponseView = {
 export function toComparisonResponseViews(
   bundle: ComparisonBundle,
 ): ComparisonResponseView[] {
-  return bundle.responses.map(({ response, model }) => ({
-    id: response.id,
-    jobId: response.jobId,
-    isBase: response.isBase,
-    contentMd: response.contentMd,
-    tokens: response.tokens,
-    latencyMs: response.latencyMs,
-    status: response.status,
-    error: response.error,
-    model: {
-      slug: model.slug,
-      name: model.displayName,
-      monogram: model.monogram,
-    },
-    blocks: response.status === 'done' ? buildBlocks(response.contentMd) : [],
-  }));
+  const turnMap = new Map(bundle.turns.map((turn) => [turn.id, turn]));
+  return bundle.responses.map(({ response, model }) => {
+    const turn = turnMap.get(response.turnId);
+    return {
+      id: response.id,
+      jobId: response.jobId,
+      isBase: response.isBase,
+      contentMd: response.contentMd,
+      tokens: response.tokens,
+      latencyMs: response.latencyMs,
+      status: response.status,
+      error: response.error,
+      model: {
+        slug: model.slug,
+        name: model.displayName,
+        monogram: model.monogram,
+      },
+      turn: {
+        id: response.turnId,
+        position: turn?.position ?? 0,
+        prompt: turn?.prompt ?? '',
+      },
+      blocks: response.status === 'done' ? buildBlocks(response.contentMd) : [],
+    };
+  });
 }

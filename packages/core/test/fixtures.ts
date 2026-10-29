@@ -24,6 +24,8 @@ export type FixtureOptions = {
   apiBase?: string | null;
   /** Provider model identifier the adapter should send. Defaults to null. */
   apiModelId?: string | null;
+  /** Per-Challenger provider identifiers, in creation order. */
+  challengerApiModelIds?: Array<string | null>;
   /**
    * Attach this Comparison to an existing account instead of creating a
    * throwaway author. The caller owns that account's cleanup.
@@ -70,14 +72,19 @@ export async function createJobFixture(options: FixtureOptions = {}) {
   const challengers = options.challengers ?? 1;
   const tag = uuidv7().replace(/-/g, '').slice(-10);
 
-  const modelRow = (slug: string, displayName: string, monogram: string) => ({
+  const modelRow = (
+    slug: string,
+    displayName: string,
+    monogram: string,
+    apiModelId: string | null = options.apiModelId ?? null,
+  ) => ({
     id: uuidv7(),
     slug,
     displayName,
     monogram,
     provider: options.provider ?? 'mock',
     apiBase: options.apiBase ?? null,
-    apiModelId: options.apiModelId ?? null,
+    apiModelId,
   });
 
   const modelRows = await db
@@ -89,6 +96,7 @@ export async function createJobFixture(options: FixtureOptions = {}) {
           `fixture-challenger-${index}-${tag}`,
           `Fixture Challenger ${index + 1} ${tag}`,
           'FC',
+          options.challengerApiModelIds?.[index] ?? options.apiModelId ?? null,
         ),
       ),
     ])

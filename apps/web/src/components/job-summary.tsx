@@ -23,6 +23,7 @@ import {
 } from '@owm/core/client';
 import { SiteHeader } from './site-header';
 import { ComparisonPreview } from './comparison-preview';
+import { groupReplays, type ReplayState } from '@/lib/job-replays';
 import { isResponseStatus, responseErrorMessage, type JobStreamEvent } from '@/lib/run-events';
 import { cn } from '@/lib/utils';
 
@@ -38,43 +39,6 @@ type RunPresentation = {
   colour: string;
   spinning?: boolean;
 };
-
-function presentation(run: JobRunState): RunPresentation {
-  switch (run.status) {
-    case 'calling':
-      return {
-        label: 'Calling API…',
-        icon: CircleNotch,
-        colour: 'text-accent-200',
-        spinning: true,
-      };
-    case 'streaming':
-      return {
-        label: `Generating · ${run.tokens} tok`,
-        icon: CircleNotch,
-        colour: 'text-accent-200',
-        spinning: true,
-      };
-    case 'done':
-      return {
-        label: `Done · ${run.tokens} tok${
-          run.latencyMs !== null ? ` · ${(run.latencyMs / 1000).toFixed(1)}s` : ''
-        }`,
-        icon: CheckCircle,
-        colour: 'text-neutral-200',
-      };
-    case 'failed':
-      return {
-        label: run.error || 'API timeout',
-        icon: WarningCircle,
-        colour: 'text-neutral-200',
-      };
-    case 'skipped':
-      return { label: 'Skipped', icon: MinusCircle, colour: 'text-neutral-500' };
-    default:
-      return { label: 'Queued', icon: Clock, colour: 'text-neutral-400' };
-  }
-}
 
 export type JobView = {
   jobId: string;
@@ -96,6 +60,43 @@ export type JobView = {
 
 type Connection = 'connecting' | 'live' | 'reconnecting';
 type RunAction = 'retry' | 'skip';
+
+
+function replayPresentation(replay: ReplayState): RunPresentation {
+  if (replay.status === 'failed') {
+    return {
+      label: replay.failedRun?.error || 'API timeout',
+      icon: WarningCircle,
+      colour: 'text-neutral-200',
+    };
+  }
+  if (replay.status === 'stopped') {
+    return {
+      label: `Stopped at turn ${replay.turnNumber}`,
+      icon: MinusCircle,
+      colour: 'text-neutral-500',
+    };
+  }
+  if (replay.status === 'done') {
+    return {
+      label: `Done · ${replay.tokens} tok${
+        replay.latencyMs !== null ? ` · ${(replay.latencyMs / 1000).toFixed(1)}s` : ''
+      }`,
+      icon: CheckCircle,
+      colour: 'text-neutral-200',
+    };
+  }
+  if (replay.status === 'calling' || replay.status === 'streaming') {
+    const streaming = replay.status === 'streaming';
+    return {
+      label: streaming ? `Generating · ${replay.tokens} tok` : 'Calling API…',
+      icon: CircleNotch,
+      colour: 'text-accent-200',
+      spinning: true,
+    };
+  }
+  return { label: 'Queued', icon: Clock, colour: 'text-neutral-400' };
+}
 
 function errorText(error: unknown) {
   return error instanceof Error ? error.message : 'That action failed. Try again.';
@@ -205,9 +206,9 @@ export function JobSummary({ view }: { view: JobView }) {
 
     // Update in place immediately; the SSE event confirms it moments later.
     setRuns((current) =>
-      current.map((item) =>
-        item.id === run.id
-          ? action === 'retry'
+      current.map((item) => {
+        if (item.id === run.id) {
+          return action === 'retry'
             ? {
                 ...item,
                 status: 'queued' as const,
@@ -222,9 +223,23 @@ export function JobSummary({ view }: { view: JobView }) {
                 status: 'skipped' as const,
                 error: null,
                 progress: 100,
-              }
-          : item,
-      ),
+              };
+        }
+        // Skip stops the Replay: later Turns of this Challenger are skipped too.
+        if (
+          action === 'skip' &&
+          item.modelId === run.modelId &&
+          item.turnNumber > run.turnNumber
+        ) {
+          return {
+            ...item,
+            status: 'skipped' as const,
+            error: null,
+            progress: 100,
+          };
+        }
+        return item;
+      }),
     );
 
     try {
@@ -259,8 +274,13 @@ export function JobSummary({ view }: { view: JobView }) {
     }
   };
 
-  const doneCount = runs.filter((run) => run.status === 'done').length;
-  const nonSkippedCount = runs.filter((run) => run.status !== 'skipped').length;
+  const replays = groupReplays(runs);
+  // A stopped Replay still produced the Turns it answered, so it counts towards
+  // the at-least-one-done-Challenger rule for Publish.
+  const doneCount = replays.filter((replay) =>
+    replay.runs.some((run) => run.status === 'done'),
+  ).length;
+  const activeReplayCount = replays.filter((replay) => replay.status !== 'stopped').length;
   const settled =
     jobReady ||
     (runs.length > 0 &&
@@ -371,21 +391,25 @@ export function JobSummary({ view }: { view: JobView }) {
               </span>
             </div>
 
-            {runs.map((run) => {
-              const display = presentation(run);
+            {replays.map((replay) => {
+              const display = replayPresentation(replay);
               const Icon = display.icon;
-              const pending = busy[run.id];
-              const rowError = rowErrors[run.id];
+              const actionRun = replay.failedRun;
+              const pending = actionRun ? busy[actionRun.id] : undefined;
+              const rowError = actionRun ? rowErrors[actionRun.id] : undefined;
               return (
                 <div
-                  key={run.id}
+                  key={replay.key}
                   className="flex flex-col gap-[7px] border-b border-neutral-800 px-[14px] py-3 last:border-b-0"
                 >
                   <div className="flex flex-wrap items-center gap-[10px]">
                     <span className="grid h-[22px] w-[22px] flex-none place-items-center rounded-[2px] bg-neutral-700 text-[10px] font-semibold">
-                      {run.monogram}
+                      {replay.monogram}
                     </span>
-                    <span className="text-[12px] font-medium">{run.modelName}</span>
+                    <span className="text-[12px] font-medium">{replay.modelName}</span>
+                    <span className="rounded-[2px] border border-neutral-700 px-[5px] py-[1px] text-[10px] font-medium text-neutral-400">
+                      turn {replay.turnNumber} of {replay.turnCount}
+                    </span>
                     <div className="flex-1" />
                     <span
                       className={cn(
@@ -400,11 +424,11 @@ export function JobSummary({ view }: { view: JobView }) {
                         />
                       <span className="truncate">{display.label}</span>
                     </span>
-                    {run.status === 'failed' && (
+                    {actionRun && (
                       <span className="flex items-center gap-[6px]">
                         <button
                           type="button"
-                          onClick={() => void handleRunAction(run, 'retry')}
+                          onClick={() => void handleRunAction(actionRun, 'retry')}
                           disabled={Boolean(pending)}
                           className="btn-secondary h-[26px] px-[10px] disabled:opacity-45"
                         >
@@ -412,33 +436,33 @@ export function JobSummary({ view }: { view: JobView }) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => void handleRunAction(run, 'skip')}
+                          onClick={() => void handleRunAction(actionRun, 'skip')}
                           disabled={Boolean(pending)}
                           className="btn-neutral h-[26px] px-[10px] disabled:opacity-45"
                         >
-                          {pending === 'skip' ? 'Skipping…' : 'Skip'}
+                          {pending === 'skip' ? 'Skipping…' : 'Skip remaining'}
                         </button>
                       </span>
                     )}
                   </div>
                   <div
                     role="progressbar"
-                    aria-label={`${run.modelName} progress`}
+                    aria-label={`${replay.modelName} progress`}
                     aria-valuemin={0}
                     aria-valuemax={100}
-                    aria-valuenow={run.progress}
+                    aria-valuenow={replay.progress}
                     className="h-[3px] overflow-hidden rounded-[2px] bg-neutral-800"
                   >
                     <div
                       className={cn(
                         'h-[3px] rounded-[2px] transition-[width] duration-300',
-                        run.status === 'failed'
+                        replay.status === 'failed'
                           ? 'bg-neutral-500'
-                          : run.status === 'done'
+                          : replay.status === 'done'
                             ? 'bg-accent-500'
                             : 'bg-accent',
                       )}
-                      style={{ width: `${run.progress}%` }}
+                      style={{ width: `${replay.progress}%` }}
                     />
                   </div>
                   {rowError && (
@@ -463,7 +487,7 @@ export function JobSummary({ view }: { view: JobView }) {
                     {published ? 'Your comparison is on the board' : 'Your comparison is ready'}
                   </span>
                   <span className="text-[12px] font-normal text-neutral-300">
-                    {doneCount} {doneCount === 1 ? 'response' : 'responses'} generated.
+                    {doneCount} {doneCount === 1 ? 'challenger' : 'challengers'} generated.
                     {published
                       ? ' It is live for everyone to read, annotate and discuss.'
                       : ' Review it, or publish straight to the live board.'}
@@ -513,9 +537,9 @@ export function JobSummary({ view }: { view: JobView }) {
 
         <ComparisonPreview
           base={view.baseModel}
-          challengers={runs.map((run) => ({
-            name: run.modelName,
-            monogram: run.monogram,
+          challengers={replays.map((replay) => ({
+            name: replay.modelName,
+            monogram: replay.monogram,
           }))}
           title={view.comparison.title}
           categories={view.comparison.categories}
@@ -525,7 +549,7 @@ export function JobSummary({ view }: { view: JobView }) {
           status={
             settled
               ? { label: 'Ready', tone: 'ready' }
-              : { label: `Generating ${doneCount}/${nonSkippedCount}`, tone: 'generating' }
+              : { label: `Generating ${doneCount}/${activeReplayCount}`, tone: 'generating' }
           }
           handle={view.authorHandle}
           note={

@@ -15,6 +15,7 @@ import {
   Ghost,
   Highlighter,
   LinkSimple,
+  MinusCircle,
   PaperPlaneRight,
   PencilSimple,
   Plus,
@@ -576,14 +577,40 @@ export function ComparisonView(props: ComparisonPageData) {
   const [runError, setRunError] = useState<{ id: string; message: string } | null>(null);
 
   const base = responseList.find((response) => response.isBase);
-  const challengers = responseList.filter(
-    (response) =>
-      !response.isBase &&
-      (isAuthor ? response.status !== 'skipped' : response.status === 'done'),
-  );
-  const challengerTotal = responseList.filter(
-    (response) => !response.isBase && response.status !== 'skipped',
-  ).length;
+  const turns = useMemo(() => {
+    const byPosition = new Map<number, { position: number; prompt: string }>();
+    for (const response of responseList) {
+      if (!byPosition.has(response.turn.position)) {
+        byPosition.set(response.turn.position, {
+          position: response.turn.position,
+          prompt: response.turn.prompt,
+        });
+      }
+    }
+    return [...byPosition.values()].sort((left, right) => left.position - right.position);
+  }, [responseList]);
+  const multiTurn = turns.length > 1;
+  const challengers = useMemo(() => {
+    const bySlug = new Map<string, ComparisonResponseView>();
+    for (const response of [...responseList]
+      .filter((item) => !item.isBase)
+      .sort((left, right) => left.turn.position - right.turn.position)) {
+      // The Author sees a stopped Replay even when it stopped at Turn 1; readers
+      // only see Challengers with at least one done Turn.
+      const visible = isAuthor ? true : response.status === 'done';
+      if (!visible) continue;
+      const existing = bySlug.get(response.model.slug);
+      if (!existing || (existing.status !== 'done' && response.status === 'done')) {
+        bySlug.set(response.model.slug, response);
+      }
+    }
+    return [...bySlug.values()];
+  }, [responseList, isAuthor]);
+  const challengerTotal = new Set(
+    responseList
+      .filter((response) => !response.isBase && response.status !== 'skipped')
+      .map((response) => response.model.slug),
+  ).size;
   const atCap = challengerTotal >= maxChallengers;
   // The Add affordance belongs to published Comparisons; a ready draft still
   // goes through the Job page to publish.
@@ -642,6 +669,16 @@ export function ComparisonView(props: ComparisonPageData) {
   }, []);
 
   const active = challengers.find((response) => response.model.slug === activeSlug) ?? null;
+  const activeStoppedAt = active
+    ? ([...responseList]
+        .filter(
+          (response) =>
+            !response.isBase &&
+            response.model.slug === active.model.slug &&
+            response.status === 'skipped',
+        )
+        .sort((left, right) => left.turn.position - right.turn.position)[0]?.turn.position ?? null)
+    : null;
   const activeAnnotation = popover?.mode === 'thread'
     ? annotations.find((annotation) => annotation.id === popover.id) ?? null
     : null;
@@ -1325,6 +1362,11 @@ export function ComparisonView(props: ComparisonPageData) {
         status: 'queued',
         error: null,
         model: { slug: model.slug, name: model.name, monogram: model.monogram },
+        turn: responseList[0]?.turn ?? {
+          id: '',
+          position: 0,
+          prompt: comparison.prompt,
+        },
         blocks: [],
       };
       setResponseList((current) => [...current, queuedView]);
@@ -1370,20 +1412,27 @@ export function ComparisonView(props: ComparisonPageData) {
           ),
         );
       } else {
+        // Skipping stops the Challenger here: this Turn and every later Turn of
+        // the same model become skipped, matching the server's cascade.
         setResponseList((current) =>
           current.map((item) =>
-            item.id === responseView.id
+            item.model.slug === responseView.model.slug &&
+            item.turn.position >= responseView.turn.position
               ? { ...item, status: 'skipped', error: null }
               : item,
           ),
         );
         setActiveSlug((current) => {
           if (current !== responseView.model.slug) return current;
-          const fallback = responseList.find(
+          const keptEarlierTurn = responseList.some(
             (item) =>
-              item.id !== responseView.id &&
-              !item.isBase &&
-              item.status === 'done',
+              item.model.slug === responseView.model.slug &&
+              item.status === 'done' &&
+              item.turn.position < responseView.turn.position,
+          );
+          if (keptEarlierTurn) return current;
+          const fallback = responseList.find(
+            (item) => !item.isBase && item.status === 'done',
           );
           return fallback?.model.slug ?? null;
         });
@@ -1573,6 +1622,185 @@ export function ComparisonView(props: ComparisonPageData) {
           </button>
         </div>
 
+        {multiTurn ? (
+          <div className="flex flex-col gap-5" data-conversation-transcript>
+            <div className="flex min-w-0 flex-wrap items-stretch gap-[2px] overflow-x-auto rounded-[2px] bg-surface p-1.5 [scrollbar-width:none]">
+              {challengers.map((response) => {
+                const pending = isPendingResponse(response.status);
+                const failed = response.status === 'failed';
+                return (
+                  <button
+                    key={response.model.slug}
+                    type="button"
+                    data-challenger-tab={response.model.slug}
+                    onClick={() => switchTab(response.model.slug)}
+                    className={cn(
+                      'flex flex-none items-center gap-[6px] whitespace-nowrap rounded-[2px] px-2.5 py-1.5 text-[12px] font-medium transition-colors',
+                      response.model.slug === activeSlug
+                        ? 'bg-neutral-700 text-text'
+                        : 'text-neutral-400 hover:text-text',
+                    )}
+                  >
+                    <span className="monogram !h-[18px] !w-[18px] !text-[10px]">
+                      {response.model.monogram}
+                    </span>
+                    {response.model.name}
+                    {pending && <CircleNotch size={12} className="anim-spin text-accent-300" />}
+                    {failed && <WarningCircle size={12} className="text-danger" />}
+                  </button>
+                );
+              })}
+              {challengers.length === 0 && (
+                <span className="flex items-center px-2 text-[12px] text-neutral-500">
+                  No challenger responses
+                </span>
+              )}
+            </div>
+
+            {turns.map((turn) => {
+              const turnBase = responseList.find(
+                (response) => response.isBase && response.turn.position === turn.position,
+              );
+              const turnActive = active
+                ? responseList.find(
+                    (response) =>
+                      !response.isBase &&
+                      response.model.slug === active.model.slug &&
+                      response.turn.position === turn.position,
+                  )
+                : null;
+              const stopped = activeStoppedAt === turn.position;
+              return (
+                <section
+                  key={turn.position}
+                  data-turn={turn.position + 1}
+                  className="flex flex-col gap-2.5 rounded-[2px] bg-surface p-3"
+                >
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px] font-medium uppercase tracking-[0.04em] text-neutral-500">
+                      Turn {turn.position + 1} of {turns.length}
+                    </span>
+                    <p className="m-0 whitespace-pre-wrap text-[13px] leading-[1.5]">
+                      {turn.prompt}
+                    </p>
+                  </div>
+                  <div
+                    className="grid items-start gap-3"
+                    style={{
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(min(380px, 100%), 1fr))',
+                    }}
+                  >
+                    <div className="flex min-w-0 flex-col rounded-[2px] bg-bg">
+                      <div className="flex h-[38px] items-center gap-2 border-b border-neutral-800 px-3">
+                        <span className="rounded-[2px] border border-accent-700 px-1.5 py-1 text-[10px] font-semibold leading-none tracking-[0.08em] text-accent-200">
+                          BASE
+                        </span>
+                        <span className="text-[12px] font-medium">{turnBase?.model.name}</span>
+                        <div className="flex-1" />
+                        <span className="text-[11px] text-neutral-500">
+                          {turnBase?.tokens.toLocaleString()} tok
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-3 px-3.5 pb-4 pt-3">
+                        {turnBase?.status === 'done' ? (
+                          <MarkdownView
+                            responseId={turnBase.id}
+                            blocks={turnBase.blocks}
+                            annotations={visibleAnnotations}
+                            annOn={annOn}
+                            kindFilter={kind}
+                            openId={popover?.mode === 'thread' ? popover.id : null}
+                            onOpen={openThread}
+                          />
+                        ) : (
+                          <span className="text-[12px] text-neutral-500">No base response.</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex min-w-0 flex-col rounded-[2px] bg-bg">
+                      <div className="flex h-[38px] items-center gap-2 border-b border-neutral-800 px-3">
+                        <span className="monogram !h-[18px] !w-[18px] !text-[10px]">
+                          {active?.model.monogram ?? '--'}
+                        </span>
+                        <span className="text-[12px] font-medium">
+                          {active?.model.name ?? 'Challenger'}
+                        </span>
+                        <div className="flex-1" />
+                        {turnActive?.status === 'done' && (
+                          <span className="text-[11px] text-neutral-500">
+                            {turnActive.tokens.toLocaleString()} tok
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-3 px-3.5 pb-4 pt-3">
+                        {turnActive?.status === 'done' ? (
+                          <MarkdownView
+                            responseId={turnActive.id}
+                            blocks={turnActive.blocks}
+                            annotations={visibleAnnotations}
+                            annOn={annOn}
+                            kindFilter={kind}
+                            openId={popover?.mode === 'thread' ? popover.id : null}
+                            onOpen={openThread}
+                          />
+                        ) : turnActive?.status === 'failed' ? (
+                          <div className="flex flex-col gap-2">
+                            <span className="flex items-center gap-2 text-[12px] font-medium text-danger">
+                              <WarningCircle size={14} />
+                              {turnActive.error ?? 'API timeout'}
+                            </span>
+                            {isAuthor && (
+                              <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                  type="button"
+                                  disabled={Boolean(runBusy)}
+                                  onClick={() => void actOnRun(turnActive, 'retry')}
+                                  className="btn-secondary h-[28px] disabled:opacity-45"
+                                >
+                                  Retry
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={Boolean(runBusy)}
+                                  onClick={() => void actOnRun(turnActive, 'dismiss')}
+                                  className="btn-neutral h-[28px] disabled:opacity-45"
+                                >
+                                  Skip remaining
+                                </button>
+                              </div>
+                            )}
+                            {runError?.id === turnActive.id && (
+                              <ErrorLine message={runError.message} />
+                            )}
+                          </div>
+                        ) : turnActive?.status === 'skipped' ? (
+                          <span className="flex items-center gap-2 text-[12px] text-neutral-500">
+                            <MinusCircle size={14} />
+                            {stopped
+                              ? `Stopped at turn ${turn.position + 1} — this comparison ends here.`
+                              : 'Skipped.'}
+                          </span>
+                        ) : turnActive && isPendingResponse(turnActive.status) ? (
+                          <span className="flex items-center gap-2 text-[12px] font-medium text-accent-200" aria-live="polite">
+                            <CircleNotch size={14} className="anim-spin" />
+                            {turnActive.status === 'queued'
+                              ? 'Queued for this turn.'
+                              : 'Generating this turn…'}
+                          </span>
+                        ) : (
+                          <span className="text-[12px] text-neutral-500">
+                            No response for this turn.
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        ) : (
         <div
           ref={gridRef}
           onMouseUp={captureSelection}
@@ -2077,6 +2305,7 @@ export function ComparisonView(props: ComparisonPageData) {
             </div>
           )}
         </div>
+        )}
 
         <section className="flex max-w-[860px] flex-col gap-3.5 pt-[18px]">
           <div className="flex flex-wrap items-center gap-2.5">

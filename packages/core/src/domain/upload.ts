@@ -1,6 +1,7 @@
 import { parseDocument } from 'yaml';
 
-export const MAX_UPLOAD_BYTES = 1024 * 1024;
+/** An uploaded Conversation file may not exceed 0.5 MB. */
+export const MAX_UPLOAD_BYTES = 500 * 1024;
 export const MAX_PROMPT_CHARS = 10_000;
 export const MAX_TITLE_CHARS = 200;
 /**
@@ -8,7 +9,21 @@ export const MAX_TITLE_CHARS = 200;
  * may hold, so one request cannot carry an unbounded body.
  */
 export const MAX_BASE_OUTPUT_CHARS = 100_000;
+/** A Conversation is at most six Turns, each with one Base reply. */
+export const MAX_CONVERSATION_TURNS = 6;
+/** The uploaded conversation file may not exceed 0.5 MB. */
+export const MAX_CONVERSATION_BYTES = MAX_UPLOAD_BYTES;
+/**
+ * Everything replayed across the Conversation — every Prompt and every Base
+ * reply — is bounded so one Comparison cannot carry an unbounded prompt.
+ */
+export const MAX_CONVERSATION_CHARS = 100_000;
 export const ALLOWED_EXTENSIONS = ['.md', '.markdown', '.txt'] as const;
+
+export type ConversationTurnInput = {
+  prompt: string;
+  baseOutput: string;
+};
 
 export class UploadValidationError extends Error {
   readonly code: string;
@@ -41,7 +56,10 @@ export function validateFileName(name: string) {
 
 export function validateFileSize(size: number) {
   if (size > MAX_UPLOAD_BYTES) {
-    throw new UploadValidationError('file_too_large', 'Files must be 1 MB or smaller.');
+    throw new UploadValidationError(
+      'file_too_large',
+      `Files must be ${MAX_UPLOAD_BYTES / 1024} KB or smaller.`,
+    );
   }
   if (size === 0) {
     throw new UploadValidationError('empty_file', 'That file is empty.');
@@ -183,6 +201,53 @@ export function validateBaseOutput(output: string) {
     );
   }
   return trimmed;
+}
+
+/**
+ * Validate a multi-Turn script before anything is written. The checks are the
+ * same per Turn as the one-Turn paths, plus the Conversation-wide limits. A
+ * single-Turn script is valid and is the degenerate case.
+ */
+export function validateTurnScript(
+  input: readonly ConversationTurnInput[],
+): ConversationTurnInput[] {
+  if (!input.length) {
+    throw new UploadValidationError('empty_conversation', 'Add at least one turn.');
+  }
+  if (input.length > MAX_CONVERSATION_TURNS) {
+    throw new UploadValidationError(
+      'too_many_turns',
+      `A conversation can hold at most ${MAX_CONVERSATION_TURNS} turns.`,
+    );
+  }
+
+  const turns = input.map((turn) => ({
+    prompt: validatePrompt(turn.prompt),
+    baseOutput: validateBaseOutput(turn.baseOutput),
+  }));
+
+  const characters = turns.reduce(
+    (total, turn) => total + turn.prompt.length + turn.baseOutput.length,
+    0,
+  );
+  if (characters > MAX_CONVERSATION_CHARS) {
+    throw new UploadValidationError(
+      'conversation_too_long',
+      `A conversation can hold at most ${MAX_CONVERSATION_CHARS.toLocaleString()} characters.`,
+    );
+  }
+
+  return turns;
+}
+
+export function validateConversationBytes(text: string) {
+  const bytes = new TextEncoder().encode(text).length;
+  if (bytes > MAX_CONVERSATION_BYTES) {
+    throw new UploadValidationError(
+      'conversation_too_large',
+      `Conversation files must be ${MAX_CONVERSATION_BYTES / 1024} KB or smaller.`,
+    );
+  }
 }
 
 export function validateTitle(title: string) {

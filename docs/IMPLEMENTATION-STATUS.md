@@ -2,7 +2,7 @@
 
 Snapshot for resuming work after a context clear. `BACKEND.md` is the contract; `docs/DECISIONS.md` is the decision record; `GLOSSARY.md` is the vocabulary; `design_handoff_openweightmodels/` remains the visual source of truth (v2 overrides `styles.css`).
 
-> **Next work:** the multi-turn Conversation rework is specified in `.scratch/openweightmodels/spec.md` (tickets 18–25, ADRs 0008–0010). Everything below describes the code as it exists today, before that rework.
+> **Next work:** ticket 20 (Replay every Turn) is implemented: the service accepts a Turn script, Challengers replay their own Turn history in order, the Job page groups one row per Challenger, Skip cascades, and a basic stacked transcript is readable and publishable. Ticket 21 (AI Exporter import) is next. The rest of the multi-turn rework is specified in `.scratch/openweightmodels/spec.md` (tickets 21–25, ADRs 0008–0010). Some sections below still describe the single-Prompt UI; `BACKEND.md` is the contract where they differ.
 
 ---
 
@@ -75,7 +75,7 @@ comments 4 · votes 15
 ### Core domain
 
 - `domain/types.ts` — categories, effort, statuses, annotation kinds, card/view types.
-- `domain/upload.ts` — 1 MB/UTF-8/NUL checks, restricted YAML front matter (`maxAliasCount: 0`), prompt/title limits, filename title fallback, snippet/token helpers.
+- `domain/upload.ts` — 0.5 MB/UTF-8/NUL checks, restricted YAML front matter (`maxAliasCount: 0`), prompt/title/turn-script limits, filename title fallback, snippet/token helpers.
 - `domain/handle.ts` — handle normalisation, format limits and the reserved-name list.
 - `services/identity.ts` — `setHandle`, including case-insensitive uniqueness, first-claim-only updates and the unique-index race.
 - `domain/markdown.ts` — remark/mdast parsing, annotatable run extraction, UTF-16 offset validation, quote derivation, in-render splitting support.
@@ -84,7 +84,7 @@ comments 4 · votes 15
 - `providers.ts` — deterministic `MockProvider` with streaming/failure and an OpenAI-compatible streaming adapter (OpenRouter-first). `PROVIDER=mock` is the default; any real provider slug (OpenRouter first) selects real calls and never falls back to mock. Real calls request provider usage, store completion tokens and provider-reported cost, redact the key from errors, and use a 120s timeout.
 - `queries.ts` — board listing with filters/cursor/total, Comparison bundle, annotation/comment views, job bundle, notifications, card payloads.
 - `events.ts` — activity/job event persistence + Redis publish + replay queries.
-- `queue.ts` — BullMQ run queue, one job per Run, delayed 24h auto-skip.
+- `queue.ts` — BullMQ run queue, one job per Turn (a Replay chains its Turns), delayed 24h auto-skip.
 - `services/` — create/publish/unpublish/delete/update Comparison, add model, retry/skip, annotations, annotation messages, comments, votes, run processing, job finalisation, auto-skip.
 - `seed.ts`, `db/migrate.ts`, `db/reset.ts`.
 

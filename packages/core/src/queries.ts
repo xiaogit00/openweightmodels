@@ -23,6 +23,7 @@ import {
   models,
   notifications,
   responses,
+  turns,
   users,
   votes,
 } from './db/schema';
@@ -342,6 +343,7 @@ export type ComparisonBundle = {
   comparison: ComparisonRow;
   author: PublicUser;
   baseModel: ModelRow;
+  turns: Array<{ id: string; position: number; prompt: string }>;
   responses: Array<{ response: ResponseRow; model: ModelRow }>;
 };
 
@@ -380,17 +382,30 @@ export async function getComparisonForViewer(
 
   if (!author || !baseModel) return null;
 
-  const allResponseRows = await db
-    .select()
-    .from(responses)
-    .where(eq(responses.comparisonId, id))
-    .orderBy(responses.createdAt);
-  // An added Challenger is public only once it is done. Pending, failed and
-  // skipped Responses stay on the Author's page alone.
+  const [allResponseRows, turnRows] = await Promise.all([
+    db
+      .select()
+      .from(responses)
+      .where(eq(responses.comparisonId, id))
+      .orderBy(responses.createdAt),
+    db
+      .select({ id: turns.id, position: turns.position, prompt: turns.prompt })
+      .from(turns)
+      .where(eq(turns.comparisonId, id))
+      .orderBy(turns.position),
+  ]);
+  // An added Challenger is public once it has a done Response. A stopped
+  // Replay keeps its done Turns and its skipped tail visible so readers can see
+  // where it stopped; pending and failed Responses stay on the Author's page.
+  const doneModelIds = new Set(
+    allResponseRows.filter((row) => row.status === 'done').map((row) => row.modelId),
+  );
   const responseRows =
     comparison.authorId === viewerId
       ? allResponseRows
-      : allResponseRows.filter((row) => row.status === 'done');
+      : allResponseRows.filter(
+          (row) => row.status === 'done' || (row.status === 'skipped' && doneModelIds.has(row.modelId)),
+        );
   const modelIds = [...new Set(responseRows.map((row) => row.modelId))];
   const modelRows = modelIds.length
     ? await db.select().from(models).where(inArray(models.id, modelIds))
@@ -401,6 +416,7 @@ export async function getComparisonForViewer(
     comparison,
     author: toPublicUser(author),
     baseModel,
+    turns: turnRows,
     responses: responseRows
       .map((response) => {
         const model = modelMap.get(response.modelId);
@@ -635,22 +651,46 @@ export async function getJobForAuthor(
     .from(users)
     .where(eq(users.id, comparison.authorId))
     .limit(1);
-  const runRows = await db
-    .select()
-    .from(responses)
-    .where(and(eq(responses.jobId, jobId), eq(responses.isBase, false)))
-    .orderBy(responses.createdAt);
+  const [turnRows, runRows] = await Promise.all([
+    db
+      .select()
+      .from(turns)
+      .where(eq(turns.comparisonId, comparison.id))
+      .orderBy(turns.position),
+    db
+      .select()
+      .from(responses)
+      .where(and(eq(responses.jobId, jobId), eq(responses.isBase, false)))
+      .orderBy(responses.createdAt),
+  ]);
+  const turnMap = new Map(turnRows.map((turn) => [turn.id, turn]));
+  const turnCount = turnRows.length;
+  const orderedRuns = [...runRows].sort((left, right) => {
+    const leftTurn = turnMap.get(left.turnId)?.position ?? 0;
+    const rightTurn = turnMap.get(right.turnId)?.position ?? 0;
+    if (leftTurn !== rightTurn) return leftTurn - rightTurn;
+    return left.modelId.localeCompare(right.modelId);
+  });
   const modelIds = [
     ...new Set([comparison.baseModelId, ...runRows.map((row) => row.modelId)]),
   ];
   const modelRows = await db.select().from(models).where(inArray(models.id, modelIds));
   const modelMap = new Map(modelRows.map((row) => [row.id, row]));
   const baseModelRow = modelMap.get(comparison.baseModelId);
-  const [baseResponse] = await db
-    .select()
-    .from(responses)
-    .where(and(eq(responses.comparisonId, comparison.id), eq(responses.isBase, true)))
-    .limit(1);
+  const firstTurnId = turnRows[0]?.id;
+  const [baseResponse] = firstTurnId
+    ? await db
+        .select()
+        .from(responses)
+        .where(
+          and(
+            eq(responses.comparisonId, comparison.id),
+            eq(responses.turnId, firstTurnId),
+            eq(responses.isBase, true),
+          ),
+        )
+        .limit(1)
+    : [];
 
   return {
     job,
@@ -671,11 +711,12 @@ export async function getJobForAuthor(
       : null,
     baseSnippet: baseResponse ? snippet(baseResponse.contentMd) : '',
     challengerSnippet: (() => {
-      const firstDone = runRows.find((row) => row.status === 'done');
+      const firstDone = orderedRuns.find((row) => row.status === 'done');
       return firstDone ? snippet(firstDone.contentMd) : '';
     })(),
-    runs: runRows.map((response) => {
+    runs: orderedRuns.map((response) => {
       const model = modelMap.get(response.modelId);
+      const turn = turnMap.get(response.turnId);
       return {
         id: response.id,
         modelId: response.modelId,
@@ -687,6 +728,9 @@ export async function getJobForAuthor(
         error: response.error,
         attempt: response.attempt,
         progress: runProgress(response.status, response.tokens),
+        turnId: response.turnId,
+        turnNumber: (turn?.position ?? 0) + 1,
+        turnCount: Math.max(1, turnCount),
       };
     }),
   };

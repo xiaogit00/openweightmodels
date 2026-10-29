@@ -15,15 +15,18 @@ import {
   parseMarkdownUpload,
   summariseMarkdown,
   validateBaseOutput,
+  validateConversationBytes,
   validatePrompt,
   validateTitle,
+  validateTurnScript,
+  type ConversationTurnInput,
 } from '../domain/upload';
 import { logActivity, logJobEvent } from '../events';
 import { getCardById } from '../queries';
 import { enqueueRun, removeAutoSkip } from '../queue';
 import { conflict, forbidden, notFound, tooMany } from './errors';
 import { assertCanWrite } from './identity';
-import { finalizeJob, recordRunStatus } from './jobs';
+import { finalizeJob, recordRunStatus, stopReplayAt } from './jobs';
 
 function clampEffort(value: number) {
   if (!Number.isInteger(value) || value < 1 || value > 3) {
@@ -83,6 +86,12 @@ export type CreateComparisonInput = {
   fileText?: string;
   /** Write path: the Base output, pasted instead of uploaded. */
   baseOutput?: string;
+  /**
+   * Multi-Turn path: one Prompt and one Base reply per Turn. The import form
+   * (ticket 21) will build this; the service accepts it now so a Replay can be
+   * created and exercised end to end.
+   */
+  turns?: ConversationTurnInput[];
   baseModelId: string;
   prompt: string;
   modelIds: string[];
@@ -97,28 +106,51 @@ export type CreateComparisonResult = {
   title: string;
 };
 
-type ResolvedBase = {
-  body: string;
+type ResolvedConversation = {
+  turns: ConversationTurnInput[];
   /** The prompt the file carried, if it carried one. */
   prompt: string | null;
   /** Only a file gives a useful default title. */
   titleFromFile: string | null;
 };
 
-function resolveBase(input: CreateComparisonInput): ResolvedBase {
+function resolveConversation(input: CreateComparisonInput): ResolvedConversation {
+  if (input.turns !== undefined) {
+    // Validation happens after the form's headline Prompt has filled an empty
+    // first Turn, so `prompt` can stand in for a source that carried none.
+    return {
+      turns: input.turns,
+      prompt: null,
+      titleFromFile: null,
+    };
+  }
+
   if (input.fileText !== undefined) {
+    validateConversationBytes(input.fileText);
     const parsed = parseMarkdownUpload(input.fileText, input.fileName ?? '');
     return {
-      body: parsed.body,
+      // The form's Prompt wins over the file's, matching the pre-Turn behaviour.
+      turns: [{ prompt: input.prompt || parsed.prompt || '', baseOutput: parsed.body }],
       prompt: parsed.prompt,
       titleFromFile: parsed.titleFromFile,
     };
   }
+
   return {
-    body: validateBaseOutput(input.baseOutput ?? ''),
+    turns: [{ prompt: '', baseOutput: validateBaseOutput(input.baseOutput ?? '') }],
     prompt: null,
     titleFromFile: null,
   };
+}
+
+/**
+ * A one-Turn Conversation with an explicit Prompt, as supplied by the existing
+ * upload and pasted-reply paths. The multi-Turn path brings its own Prompts.
+ */
+function withHeadlinePrompt(turns: ConversationTurnInput[], prompt: string) {
+  return turns.map((turn, index) =>
+    index === 0 && !turn.prompt.trim() ? { ...turn, prompt } : turn,
+  );
 }
 
 export async function createComparison(
@@ -128,11 +160,17 @@ export async function createComparison(
   const db = getDb();
   await assertQuota(input.authorId);
 
-  const base = resolveBase(input);
-  const prompt = validatePrompt(input.prompt || base.prompt || '');
+  const conversation = resolveConversation(input);
+  const conversationTurns = validateTurnScript(
+    withHeadlinePrompt(
+      conversation.turns,
+      input.prompt || conversation.prompt || conversation.turns[0]?.prompt || '',
+    ),
+  );
+  const prompt = conversationTurns[0]!.prompt;
   const title = validateTitle(
     input.title ||
-      base.titleFromFile ||
+      conversation.titleFromFile ||
       summariseMarkdown(prompt, 80) ||
       'Untitled comparison',
   );
@@ -168,9 +206,14 @@ export async function createComparison(
 
   const comparisonId = uuidv7();
   const jobId = uuidv7();
-  const turnId = uuidv7();
-  const baseResponseId = uuidv7();
-  const challengerResponseIds = challengerIds.map(() => uuidv7());
+  const turnIds = conversationTurns.map(() => uuidv7());
+  const baseResponseIds = conversationTurns.map(() => uuidv7());
+  // One Response per Challenger per Turn. Only the first Turn of each Replay is
+  // enqueued; a successful Run enqueues its own next Turn, so Challengers run in
+  // parallel while each Replay stays in order.
+  const challengerResponseIds = challengerIds.map(() =>
+    conversationTurns.map(() => uuidv7()),
+  );
 
   await db.transaction(async (tx) => {
     await tx.insert(comparisons).values({
@@ -191,46 +234,54 @@ export async function createComparison(
       status: 'scheduled',
     });
 
-    await tx.insert(turns).values({
-      id: turnId,
-      comparisonId,
-      position: 0,
-      prompt,
-    });
-
-    await tx.insert(responses).values({
-      id: baseResponseId,
-      comparisonId,
-      turnId,
-      modelId: input.baseModelId,
-      isBase: true,
-      contentMd: base.body,
-      tokens: estimateTokens(base.body),
-      latencyMs: 0,
-      status: 'done',
-      finishedAt: new Date(),
-    });
+    await tx.insert(turns).values(
+      conversationTurns.map((turn, position) => ({
+        id: turnIds[position]!,
+        comparisonId,
+        position,
+        prompt: turn.prompt,
+      })),
+    );
 
     await tx.insert(responses).values(
-      challengerIds.map((modelId, index) => ({
-        id: challengerResponseIds[index]!,
+      conversationTurns.map((turn, position) => ({
+        id: baseResponseIds[position]!,
         comparisonId,
-        turnId,
-        jobId,
-        modelId,
-        isBase: false,
-        status: 'queued' as const,
+        turnId: turnIds[position]!,
+        modelId: input.baseModelId,
+        isBase: true,
+        contentMd: turn.baseOutput,
+        tokens: estimateTokens(turn.baseOutput),
+        latencyMs: 0,
+        status: 'done' as const,
+        finishedAt: new Date(),
       })),
+    );
+
+    await tx.insert(responses).values(
+      challengerIds.flatMap((modelId, modelIndex) =>
+        conversationTurns.map((_turn, position) => ({
+          id: challengerResponseIds[modelIndex]![position]!,
+          comparisonId,
+          turnId: turnIds[position]!,
+          jobId,
+          modelId,
+          isBase: false,
+          status: 'queued' as const,
+        })),
+      ),
     );
   });
 
   await logJobEvent({
     jobId,
     kind: 'job.scheduled',
-    payload: { comparisonId, models: challengerIds },
+    payload: { comparisonId, models: challengerIds, turns: conversationTurns.length },
   });
 
-  await Promise.all(challengerResponseIds.map((id) => enqueueRun(id)));
+  await Promise.all(
+    challengerResponseIds.map((responseIds) => enqueueRun(responseIds[0]!)),
+  );
 
   return { id: comparisonId, jobId, title };
 }
@@ -361,8 +412,8 @@ export async function addModelToComparison(
   if (!model?.enabled) throw conflict('invalid_model', 'That model is not available.');
 
   const maxChallengers = resolveMaxChallengers(process.env.MAX_CHALLENGERS);
-  const [challengerCount] = await db
-    .select({ total: count() })
+  const challengerRows = await db
+    .select({ modelId: responses.modelId })
     .from(responses)
     .where(
       and(
@@ -374,7 +425,9 @@ export async function addModelToComparison(
         ne(responses.status, 'skipped'),
       ),
     );
-  if (Number(challengerCount?.total ?? 0) >= maxChallengers) {
+  // A Replay has one Response per Turn; the cap counts Challengers, not Turns.
+  const challengerCount = new Set(challengerRows.map((row) => row.modelId)).size;
+  if (challengerCount >= maxChallengers) {
     throw conflict(
       'too_many_challengers',
       `A comparison can hold at most ${maxChallengers} challengers.`,
@@ -482,15 +535,11 @@ export async function skipRun(responseId: string, userId: string) {
     throw conflict('not_skippable', 'That response cannot be skipped now.');
   }
 
-  await db
-    .update(responses)
-    .set({ status: 'skipped', finishedAt: new Date(), error: null })
-    .where(eq(responses.id, responseId));
+  // Skipping stops this Challenger's Replay: every later Queued Turn is
+  // skipped too, so the transcript never answers a conversation that stopped.
+  await stopReplayAt(response);
 
-  if (response.jobId) {
-    await recordRunStatus(response, 'skipped');
-    await finalizeJob(response.jobId);
-  }
+  if (response.jobId) await finalizeJob(response.jobId);
 }
 
 export async function requireOwnedComparison(id: string, userId: string) {

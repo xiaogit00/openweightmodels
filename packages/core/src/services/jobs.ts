@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, gt, gte, inArray, ne, sql } from 'drizzle-orm';
 import { getDb } from '../db/client';
 import {
   comparisons,
@@ -10,9 +10,9 @@ import {
   users,
 } from '../db/schema';
 import { logActivity, logJobEvent } from '../events';
-import { getProvider } from '../providers';
+import { getProvider, type ChatMessage } from '../providers';
 import { getCardById } from '../queries';
-import { enqueueAutoSkip } from '../queue';
+import { enqueueAutoSkip, enqueueRun } from '../queue';
 import type { ResponseStatus } from '../domain/types';
 
 function errorMessage(error: unknown) {
@@ -52,6 +52,127 @@ export async function recordRunStatus(
       ...extra,
     },
   });
+}
+
+/**
+ * The message array for one Turn of one Challenger's Replay: every user message
+ * up to this Turn, interleaved with that Model's own earlier replies. The Base
+ * model's replies and reasoning content are never included.
+ *
+ * Returns null when an earlier Turn is not finished yet; a worker must not run
+ * a Turn out of order.
+ */
+async function replayMessages(
+  comparisonId: string,
+  modelId: string,
+  currentTurnId: string,
+): Promise<ChatMessage[] | null> {
+  const db = getDb();
+  const [currentTurn] = await db
+    .select()
+    .from(turns)
+    .where(eq(turns.id, currentTurnId))
+    .limit(1);
+  if (!currentTurn) return null;
+
+  const [turnRows, ownRows] = await Promise.all([
+    db
+      .select()
+      .from(turns)
+      .where(eq(turns.comparisonId, comparisonId))
+      .orderBy(turns.position),
+    db
+      .select()
+      .from(responses)
+      .where(
+        and(
+          eq(responses.comparisonId, comparisonId),
+          eq(responses.modelId, modelId),
+          ne(responses.turnId, currentTurnId),
+        ),
+      ),
+  ]);
+  const ownByTurn = new Map(ownRows.map((row) => [row.turnId, row]));
+
+  const messages: ChatMessage[] = [];
+  for (const turn of turnRows) {
+    if (turn.position > currentTurn.position) break;
+    messages.push({ role: 'user', content: turn.prompt });
+    if (turn.id === currentTurn.id) break;
+
+    const own = ownByTurn.get(turn.id);
+    if (!own || own.status !== 'done') return null;
+    messages.push({ role: 'assistant', content: own.contentMd });
+  }
+
+  return messages;
+}
+
+async function turnPosition(turnId: string) {
+  const [turn] = await getDb()
+    .select({ position: turns.position })
+    .from(turns)
+    .where(eq(turns.id, turnId))
+    .limit(1);
+  return turn?.position ?? null;
+}
+
+/** Enqueue this Replay's next Turn once the current one has succeeded. */
+async function enqueueNextTurn(response: { comparisonId: string; modelId: string; turnId: string }) {
+  const position = await turnPosition(response.turnId);
+  if (position === null) return;
+
+  const [next] = await getDb()
+    .select({ id: responses.id })
+    .from(responses)
+    .innerJoin(turns, eq(responses.turnId, turns.id))
+    .where(
+      and(
+        eq(responses.comparisonId, response.comparisonId),
+        eq(responses.modelId, response.modelId),
+        eq(responses.status, 'queued'),
+        gt(turns.position, position),
+      ),
+    )
+    .orderBy(turns.position)
+    .limit(1);
+  if (next) await enqueueRun(next.id);
+}
+
+/**
+ * Stop one Challenger's Replay at a Turn: every queued or failed Turn from
+ * here on becomes skipped, and the Job can settle without answers to a
+ * conversation that did not happen.
+ */
+export async function stopReplayAt(response: {
+  comparisonId: string;
+  modelId: string;
+  turnId: string;
+}) {
+  const db = getDb();
+  const position = await turnPosition(response.turnId);
+  if (position === null) return;
+
+  const targets = await db
+    .select({ id: responses.id })
+    .from(responses)
+    .innerJoin(turns, eq(responses.turnId, turns.id))
+    .where(
+      and(
+        eq(responses.comparisonId, response.comparisonId),
+        eq(responses.modelId, response.modelId),
+        gte(turns.position, position),
+        inArray(responses.status, ['queued', 'failed']),
+      ),
+    );
+  if (!targets.length) return;
+
+  const stopped = await db
+    .update(responses)
+    .set({ status: 'skipped', error: null, finishedAt: new Date() })
+    .where(inArray(responses.id, targets.map((target) => target.id)))
+    .returning();
+  for (const run of stopped) await recordRunStatus(run, 'skipped');
 }
 
 export async function processRun(responseId: string) {
@@ -120,6 +241,11 @@ export async function processRun(responseId: string) {
     return;
   }
 
+  // A Replay is sequential: Turn n only runs after this Model's own Turn n-1 is
+  // done. A worker that arrives early no-ops; the previous Turn enqueues it.
+  const messages = await replayMessages(response.comparisonId, response.modelId, turn.id);
+  if (!messages) return;
+
   // Claim the Run atomically: two workers holding the same BullMQ job (or a
   // retry racing the previous attempt) must not both call the provider.
   const [claimed] = await db
@@ -162,7 +288,7 @@ export async function processRun(responseId: string) {
     const provider = getProvider(model);
     const result = await provider.generate({
       model,
-      messages: [{ role: 'user', content: turn.prompt }],
+      messages,
       attempt: response.attempt,
       onToken: async (chunk) => {
         text += chunk;
@@ -206,6 +332,10 @@ export async function processRun(responseId: string) {
         latencyMs,
       });
     }
+
+    // Continue this Challenger's Replay in Turn order. Other Challengers are
+    // already running independently.
+    await enqueueNextTurn(response);
   } catch (error) {
     const message = errorMessage(error);
     const latencyMs = Date.now() - startedAt;
@@ -331,13 +461,7 @@ export async function autoSkipRun(responseId: string) {
     .limit(1);
   if (!response || response.status !== 'failed') return;
 
-  await db
-    .update(responses)
-    .set({ status: 'skipped', error: null, finishedAt: new Date() })
-    .where(eq(responses.id, responseId));
+  await stopReplayAt(response);
 
-  if (response.jobId) {
-    await recordRunStatus(response, 'skipped');
-    await finalizeJob(response.jobId);
-  }
+  if (response.jobId) await finalizeJob(response.jobId);
 }

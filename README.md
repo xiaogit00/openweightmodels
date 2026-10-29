@@ -11,7 +11,7 @@ This repository is the production-intended implementation of the design handoff 
 - Next.js 16 App Router, React 19, TypeScript
 - Tailwind v4 + Radix primitives + Phosphor icons
 - Postgres 17 + Drizzle ORM
-- Redis + BullMQ (one job per Run)
+- Redis + BullMQ (one job per Turn; a Challenger's Turns chain in order)
 - SSE with Redis pub/sub and Postgres replay
 - AWS ECS Fargate + RDS + ElastiCache + SES target (ADR 0006)
 
