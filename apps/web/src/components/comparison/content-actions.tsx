@@ -3,6 +3,7 @@
 import * as Popover from '@radix-ui/react-popover';
 import { DotsThree, PencilSimple, Trash } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
+import { POPOVER_SURFACE } from '../ui/popover-surface';
 import { ErrorLine } from './turn-state';
 
 export const actionItemClass =
@@ -171,7 +172,7 @@ export function ActionsMenu({
           data-popover
           data-actions-menu
           aria-label={`${noun} actions`}
-          className="popover-surface z-50 w-[190px] gap-0.5 p-1.5"
+          className={`${POPOVER_SURFACE} z-50 w-[190px] gap-0.5 p-1.5`}
         >
           {confirming ? (
             <>

@@ -265,11 +265,14 @@ export function ComparisonView(props: ComparisonPageData) {
     ? turnForResponse(popover.responseId)
     : null;
   const annotationPeople = activeAnnotation
-    ? new Set(
-        activeAnnotation.thread
+    ? new Set([
+        // The author is a participant even before anyone replies, so a fresh
+        // Annotation reads "1 person" rather than "0 people".
+        activeAnnotation.author.id,
+        ...activeAnnotation.thread
           .filter((message) => !message.deletedAt)
           .map((message) => message.author.id),
-      ).size
+      ]).size
     : 0;
 
   const visibleAnnotations = useMemo(

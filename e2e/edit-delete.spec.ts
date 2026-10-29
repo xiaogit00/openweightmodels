@@ -126,6 +126,15 @@ test('owner edits and deletes Discussion comments', async ({ page }) => {
     persistedRoot.getByRole('button', { name: 'Comment actions' }),
   ).toHaveCount(0);
 
+  // Reporting someone else's comment flips the action to a filled "Reported".
+  const report = replyCard.getByRole('button', { name: 'Report this comment' });
+  await report.click();
+  const reportForm = page.locator('[data-report-form]');
+  await reportForm.getByRole('button', { name: 'Submit report' }).click();
+  await reportForm.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(report).toHaveAttribute('aria-pressed', 'true');
+  await expect(report).toContainText('Reported');
+
   const forbidden = await page.request.patch(`/api/comments/${reply.id}`, {
     data: { body: 'Hijacked by a reader' },
   });

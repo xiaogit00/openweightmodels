@@ -11,6 +11,7 @@ import {
   type ReportTarget,
 } from '@owm/core/client';
 import { cn } from '@/lib/utils';
+import { POPOVER_SURFACE } from './ui/popover-surface';
 
 const TARGET_NOUN: Record<ReportTarget, string> = {
   comparison: 'comparison',
@@ -46,6 +47,7 @@ export function ReportControl({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState<'new' | 'duplicate' | null>(null);
+  const [reported, setReported] = useState(false);
 
   if (!signedIn) {
     return (
@@ -83,6 +85,7 @@ export function ReportControl({
         return;
       }
       setSent(payload.report.duplicate ? 'duplicate' : 'new');
+      setReported(true);
     } catch {
       setError('Could not file that report. Try again.');
     } finally {
@@ -106,13 +109,19 @@ export function ReportControl({
           type="button"
           data-report-trigger
           aria-label={`Report this ${TARGET_NOUN[targetType]}`}
+          aria-pressed={reported}
           className={cn(
-            'flex items-center gap-1 rounded-[2px] text-[11px] font-medium text-neutral-400 transition-colors hover:text-text',
+            'flex items-center gap-1.5 rounded-[var(--r)] text-[12.5px] font-medium text-neutral-400 transition-colors hover:text-text',
+            reported && 'text-accent-300',
             className,
           )}
         >
-          <Flag size={12} />
-          {compact ? <span className="sr-only">Report</span> : 'Report'}
+          <Flag size={13} weight={reported ? 'fill' : 'regular'} aria-hidden />
+          {compact ? (
+            <span className="sr-only">{reported ? 'Reported' : 'Report'}</span>
+          ) : (
+            (reported ? 'Reported' : 'Report')
+          )}
         </button>
       </Popover.Trigger>
       <Popover.Portal>
@@ -122,34 +131,36 @@ export function ReportControl({
           data-popover
           data-report-form
           aria-label={`Report this ${TARGET_NOUN[targetType]}`}
-          className="z-50 flex w-[300px] flex-col gap-2.5 rounded-[2px] border border-neutral-700 bg-neutral-800 p-3 shadow-lg"
+          className={cn(POPOVER_SURFACE, 'z-50 w-[320px] gap-3 p-3.5')}
         >
           <div className="flex items-center gap-2">
-            <span className="text-[12px] font-medium">Report this {TARGET_NOUN[targetType]}</span>
+            <span className="text-[13.5px] font-medium">
+              Report this {TARGET_NOUN[targetType]}
+            </span>
             <div className="flex-1" />
             <button
               type="button"
               aria-label="Close report form"
               onClick={() => setOpen(false)}
-              className="grid h-6 w-6 place-items-center rounded-[2px] text-neutral-400 hover:bg-neutral-700 hover:text-text"
+              className="grid h-[26px] w-[26px] place-items-center rounded-[var(--r)] text-neutral-400 hover:bg-neutral-800 hover:text-text"
             >
-              <X size={12} />
+              <X size={13} aria-hidden />
             </button>
           </div>
 
           {sent ? (
             <div className="flex flex-col gap-1.5 py-1" role="status">
-              <span className="flex items-center gap-1.5 text-[12px] font-medium text-accent-200">
-                <CheckCircle size={14} />
+              <span className="flex items-center gap-1.5 text-[13px] font-medium text-accent-200">
+                <CheckCircle size={15} aria-hidden />
                 {sent === 'new' ? 'Reported' : 'Already reported'}
               </span>
-              <span className="text-[11.5px] leading-[1.5] text-neutral-400">
+              <span className="text-[12.5px] leading-[1.5] text-neutral-400">
                 An Admin will review it. You do not need to report it again.
               </span>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="btn-secondary mt-1 h-7 self-start"
+                className="btn-secondary mt-1 h-8 self-start"
               >
                 Close
               </button>
@@ -169,7 +180,7 @@ export function ReportControl({
                     aria-checked={reason === value}
                     onClick={() => setReason(value)}
                     className={cn(
-                      'flex h-7 items-center gap-2 rounded-[2px] border px-2 text-left text-[11.5px] font-medium',
+                      'flex h-8 items-center gap-2 rounded-[var(--r)] border px-2.5 text-left text-[12.5px] font-medium',
                       reason === value
                         ? 'border-accent text-accent-200'
                         : 'border-neutral-700 text-neutral-300',
@@ -193,12 +204,12 @@ export function ReportControl({
                 maxLength={500}
                 rows={2}
                 placeholder="Anything else an Admin should know? (optional)"
-                className="resize-y rounded-[2px] border border-neutral-700 bg-bg p-2 text-[11.5px] leading-[1.5] text-text focus:border-accent"
+                className="resize-y rounded-[var(--r)] border border-neutral-700 bg-surface px-2.5 py-2 text-[13px] leading-[1.5] text-text focus:border-accent"
               />
 
               {error && (
-                <span className="flex items-start gap-1 text-[11px] text-danger" role="alert">
-                  <WarningCircle size={13} className="mt-px shrink-0" />
+                <span className="flex items-start gap-1.5 text-[12px] text-danger" role="alert">
+                  <WarningCircle size={14} className="mt-px shrink-0" aria-hidden />
                   {error}
                 </span>
               )}
@@ -207,9 +218,13 @@ export function ReportControl({
                 type="button"
                 disabled={busy}
                 onClick={() => void submit()}
-                className="btn-secondary h-7 self-start disabled:opacity-45"
+                className="btn-secondary h-8 self-start disabled:opacity-45"
               >
-                {busy ? <CircleNotch size={12} className="anim-spin" /> : <Flag size={12} />}
+                {busy ? (
+                  <CircleNotch size={13} className="anim-spin" aria-hidden />
+                ) : (
+                  <Flag size={13} aria-hidden />
+                )}
                 {busy ? 'Reporting…' : 'Submit report'}
               </button>
             </>

@@ -351,7 +351,6 @@ function ThreadBody({
   const KindIcon = KIND_ICONS[annotation.kind as AnnotationKind] ?? KIND_ICONS.bug;
   const isOwner = canWrite && annotation.author.id === currentUserId;
   const isSelf = annotation.author.id === currentUserId;
-  const ago = (value: string) => relativeTimeAgo(value);
 
   return (
     <>
@@ -403,7 +402,7 @@ function ThreadBody({
                     <span className="font-medium text-neutral-100">
                       {formatHandle(message.author.handle)}
                     </span>{' '}
-                    · {ago(message.createdAt)}
+                    · {relativeTimeAgo(message.createdAt)}
                   </span>
                   <div className="flex-1" />
                   {canManage && !editing && (
@@ -670,11 +669,15 @@ export function AnnotationPopover({
       aria-modal="false"
       aria-label={isThread ? 'Annotation thread' : 'New annotation'}
       tabIndex={-1}
-      style={{ position: 'absolute', top: popover.y, left: popover.x }}
-      className={cn(
-        POPOVER_SURFACE,
-        'w-[min(320px,calc(100vw-32px))]',
-      )}
+      style={{
+        position: 'absolute',
+        top: popover.y,
+        left: popover.x,
+        width: `min(${ANNOTATION_POPOVER_WIDTH}px, calc(100vw - ${
+          ANNOTATION_POPOVER_GUTTER * 2
+        }px))`,
+      }}
+      className={POPOVER_SURFACE}
     >
       {popover.mode === 'thread' && activeAnnotation ? (
         <ThreadBody
