@@ -6,50 +6,25 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowBendUpLeft,
   ArrowFatUp,
-  Bug,
-  CaretDown,
-  CaretLeft,
-  CaretRight,
-  Check,
-  CircleNotch,
   DotsThree,
-  Ghost,
   Highlighter,
-  LinkSimple,
-  MinusCircle,
   PaperPlaneRight,
   PencilSimple,
-  Plus,
-  Question,
-  Stack,
-  ThumbsUp,
   Trash,
-  WarningCircle,
   X,
 } from '@phosphor-icons/react';
-import type {
-  AnnotationKind,
-  AnnotationView,
-  CommentView,
-  ModelRelease,
-  PublicUser,
-} from '@owm/core/client';
+import type { AnnotationKind, AnnotationView, CommentView } from '@owm/core/client';
 import {
   ANNOTATION_KIND_META,
   ANNOTATION_KINDS,
-  EFFORT_LEVELS,
-  estimateConversationCalls,
   formatHandle,
   isPendingResponse,
-  modelMatchesQuery,
-  modelWeightShortLabel,
   relativeTime,
   relativeTimeAgo,
 } from '@owm/core/client';
 import { Avatar } from './avatar';
 import { ReportControl } from './report-control';
 import { SiteHeader } from './site-header';
-import { MarkdownView } from './markdown-view';
 import { SegmentedControl } from './ui/segmented-control';
 import { cn } from '@/lib/utils';
 import { signInPath } from '@/lib/next-path';
@@ -57,67 +32,28 @@ import {
   countLiveComments,
   editCommentInTree,
 } from '@/lib/discussion';
-import type { ComparisonResponseView } from '@/lib/comparison-responses';
 import { modelsWithReplayInProgress } from '@/lib/comparison-responses';
 import {
   isResponseStatus,
   responseErrorMessage,
   type JobStreamEvent,
 } from '@/lib/run-events';
+import { ComparisonHead } from './comparison/comparison-head';
+import {
+  ComparisonResponses,
+  copyResponseText,
+} from './comparison/comparison-responses';
+import { KIND_ICONS } from './comparison/kinds';
+import { ErrorLine } from './comparison/turn-state';
+import { TurnRail } from './comparison/turn-rail';
+import type {
+  AddableModel,
+  ComparisonPageData,
+  ComparisonResponseView,
+  RunAction,
+} from './comparison/types';
 
-export type { ComparisonResponseView } from '@/lib/comparison-responses';
-
-export type ComparisonPageData = {
-  comparison: {
-    id: string;
-    title: string;
-    prompt: string;
-    categories: string[];
-    effort: number;
-    status: string;
-    createdAt: string;
-    publishedAt: string | null;
-    authorId: string;
-  };
-  author: PublicUser;
-  baseModel: { slug: string; name: string; monogram: string };
-  responses: ComparisonResponseView[];
-  annotations: AnnotationView[];
-  comments: CommentView[];
-  models: Array<{
-    id: string;
-    slug: string;
-    displayName: string;
-    monogram: string;
-    etaSeconds: number;
-    openWeights: boolean;
-    family: string;
-    release: ModelRelease;
-  }>;
-  maxChallengers: number;
-  currentUserId: string | null;
-  viewerSignedIn: boolean;
-  viewerSuspended: boolean;
-  initialModel: string | null;
-  initialAnnOn: boolean;
-  handle: string | null;
-};
-
-const KIND_ICONS: Record<AnnotationKind, typeof Bug> = {
-  bug: Bug,
-  hallucination: Ghost,
-  good: ThumbsUp,
-  question: Question,
-};
-
-const KIND_FILTERS: Array<{ value: 'All' | AnnotationKind; label: string; Icon: typeof Bug }> = [
-  { value: 'All', label: 'All', Icon: Stack },
-  ...ANNOTATION_KINDS.map((kind) => ({
-    value: kind,
-    label: ANNOTATION_KIND_META[kind].label,
-    Icon: KIND_ICONS[kind],
-  })),
-];
+export type { ComparisonPageData, ComparisonResponseView } from './comparison/types';
 
 type Popover =
   | { mode: 'thread'; id: string; x: number; y: number }
@@ -140,129 +76,10 @@ type Selection = {
   y: number;
 };
 
-function EffortMeter({ effort }: { effort: number }) {
-  return (
-    <span className="flex h-[10px] items-end gap-[2px]" title="Effort">
-      <span className="h-[5px] w-[3px] rounded-[1px] bg-accent" />
-      <span
-        className={cn('h-[7px] w-[3px] rounded-[1px]', effort >= 2 ? 'bg-accent' : 'bg-neutral-700')}
-      />
-      <span
-        className={cn('h-[10px] w-[3px] rounded-[1px]', effort >= 3 ? 'bg-accent' : 'bg-neutral-700')}
-      />
-    </span>
-  );
-}
-
-function ErrorLine({ message }: { message: string }) {
-  return (
-    <span className="flex items-center gap-1 text-[11px] text-danger">
-      <X size={11} />
-      {message}
-    </span>
-  );
-}
-
-/**
- * A Turn's reply can be missing for five different reasons. Each one reads in
- * place, beside the other model, so a reader never has to guess why a reply is
- * absent. A stopped Replay is named at the Turn where it stopped and on every
- * Turn it never reached.
- */
-function TurnStateLine({
-  response,
-  stoppedAtTurn = null,
-  turnNumber = null,
-  turnCount = null,
-  className,
-}: {
-  response: ComparisonResponseView | null | undefined;
-  stoppedAtTurn?: number | null;
-  turnNumber?: number | null;
-  turnCount?: number | null;
-  className?: string;
-}) {
-  const status = response?.status;
-  const tokens = response?.tokens ?? 0;
-  const error = response?.error ?? null;
-
-  if (status === 'failed') {
-    return (
-      <span
-        className={cn('flex items-center gap-2 text-[12px] font-medium text-danger', className)}
-      >
-        <WarningCircle size={14} />
-        {error ?? 'API timeout'}
-      </span>
-    );
-  }
-  if (status === 'skipped') {
-    if (stoppedAtTurn !== null) {
-      return (
-        <span
-          className={cn(
-            'flex items-start gap-2 text-[12px] leading-[1.5] text-neutral-500',
-            className,
-          )}
-        >
-          <MinusCircle size={14} className="mt-px shrink-0" />
-          {turnNumber === stoppedAtTurn
-            ? `Stopped at turn ${stoppedAtTurn}${turnCount ? ` of ${turnCount}` : ''} — this comparison ends here.`
-            : `Skipped — this Challenger stopped at turn ${stoppedAtTurn}.`}
-        </span>
-      );
-    }
-    return (
-      <span
-        className={cn(
-          'flex items-start gap-2 text-[12px] leading-[1.5] text-neutral-500',
-          className,
-        )}
-      >
-        <MinusCircle size={14} className="mt-px shrink-0" />
-        Skipped — this turn has no reply.
-      </span>
-    );
-  }
-  if (status === 'queued') {
-    return (
-      <span
-        className={cn(
-          'flex items-center gap-2 text-[12px] font-medium text-accent-200',
-          className,
-        )}
-      >
-        <CircleNotch size={14} className="anim-spin" />
-        <span aria-live="polite">Queued for this turn.</span>
-      </span>
-    );
-  }
-  if (status === 'calling' || status === 'streaming') {
-    return (
-      <span
-        className={cn(
-          'flex flex-wrap items-center gap-2 text-[12px] font-medium text-accent-200',
-          className,
-        )}
-      >
-        <CircleNotch size={14} className="anim-spin" />
-        <span aria-live="polite">
-          {status === 'streaming' ? 'Generating this turn…' : 'Calling the hosted API…'}
-        </span>
-        {status === 'streaming' && (
-          <span className="text-[11px] font-normal text-neutral-500">
-            {tokens.toLocaleString()} tok so far
-          </span>
-        )}
-      </span>
-    );
-  }
-  return (
-    <span className={cn('text-[12px] text-neutral-500', className)}>
-      No response for this turn.
-    </span>
-  );
-}
+/** Site header (53) + sticky response headers (48) + 8px breathing room. */
+const TURN_SCROLL_OFFSET = 53 + 48 + 8;
+/** The last Turn whose top is above this point owns the rail's label. */
+const TURN_SPY_THRESHOLD = 200;
 
 /** The Turn an Annotation belongs to, shown beside the annotation's kind. */
 function TurnBadge({ turn }: { turn: { number: number; total: number } }) {
@@ -662,232 +479,6 @@ function AnnotationActions({
   );
 }
 
-type RunAction = 'retry' | 'dismiss';
-
-type AddableModel = ComparisonPageData['models'][number];
-
-/**
- * The Add model menu. A one-Turn Comparison adds on click, as before; a
- * multi-Turn Comparison asks first, because the new model replays every stored
- * Turn and the Author should see that cost before it is spent.
- */
-function AddModelMenu({
-  atCap,
-  challengerTotal,
-  maxChallengers,
-  models,
-  addingModelId,
-  addError,
-  onAdd,
-  turnCount,
-  variant,
-  open,
-  onOpenChange,
-}: {
-  atCap: boolean;
-  challengerTotal: number;
-  maxChallengers: number;
-  models: AddableModel[];
-  addingModelId: string | null;
-  addError: string | null;
-  onAdd: (model: AddableModel) => void;
-  turnCount: number;
-  variant: 'tab' | 'pill';
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const [confirming, setConfirming] = useState<AddableModel | null>(null);
-  const [query, setQuery] = useState('');
-  const multiTurn = turnCount > 1;
-  const calls = estimateConversationCalls(turnCount, 1);
-  const callLabel = calls === 1 ? 'hosted API call' : 'hosted API calls';
-  const matching = models.filter((model) => modelMatchesQuery(model, query));
-
-  useEffect(() => {
-    if (!open) {
-      setConfirming(null);
-      setQuery('');
-    }
-  }, [open]);
-
-  const close = () => {
-    setConfirming(null);
-    onOpenChange(false);
-  };
-
-  return (
-    <Popover.Root
-      open={open}
-      onOpenChange={(value) => {
-        if (value) {
-          onOpenChange(true);
-        } else {
-          close();
-        }
-      }}
-    >
-      <Popover.Trigger asChild>
-        <button
-          type="button"
-          data-add-button
-          disabled={atCap}
-          aria-label={
-            atCap
-              ? `Adding is disabled: ${challengerTotal} of ${maxChallengers} challengers`
-              : 'Add model'
-          }
-          title={
-            atCap
-              ? `A comparison can hold at most ${maxChallengers} challengers.`
-              : multiTurn
-                ? 'Compare every turn with a new model.'
-                : 'Generate another response from the same prompt.'
-          }
-          className={cn(
-            'flex flex-none items-center gap-[5px] whitespace-nowrap px-2.5 text-[12px] font-medium transition-colors',
-            variant === 'pill' && 'rounded-[2px] py-1.5',
-            atCap
-              ? 'cursor-not-allowed text-neutral-600'
-              : 'text-neutral-400 hover:text-accent-200',
-          )}
-        >
-          <Plus size={13} />
-          Add model
-          {atCap && (
-            <span className="text-[10.5px] text-neutral-500">
-              {challengerTotal} of {maxChallengers}
-            </span>
-          )}
-        </button>
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content
-          align="start"
-          sideOffset={6}
-          aria-label="Add model"
-          data-add-menu
-          className="z-40 flex w-[280px] flex-col gap-[2px] rounded-[2px] border border-neutral-700 bg-neutral-800 p-1.5 shadow-lg"
-        >
-          {confirming ? (
-            <>
-              <span className="px-2 pb-1 pt-1.5 text-[10.5px] font-medium uppercase tracking-[0.08em] text-neutral-400">
-                COMPARE EVERY TURN
-              </span>
-              <span className="flex items-center gap-2 px-2 pb-1 text-[12px] font-medium text-text">
-                <span className="monogram !h-[18px] !w-[18px] !text-[10.5px]">
-                  {confirming.monogram}
-                </span>
-                {confirming.displayName}
-              </span>
-              <span
-                data-add-replay-confirmation
-                className="px-2 pb-1.5 text-[11.5px] leading-[1.5] text-neutral-300"
-              >
-                {confirming.displayName} answers {turnCount}{' '}
-                {turnCount === 1 ? 'turn' : 'turns'} · {calls} {callLabel}.
-              </span>
-              {addError && (
-                <span className="px-2 pb-1 text-[11px] text-danger" role="alert">
-                  {addError}
-                </span>
-              )}
-              <div className="flex gap-1.5 px-1 pb-0.5">
-                <button
-                  type="button"
-                  disabled={Boolean(addingModelId)}
-                  onClick={() => onAdd(confirming)}
-                  className="btn-secondary h-7 flex-1 disabled:opacity-50"
-                >
-                  {addingModelId === confirming.id ? 'Adding…' : 'Add model'}
-                </button>
-                <button
-                  type="button"
-                  disabled={Boolean(addingModelId)}
-                  onClick={() => setConfirming(null)}
-                  className="btn-secondary h-7 flex-1 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <span className="px-2 pb-1 pt-1.5 text-[10.5px] font-medium uppercase tracking-[0.08em] text-neutral-400">
-                {multiTurn ? 'COMPARE EVERY TURN' : 'GENERATE ANOTHER RESPONSE'}
-              </span>
-              <label className="px-1 pb-1">
-                <span className="sr-only">Search models</span>
-                <input
-                  type="search"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search models…"
-                  className="h-7 w-full rounded-[2px] border border-neutral-600 bg-neutral-900 px-2 text-[12px] font-normal text-text placeholder:text-neutral-500 focus:border-accent"
-                />
-              </label>
-              <div
-                data-add-model-list
-                className="flex max-h-[260px] flex-col gap-[2px] overflow-y-auto"
-              >
-                {matching.map((model) => (
-                  <button
-                    key={model.id}
-                    type="button"
-                    disabled={Boolean(addingModelId)}
-                    onClick={() => {
-                      if (multiTurn) setConfirming(model);
-                      else onAdd(model);
-                    }}
-                    className="flex h-8 flex-none items-center gap-2 rounded-[2px] px-2 text-left text-[12px] font-medium text-text transition-colors hover:bg-neutral-700 disabled:opacity-50"
-                  >
-                    <span className="monogram !h-[18px] !w-[18px] !text-[10.5px]">
-                      {model.monogram}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate">{model.displayName}</span>
-                    <span
-                      data-model-weight={model.openWeights ? 'open' : 'frontier'}
-                      className={cn(
-                        'flex-none rounded-[2px] border px-1 py-px text-[10.5px] font-medium leading-none',
-                        model.openWeights
-                          ? 'border-neutral-600 text-neutral-400'
-                          : 'border-accent-700 text-accent-200',
-                      )}
-                    >
-                      {modelWeightShortLabel(model.openWeights)}
-                    </span>
-                    <span className="text-[11px] font-normal text-neutral-400">
-                      {addingModelId === model.id ? 'Adding…' : `~${model.etaSeconds}s`}
-                    </span>
-                  </button>
-                ))}
-                {models.length === 0 && (
-                  <span className="px-2 py-1 text-[11px] text-neutral-400">
-                    Every available model is already in this comparison.
-                  </span>
-                )}
-                {models.length > 0 && matching.length === 0 && (
-                  <span className="px-2 py-1 text-[11px] text-neutral-400">
-                    No models match “{query.trim()}”.
-                  </span>
-                )}
-              </div>
-              {addError && (
-                <span className="px-2 py-1 text-[11px] text-danger" role="alert">
-                  {addError}
-                </span>
-              )}
-              <span className="px-2 pb-1 pt-1.5 text-[11px] leading-[1.4] text-neutral-500">
-                {multiTurn
-                  ? 'Compares every turn for the model you pick.'
-                  : 'Sends the same prompt to the model\u2019s hosted API.'}
-              </span>
-            </>
-          )}
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
-  );
-}
 
 export function ComparisonView(props: ComparisonPageData) {
   const {
@@ -924,7 +515,6 @@ export function ComparisonView(props: ComparisonPageData) {
   const [runBusy, setRunBusy] = useState<{ id: string; action: RunAction } | null>(null);
   const [runError, setRunError] = useState<{ id: string; message: string } | null>(null);
 
-  const base = responseList.find((response) => response.isBase);
   const turns = useMemo(() => {
     const byPosition = new Map<number, { position: number; prompt: string }>();
     for (const response of responseList) {
@@ -995,8 +585,8 @@ export function ComparisonView(props: ComparisonPageData) {
   const [newError, setNewError] = useState<string | null>(null);
   const [replyDraft, setReplyDraft] = useState('');
   const [saving, setSaving] = useState(false);
-  const [promptOpen, setPromptOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedResponseId, setCopiedResponseId] = useState<string | null>(null);
   const [commentFilter, setCommentFilter] = useState('All');
   const [draft, setDraft] = useState('');
   const [about, setAbout] = useState<string | null>(null);
@@ -1018,7 +608,6 @@ export function ComparisonView(props: ComparisonPageData) {
   } | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
-  const stickyRef = useRef<HTMLDivElement>(null);
   const navLockRef = useRef(0);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -1049,33 +638,21 @@ export function ComparisonView(props: ComparisonPageData) {
     0,
     turns.findIndex((turn) => turn.position === activeTurnPosition),
   );
-  const currentTurn = turns[currentTurnIndex] ?? null;
   const atFirstTurn = currentTurnIndex <= 0;
   const atLastTurn = currentTurnIndex >= turns.length - 1;
 
-  // The first Turn where each Replay stopped, so a tab can say why it ends
-  // early even before the reader opens that Turn.
-  const stoppedAtBySlug = useMemo(() => {
-    const stopped = new Map<string, number>();
-    for (const response of responseList) {
-      if (response.isBase || response.status !== 'skipped') continue;
-      const earlier = stopped.get(response.model.slug);
-      if (earlier === undefined || response.turn.position < earlier) {
-        stopped.set(response.model.slug, response.turn.position);
-      }
-    }
-    return stopped;
-  }, [responseList]);
   const goToTurn = useCallback((position: number) => {
     setActiveTurnPosition(position);
     const section = transcriptRef.current?.querySelector<HTMLElement>(
       `[data-turn-section="${position}"]`,
     );
     if (!section) return;
-    // Clear the sticky header and the Turn rail rather than hiding the Turn
-    // heading under them.
-    const stickyBottom = stickyRef.current?.getBoundingClientRect().bottom ?? 0;
-    const top = section.getBoundingClientRect().top + window.scrollY - stickyBottom - 12;
+    // Clear the site header (53px) and the sticky response headers (48px) plus
+    // an 8px breath, rather than hiding the Turn heading under them.
+    const top =
+      section.getBoundingClientRect().top +
+      window.scrollY -
+      (TURN_SCROLL_OFFSET);
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
     // The scroll below fires the observer; do not let it argue with the Turn
     // the reader just asked for while the page is still moving.
@@ -1084,20 +661,19 @@ export function ComparisonView(props: ComparisonPageData) {
   }, []);
 
   // Keep the rail's "Turn n of m" honest while the reader scrolls the
-  // transcript themselves. The last section above the sticky stack wins.
+  // transcript themselves. The last Turn whose top is above 200px wins.
   const turnKey = turns.map((turn) => turn.position).join(',');
   useEffect(() => {
     if (!multiTurn) return;
     const pickCurrentTurn = () => {
       const root = transcriptRef.current;
       if (!root || turns.length === 0) return;
-      const threshold = (stickyRef.current?.getBoundingClientRect().bottom ?? 0) + 24;
       let next = turns[0]!.position;
       for (const turn of turns) {
         const section = root.querySelector<HTMLElement>(
           `[data-turn-section="${turn.position}"]`,
         );
-        if (section && section.getBoundingClientRect().top <= threshold) {
+        if (section && section.getBoundingClientRect().top < TURN_SPY_THRESHOLD) {
           next = turn.position;
         }
       }
@@ -1803,7 +1379,7 @@ export function ComparisonView(props: ComparisonPageData) {
     }
   };
 
-  const addChallenger = async (model: ComparisonPageData['models'][number]) => {
+  const addChallenger = async (model: AddableModel) => {
     if (addingModelId || atCap) return;
     setAddingModelId(model.id);
     setAddError(null);
@@ -1940,6 +1516,18 @@ export function ComparisonView(props: ComparisonPageData) {
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const copyResponse = async (response: ComparisonResponseView) => {
+    try {
+      await navigator.clipboard.writeText(copyResponseText(response));
+      setCopiedResponseId(response.id);
+      setTimeout(() => {
+        setCopiedResponseId((current) => (current === response.id ? null : current));
+      }, 1500);
+    } catch {
+      // Clipboard access can be refused; the button simply stays unchanged.
+    }
+  };
+
   const switchTab = (slug: string) => {
     setActiveSlug(slug);
     setPopover(null);
@@ -1959,214 +1547,50 @@ export function ComparisonView(props: ComparisonPageData) {
         signInHref={signInHref}
       />
 
-      <main className="mx-auto flex w-full max-w-[1480px] flex-col gap-4 px-5 pb-12 pt-[18px]">
-        {viewerSuspended && (
-          <div
-            role="status"
-            className="flex max-w-[860px] items-start gap-2 rounded-[2px] border border-danger px-3 py-2 text-[11.5px] leading-[1.5] text-neutral-300"
-          >
-            <WarningCircle size={14} className="mt-px shrink-0 text-danger" />
-            <span>
-              <span className="font-medium text-danger">Your account is suspended.</span>{' '}
-              You can keep reading, but posting, annotating, voting and reporting are
-              disabled. Contact an Admin if you think this is a mistake.
-            </span>
-          </div>
-        )}
-        <div className="flex max-w-[860px] flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-2 text-[12px] text-neutral-400">
-            {comparison.categories.map((category) => (
-              <span
-                key={category}
-                className="flex h-5 items-center rounded-[2px] bg-neutral-800 px-[7px] font-medium text-neutral-200"
-              >
-                {category}
-              </span>
-            ))}
-            <span className="flex items-center gap-2">
-              <EffortMeter effort={comparison.effort} />
-              {EFFORT_LEVELS[comparison.effort - 1]?.label ?? 'Med'} effort
-            </span>
-            <span>·</span>
-            <Avatar handle={author.handle} size={14} />
-            <span className="text-neutral-200">{formatHandle(author.handle)}</span>
-            <span>· </span>
-            <span data-relative-time>{ago(comparison.publishedAt ?? comparison.createdAt)}</span>
-          </div>
+      <main className="mx-auto flex w-full max-w-[1280px] flex-col gap-5 px-8 pb-[72px] pt-9">
+        <ComparisonHead
+          comparison={comparison}
+          author={author}
+          annotations={annotations}
+          annOn={annOn}
+          kind={kind}
+          canWrite={canWrite}
+          viewerSignedIn={viewerSignedIn}
+          viewerSuspended={viewerSuspended}
+          isAuthor={isAuthor}
+          signInHref={signInHref}
+          copied={copied}
+          hasSelection={Boolean(selection)}
+          onToggleAnnotations={() => {
+            setAnnOn((value) => !value);
+            setPopover(null);
+            setSelection(null);
+          }}
+          onKindChange={(value) => {
+            setKind(value);
+            setPopover(null);
+          }}
+          onCopyLink={() => void copyLink()}
+          onAnnotateSelection={(trigger) => openNew(trigger)}
+        />
 
-          <h1 className="m-0 font-heading text-[20px] font-medium leading-[1.2] tracking-[-0.015em] [text-wrap:pretty]">
-            {comparison.title}
-          </h1>
-
-          <button
-            type="button"
-            onClick={() => setPromptOpen((value) => !value)}
-            className="flex items-center gap-[6px] self-start text-[12px] font-medium text-neutral-400 transition-colors hover:text-text"
-          >
-            {promptOpen ? <CaretDown size={12} /> : <CaretRight size={12} />}
-            Prompt
-          </button>
-          {promptOpen && (
-            <div className="rounded-[2px] bg-surface px-3 py-[10px] text-[12px] font-normal leading-[1.55] text-neutral-200 [text-wrap:pretty]">
-              {comparison.prompt}
-            </div>
-          )}
-        </div>
-
-        <div
-          ref={stickyRef}
-          className="sticky top-[53px] z-10 flex flex-wrap items-center gap-2 border-b border-neutral-800 bg-bg py-2"
-        >
-          <button
-            type="button"
-            aria-pressed={annOn}
-            onClick={() => {
-              setAnnOn((value) => !value);
-              setPopover(null);
-              setSelection(null);
+        {multiTurn && (
+          <TurnRail
+            turns={turns}
+            currentIndex={currentTurnIndex}
+            atFirst={atFirstTurn}
+            atLast={atLastTurn}
+            onPrevious={() => {
+              const previous = turns[currentTurnIndex - 1];
+              if (previous) goToTurn(previous.position);
             }}
-            className={cn(
-              'flex h-[30px] items-center gap-[6px] rounded-[2px] border px-2.5 text-[12px] font-medium',
-              annOn
-                ? 'border-accent bg-accent-900 text-accent-200'
-                : 'border-neutral-700 text-neutral-200',
-            )}
-          >
-            <Highlighter size={14} />
-            Annotations
-            <span className="min-w-[18px] rounded-[2px] bg-neutral-800 px-[5px] text-center text-[10.5px] font-medium leading-[18px] text-neutral-200">
-              {annotations.length}
-            </span>
-          </button>
-
-          {annOn && (
-            <>
-              <SegmentedControl
-                label="Filter annotations by kind"
-                className="min-w-0 max-w-full flex-wrap"
-                value={kind}
-                options={KIND_FILTERS.map((filter) => ({
-                  value: filter.value,
-                  label: filter.label,
-                  icon: <filter.Icon size={12} aria-hidden />,
-                }))}
-                onChange={(value) => {
-                  setKind(value);
-                  setPopover(null);
-                }}
-              />
-              {canWrite ? (
-                <span className="text-[12px] text-neutral-500">
-                  Select any text to annotate it
-                </span>
-              ) : viewerSuspended ? (
-                <span className="text-[12px] text-neutral-500">
-                  Annotations are read-only while your account is suspended.
-                </span>
-              ) : (
-                <Link href={signInHref} className="text-[12px] font-medium text-accent-200">
-                  Sign in to annotate
-                </Link>
-              )}
-              {selection && canWrite && (
-                <button
-                  type="button"
-                  onClick={(event) => openNew(event.currentTarget)}
-                  className="btn-secondary h-[30px]"
-                >
-                  <Highlighter size={14} />
-                  Annotate selection
-                </button>
-              )}
-            </>
-          )}
-
-          <div className="flex-1" />
-          {!isAuthor && !viewerSuspended && (
-            <ReportControl
-              targetType="comparison"
-              targetId={comparison.id}
-              signedIn={viewerSignedIn}
-              signInHref={signInHref}
-              className="btn-ghost h-[30px] px-2"
-            />
-          )}
-          <button type="button" onClick={copyLink} className="btn-ghost">
-            {copied ? <Check size={14} /> : <LinkSimple size={14} />}
-            {copied ? 'Copied' : 'Copy link'}
-          </button>
-
-          {multiTurn && (
-            <div
-              data-turn-rail
-              role="group"
-              aria-label="Turn navigation"
-              className="flex w-full flex-wrap items-center gap-2 border-t border-neutral-800 pt-2"
-            >
-              <div className="flex items-center gap-[2px]">
-                <button
-                  type="button"
-                  aria-label="Previous turn"
-                  title="Previous turn"
-                  aria-disabled={atFirstTurn}
-                  onClick={() => {
-                    if (atFirstTurn) return;
-                    const previous = turns[currentTurnIndex - 1];
-                    if (previous) goToTurn(previous.position);
-                  }}
-                  className={cn(
-                    'grid h-6 w-6 place-items-center rounded-[2px] text-neutral-300 transition-colors hover:bg-neutral-700',
-                    atFirstTurn && 'cursor-not-allowed opacity-40 hover:bg-transparent',
-                  )}
-                >
-                  <CaretLeft size={13} />
-                </button>
-                <span
-                  data-turn-indicator
-                  className="min-w-[92px] text-center text-[12px] font-medium text-text"
-                >
-                  Turn {currentTurnIndex + 1} of {turns.length}
-                </span>
-                <button
-                  type="button"
-                  aria-label="Next turn"
-                  title="Next turn"
-                  aria-disabled={atLastTurn}
-                  onClick={() => {
-                    if (atLastTurn) return;
-                    const next = turns[currentTurnIndex + 1];
-                    if (next) goToTurn(next.position);
-                  }}
-                  className={cn(
-                    'grid h-6 w-6 place-items-center rounded-[2px] text-neutral-300 transition-colors hover:bg-neutral-700',
-                    atLastTurn && 'cursor-not-allowed opacity-40 hover:bg-transparent',
-                  )}
-                >
-                  <CaretRight size={13} />
-                </button>
-              </div>
-              <div className="flex-1" />
-              <label className="flex items-center gap-1.5 text-[11px] text-neutral-400">
-                <span>Jump to</span>
-                <select
-                  aria-label="Jump to turn"
-                  value={currentTurn ? String(currentTurn.position) : ''}
-                  onChange={(event) => {
-                    const position = Number(event.target.value);
-                    if (Number.isFinite(position)) goToTurn(position);
-                  }}
-                  className="h-6 rounded-[2px] border border-neutral-700 bg-neutral-800 px-1 text-[11px] text-text"
-                >
-                  {turns.map((turn, index) => (
-                    <option key={turn.position} value={turn.position}>
-                      Turn {index + 1}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          )}
-        </div>
+            onNext={() => {
+              const next = turns[currentTurnIndex + 1];
+              if (next) goToTurn(next.position);
+            }}
+            onGoToTurn={goToTurn}
+          />
+        )}
 
         <div
           ref={gridRef}
@@ -2180,414 +1604,44 @@ export function ComparisonView(props: ComparisonPageData) {
           }}
           className="relative"
         >
-        {multiTurn ? (
-          <div
-            ref={transcriptRef}
-            className="flex min-w-0 flex-col gap-5"
-            data-conversation-transcript
-          >
-            <div className="flex min-w-0 flex-wrap items-stretch gap-[2px] overflow-x-auto rounded-[2px] bg-surface p-1.5 [scrollbar-width:none]">
-              {challengers.map((response) => {
-                const pending = isPendingResponse(response.status);
-                const failed = response.status === 'failed';
-                const stoppedAtPosition = stoppedAtBySlug.get(response.model.slug);
-                const inProgress = replayInProgress.has(response.model.slug);
-                return (
-                  <button
-                    key={response.model.slug}
-                    type="button"
-                    data-challenger-tab={response.model.slug}
-                    onClick={() => switchTab(response.model.slug)}
-                    aria-label={
-                      stoppedAtPosition !== undefined
-                        ? `${response.model.name} — stopped at turn ${stoppedAtPosition + 1}`
-                        : failed
-                          ? `${response.model.name} — failed: ${response.error ?? 'API timeout'}`
-                          : inProgress || pending
-                            ? `${response.model.name} — generating replies`
-                            : undefined
-                    }
-                    title={
-                      stoppedAtPosition !== undefined
-                        ? `Stopped at turn ${stoppedAtPosition + 1}`
-                        : failed
-                          ? response.error ?? 'API timeout'
-                          : inProgress
-                            ? 'Generating replies'
-                            : undefined
-                    }
-                    className={cn(
-                      'flex flex-none items-center gap-[6px] whitespace-nowrap rounded-[2px] px-2.5 py-1.5 text-[12px] font-medium transition-colors',
-                      response.model.slug === activeSlug
-                        ? 'bg-neutral-700 text-text'
-                        : 'text-neutral-400 hover:text-text',
-                    )}
-                  >
-                    <span className="monogram !h-[18px] !w-[18px] !text-[10.5px]">
-                      {response.model.monogram}
-                    </span>
-                    {response.model.name}
-                    {pending && <CircleNotch size={12} className="anim-spin text-accent-300" />}
-                    {inProgress && (
-                      <span
-                        data-replay-in-progress
-                        className="rounded-[2px] border border-accent-700 px-1 py-0.5 text-[10.5px] font-medium leading-none text-accent-200"
-                      >
-                        Generating replies
-                      </span>
-                    )}
-                    {failed && <WarningCircle size={12} className="text-danger" />}
-                    {stoppedAtPosition !== undefined && !failed && (
-                      <MinusCircle size={12} className="text-neutral-400" />
-                    )}
-                  </button>
-                );
-              })}
-              {challengers.length === 0 && (
-                <span className="flex items-center px-2 text-[12px] text-neutral-500">
-                  No challenger responses
-                </span>
-              )}
-              {canAdd && (
-                <AddModelMenu
-                  atCap={atCap}
-                  challengerTotal={challengerTotal}
-                  maxChallengers={maxChallengers}
-                  models={availableModels}
-                  addingModelId={addingModelId}
-                  addError={addError}
-                  onAdd={(model) => void addChallenger(model)}
-                  turnCount={turns.length}
-                  variant="pill"
-                  open={menuOpen}
-                  onOpenChange={(open) => {
-                    setMenuOpen(open);
-                    if (open) setAddError(null);
-                  }}
-                />
-              )}
-            </div>
-
-            {turns.map((turn) => {
-              const turnBase = responseList.find(
-                (response) => response.isBase && response.turn.position === turn.position,
-              );
-              const turnActive = active
-                ? responseList.find(
-                    (response) =>
-                      !response.isBase &&
-                      response.model.slug === active.model.slug &&
-                      response.turn.position === turn.position,
-                  )
-                : null;
-              return (
-                <section
-                  key={turn.position}
-                  data-turn={turn.position + 1}
-                  data-turn-section={turn.position}
-                  className="flex min-w-0 flex-col gap-2.5 rounded-[2px] bg-surface p-3"
-                >
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[11px] font-medium uppercase tracking-[0.04em] text-neutral-500">
-                      Turn {turn.position + 1}
-                    </span>
-                    <p className="m-0 whitespace-pre-wrap text-[13px] leading-[1.5]">
-                      {turn.prompt}
-                    </p>
-                  </div>
-                  <div
-                    className="grid items-start gap-3"
-                    style={{
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(min(380px, 100%), 1fr))',
-                    }}
-                  >
-                    <div className="flex min-w-0 flex-col rounded-[2px] bg-bg">
-                      <div className="flex h-[38px] items-center gap-2 border-b border-neutral-800 px-3">
-                        <span className="rounded-[2px] border border-accent-700 px-1.5 py-1 text-[10.5px] font-semibold leading-none tracking-[0.08em] text-accent-200">
-                          BASE
-                        </span>
-                        <span className="text-[12px] font-medium">{turnBase?.model.name}</span>
-                        <div className="flex-1" />
-                        <span className="text-[11px] text-neutral-500">
-                          {turnBase?.tokens.toLocaleString()} tok
-                        </span>
-                      </div>
-                      <div className="flex flex-col gap-3 px-3.5 pb-4 pt-3">
-                        {turnBase?.status === 'done' ? (
-                          <MarkdownView
-                            responseId={turnBase.id}
-                            blocks={turnBase.blocks}
-                            annotations={visibleAnnotations}
-                            annOn={annOn}
-                            kindFilter={kind}
-                            openId={popover?.mode === 'thread' ? popover.id : null}
-                            onOpen={openThread}
-                          />
-                        ) : (
-                          <TurnStateLine response={turnBase} />
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex min-w-0 flex-col rounded-[2px] bg-bg">
-                      <div className="flex h-[38px] items-center gap-2 border-b border-neutral-800 px-3">
-                        <span className="monogram !h-[18px] !w-[18px] !text-[10.5px]">
-                          {active?.model.monogram ?? '--'}
-                        </span>
-                        <span className="text-[12px] font-medium">
-                          {active?.model.name ?? 'Challenger'}
-                        </span>
-                        <div className="flex-1" />
-                        {turnActive?.status === 'done' && (
-                          <span className="text-[11px] text-neutral-500">
-                            {turnActive.tokens.toLocaleString()} tok
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex flex-col gap-3 px-3.5 pb-4 pt-3">
-                        {turnActive?.status === 'done' ? (
-                          <MarkdownView
-                            responseId={turnActive.id}
-                            blocks={turnActive.blocks}
-                            annotations={visibleAnnotations}
-                            annOn={annOn}
-                            kindFilter={kind}
-                            openId={popover?.mode === 'thread' ? popover.id : null}
-                            onOpen={openThread}
-                          />
-                        ) : turnActive?.status === 'failed' ? (
-                          <div className="flex flex-col gap-2">
-                            <TurnStateLine response={turnActive} />
-                            {isAuthor && (
-                              <div className="flex flex-wrap items-center gap-2">
-                                <button
-                                  type="button"
-                                  disabled={Boolean(runBusy)}
-                                  onClick={() => void actOnRun(turnActive, 'retry')}
-                                  className="btn-secondary h-[28px] disabled:opacity-45"
-                                >
-                                  Retry
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={Boolean(runBusy)}
-                                  onClick={() => void actOnRun(turnActive, 'dismiss')}
-                                  className="btn-secondary h-[28px] disabled:opacity-45"
-                                >
-                                  Skip remaining
-                                </button>
-                              </div>
-                            )}
-                            {runError?.id === turnActive.id && (
-                              <ErrorLine message={runError.message} />
-                            )}
-                          </div>
-                        ) : (
-                          <TurnStateLine
-                            response={turnActive}
-                            stoppedAtTurn={
-                              activeStoppedAt === null ? null : activeStoppedAt + 1
-                            }
-                            turnNumber={turn.position + 1}
-                            turnCount={turns.length}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </section>
-              );
-            })}
+          <div ref={transcriptRef} data-conversation-transcript>
+            <ComparisonResponses
+              turns={turns}
+              multiTurn={multiTurn}
+              responseList={responseList}
+              baseModel={baseModel}
+              annOn={annOn}
+              kind={kind}
+              annotations={visibleAnnotations}
+              openAnnotationId={popover?.mode === 'thread' ? popover.id : null}
+              onOpenAnnotation={openThread}
+              activeStoppedAt={activeStoppedAt === null ? null : activeStoppedAt + 1}
+              isAuthor={isAuthor}
+              runBusy={runBusy}
+              runError={runError}
+              onRun={(response, action) => void actOnRun(response, action)}
+              copiedResponseId={copiedResponseId}
+              onCopyResponse={(response) => void copyResponse(response)}
+              picker={{
+                active,
+                challengers,
+                replayInProgress,
+                canAdd,
+                atCap,
+                models: availableModels,
+                addingModelId,
+                addError,
+                turnCount: turns.length,
+                open: menuOpen,
+                onOpenChange: (open) => {
+                  setMenuOpen(open);
+                  if (open) setAddError(null);
+                },
+                onSwitch: switchTab,
+                onAdd: (model) => void addChallenger(model),
+              }}
+            />
           </div>
-        ) : (
-        <div
-          className="grid items-start gap-3"
-          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(380px, 100%), 1fr))' }}
-        >
-          {base && base.status === 'done' && (
-            <section className="flex min-w-0 flex-col rounded-[2px] bg-surface">
-              <div className="flex h-[42px] items-center gap-2 border-b border-neutral-800 px-3.5">
-                <span className="rounded-[2px] border border-accent-700 px-1.5 py-1 text-[10.5px] font-semibold leading-none tracking-[0.08em] text-accent-200">
-                  BASE
-                </span>
-                <span className="monogram monogram-base !h-[18px] !w-[18px] !text-[10.5px]">
-                  {base.model.monogram}
-                </span>
-                <span className="text-[12px] font-medium">{base.model.name}</span>
-                <div className="flex-1" />
-                <span className="whitespace-nowrap text-[11px] text-neutral-500">
-                  {base.tokens.toLocaleString()} tok
-                  {base.latencyMs ? ` · ${(base.latencyMs / 1000).toFixed(1)}s` : ''}
-                </span>
-              </div>
-              <div className="flex flex-col gap-3 px-4 pb-[18px] pt-3.5">
-                <MarkdownView
-                  responseId={base.id}
-                  blocks={base.blocks}
-                  annotations={visibleAnnotations}
-                  annOn={annOn}
-                  kindFilter={kind}
-                  openId={popover?.mode === 'thread' ? popover.id : null}
-                  onOpen={openThread}
-                />
-              </div>
-            </section>
-          )}
-
-          <section className="relative flex min-w-0 flex-col rounded-[2px] bg-surface">
-            <div className="flex h-[42px] min-w-0 items-stretch gap-[2px] overflow-x-auto border-b border-neutral-800 px-1.5 [scrollbar-width:none]">
-              {challengers.map((response) => {
-                const pending = isPendingResponse(response.status);
-                const failed = response.status === 'failed';
-                return (
-                  <button
-                    key={response.model.slug}
-                    type="button"
-                    data-challenger-tab={response.model.slug}
-                    onClick={() => switchTab(response.model.slug)}
-                    title={
-                      pending
-                        ? `Calling ${response.model.name} hosted API…`
-                        : failed
-                          ? response.error ?? 'API timeout'
-                          : undefined
-                    }
-                    className={cn(
-                      'my-[-1px] flex flex-none items-center gap-[6px] whitespace-nowrap border-b-2 px-2.5 text-[12px] font-medium transition-colors',
-                      response.model.slug === activeSlug
-                        ? 'border-accent text-text'
-                        : 'border-transparent text-neutral-400 hover:text-text',
-                    )}
-                  >
-                    <span className="monogram !h-[18px] !w-[18px] !text-[10.5px]">
-                      {response.model.monogram}
-                    </span>
-                    {response.model.name}
-                    {pending && (
-                      <CircleNotch
-                        size={12}
-                        className="anim-spin text-accent-300"
-                      />
-                    )}
-                    {failed && <WarningCircle size={12} className="text-danger" />}
-                  </button>
-                );
-              })}
-              {challengers.length === 0 && (
-                <span className="flex items-center px-2 text-[12px] text-neutral-500">
-                  No challenger responses
-                </span>
-              )}
-              {canAdd && (
-                <AddModelMenu
-                  atCap={atCap}
-                  challengerTotal={challengerTotal}
-                  maxChallengers={maxChallengers}
-                  models={availableModels}
-                  addingModelId={addingModelId}
-                  addError={addError}
-                  onAdd={(model) => void addChallenger(model)}
-                  turnCount={turns.length}
-                  variant="tab"
-                  open={menuOpen}
-                  onOpenChange={(open) => {
-                    setMenuOpen(open);
-                    if (open) setAddError(null);
-                  }}
-                />
-              )}
-            </div>
-
-            {active && active.status === 'done' ? (
-              <div className="flex flex-col gap-3 px-4 pb-[18px] pt-3.5">
-                <span className="-mb-1 text-[11px] text-neutral-500">
-                  {active.tokens.toLocaleString()} tok
-                  {active.latencyMs ? ` · ${(active.latencyMs / 1000).toFixed(1)}s` : ''}
-                </span>
-                <MarkdownView
-                  responseId={active.id}
-                  blocks={active.blocks}
-                  annotations={visibleAnnotations}
-                  annOn={annOn}
-                  kindFilter={kind}
-                  openId={popover?.mode === 'thread' ? popover.id : null}
-                  onOpen={openThread}
-                />
-              </div>
-            ) : active && active.status === 'failed' ? (
-              <div className="flex flex-col gap-3 px-4 pb-[18px] pt-3.5">
-                <span className="flex items-center gap-2 text-[12px] font-medium text-danger">
-                  <WarningCircle size={14} />
-                  {active.error ?? 'API timeout'}
-                </span>
-                <span className="text-[12px] leading-[1.5] text-neutral-400">
-                  Only you can see this failed response. Readers still see the
-                  Comparison without it.
-                </span>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={Boolean(runBusy)}
-                    onClick={() => void actOnRun(active, 'retry')}
-                    className="btn-secondary h-[28px] disabled:opacity-45"
-                  >
-                    {runBusy?.id === active.id && runBusy.action === 'retry'
-                      ? 'Retrying…'
-                      : 'Retry'}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={Boolean(runBusy)}
-                    onClick={() => void actOnRun(active, 'dismiss')}
-                    className="btn-secondary h-[28px] disabled:opacity-45"
-                  >
-                    {runBusy?.id === active.id && runBusy.action === 'dismiss'
-                      ? 'Dismissing…'
-                      : 'Dismiss'}
-                  </button>
-                </div>
-                {runError?.id === active.id && (
-                  <ErrorLine message={runError.message} />
-                )}
-              </div>
-            ) : active && isPendingResponse(active.status) ? (
-              <div className="flex flex-col gap-3 px-4 pb-[18px] pt-3.5" aria-live="polite">
-                <span className="flex items-center gap-2 text-[12px] font-medium text-accent-200">
-                  <CircleNotch size={14} className="anim-spin" />
-                  Calling {active.model.name} hosted API…
-                </span>
-                <div className="flex flex-col gap-2">
-                  <div
-                    className="anim-shimmer h-2 w-[92%] rounded-[2px] bg-neutral-800"
-                  />
-                  <div
-                    className="anim-shimmer h-2 w-[78%] rounded-[2px] bg-neutral-800"
-                    style={{ animationDelay: '.15s' }}
-                  />
-                  <div
-                    className="anim-shimmer h-16 rounded-[2px] bg-bg"
-                    style={{ animationDelay: '.3s' }}
-                  />
-                  <div
-                    className="anim-shimmer h-2 w-[64%] rounded-[2px] bg-neutral-800"
-                    style={{ animationDelay: '.45s' }}
-                  />
-                </div>
-                <span className="text-[11px] text-neutral-500">
-                  {active.status === 'queued'
-                    ? 'Queued — waiting for a worker.'
-                    : `${active.tokens.toLocaleString()} tok so far`}
-                </span>
-              </div>
-            ) : (
-              <div className="px-4 py-8 text-[12px] text-neutral-500">
-                No response selected.
-              </div>
-            )}
-          </section>
-
-        </div>
-        )}
 
           {selection && !popover && (
             <button
@@ -2619,7 +1673,7 @@ export function ComparisonView(props: ComparisonPageData) {
                 <>
                   <div className="flex items-center gap-1.5 px-3 pt-2.5">
                     {(() => {
-                      const Icon = KIND_ICONS[activeAnnotation.kind as AnnotationKind] ?? Bug;
+                      const Icon = KIND_ICONS[activeAnnotation.kind as AnnotationKind] ?? KIND_ICONS.bug;
                       return (
                         <span className="flex h-5 items-center gap-1 rounded-[2px] border border-accent-700 px-[7px] text-[11px] font-medium text-accent-200">
                           <Icon size={12} />

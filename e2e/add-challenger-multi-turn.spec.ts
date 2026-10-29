@@ -43,7 +43,7 @@ test('add a Challenger to a published multi-Turn Comparison replays every Turn',
 
   // Adding a model to a multi-Turn Comparison asks first: the Author sees the
   // Turn count and the call estimate before spending them.
-  await page.getByRole('button', { name: 'Add model' }).click();
+  await page.locator('[data-add-button]').click();
   const menu = page.locator('[data-add-menu]');
   await expect(menu).toBeVisible();
   await menu.getByRole('button', { name: /DeepSeek V4.1 Flash/ }).click();
@@ -60,12 +60,15 @@ test('add a Challenger to a published multi-Turn Comparison replays every Turn',
 
   await menu.getByRole('button', { name: /DeepSeek V4.1 Flash/ }).click();
   await menu.getByRole('button', { name: 'Add model' }).click();
+  await expect(menu).toBeHidden();
 
   // The Replay streams in: the new model appears immediately for the Author
   // with a marker while its later Turns are still pending.
+  await expect(page.locator('[data-replay-in-progress]')).toBeVisible();
+  await page.locator('[data-model-picker]').click();
   const authorTab = page.locator('[data-challenger-tab="deepseek-v4-1-flash"]');
   await expect(authorTab).toBeVisible();
-  await expect(authorTab.locator('[data-replay-in-progress]')).toBeVisible();
+  await page.keyboard.press('Escape');
 
   // A reader sees the model once its first Turn is done, and the finished
   // transcript after the whole Replay settles.
@@ -75,6 +78,8 @@ test('add a Challenger to a published multi-Turn Comparison replays every Turn',
     .poll(
       async () => {
         await reader.goto(`/comparisons/${id}`);
+        await reader.locator('[data-model-picker]').click();
+        await reader.locator('[data-add-menu]').waitFor({ state: 'visible' });
         return reader.locator('[data-challenger-tab="deepseek-v4-1-flash"]').count();
       },
       { timeout: 60_000 },
@@ -95,8 +100,7 @@ test('add a Challenger to a published multi-Turn Comparison replays every Turn',
     .toBeGreaterThan(0);
 
   await expect(page.locator('[data-replay-in-progress]')).toHaveCount(0);
-  await expect(authorTab.locator('[data-replay-in-progress]')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Add model' })).toBeVisible();
+  await expect(page.locator('[data-add-button]')).toBeVisible();
 
   await readerContext.close();
   await page.request.patch('/api/notifications', { data: { all: true } });

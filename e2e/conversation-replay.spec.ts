@@ -66,10 +66,12 @@ test('replay a three-Turn Conversation and read it as a transcript', async ({ pa
   await expect(indicator).toHaveText('Turn 2 of 3');
   await expect(next).toBeFocused();
 
-  const jump = page.getByLabel('Jump to turn');
-  await jump.focus();
-  await expect(jump).toBeFocused();
-  await jump.selectOption({ label: 'Turn 3' });
+  const jump = page.getByRole('group', { name: 'Jump to turn' });
+  await expect(jump).toBeVisible();
+  const jumpToThree = jump.getByRole('button', { name: 'Turn 3' });
+  await jumpToThree.focus();
+  await expect(jumpToThree).toBeFocused();
+  await page.keyboard.press('Enter');
   await expect(indicator).toHaveText('Turn 3 of 3');
   await expect(next).toHaveAttribute('aria-disabled', 'true');
 
