@@ -2,7 +2,7 @@
 
 Status: **accepted implementation contract**, with one rework in progress (below). This file supersedes `design_handoff_openweightmodels/BACKEND.md` wherever the two disagree. The design handoff remains the visual source of truth.
 
-> **Rework in progress: multi-turn Conversations.** The target is a Comparison of one Conversation's Turns (ADR 0008), AI Exporter markdown as the canonical Base output format (ADR 0009), and frontier models as first-class registry entries (ADR 0010). The settled design is `.scratch/openweightmodels/spec.md`; tickets 18–25 carry the work. Ticket 20 made creation, the Replay lifecycle and the Job/Comparison reads Turn-aware; **section 6** still describes the legacy single-Turn parser until ticket 21 lands the AI Exporter importer.
+> **Rework in progress: multi-turn Conversations.** The target is a Comparison of one Conversation's Turns (ADR 0008), AI Exporter markdown as the canonical Base output format (ADR 0009), and frontier models as first-class registry entries (ADR 0010). The settled design is `.scratch/openweightmodels/spec.md`; tickets 18–25 carry the work. Ticket 20 made creation, the Replay lifecycle and the Job/Comparison reads Turn-aware; ticket 21 added the AI Exporter importer and its confirmation step. The multi-Turn reader (ticket 22), Board treatment (23), Add model (24) and the fuller guidance/help copy (25) remain.
 
 Related documents:
 
@@ -434,7 +434,7 @@ The Board loads facets once per page, patches them from `comparison.published` S
 
 Exactly one of `file`, `base_output` or `turns` supplies the Conversation; sending more than one is rejected with `base_conflict`.
 
-- `file` — upload path: `.md`/`.markdown`/`.txt`, ≤0.5 MB, valid UTF-8; currently one Turn (the AI Exporter parser lands in ticket 21)
+- `file` — upload path: `.md`/`.markdown`/`.txt`, ≤0.5 MB, valid UTF-8; an AI Exporter export becomes a multi-Turn Conversation, while legacy front-matter and bare markdown stay one Turn
 - `base_output` — write path: the Base model's reply, ≤100,000 chars
 - `turns` — turn-script path: a JSON array of `{ "prompt": string, "baseOutput": string }`, 1–6 entries. Each Prompt is ≤10,000 chars; Prompts plus Base replies across the Conversation are ≤100,000 chars. This is the path the import confirmation will call.
 - `base_model_id` — required, enabled model
@@ -538,16 +538,25 @@ A **Replay** is one Challenger's Responses across every Turn, generated in Turn 
 
 ## 6. Upload parsing
 
-> **Extends in tickets 21 and 25.** AI Exporter markdown is the canonical format (ADR 0009); the front-matter and bare-markdown rules below survive as one-Turn fallbacks until the importer lands. Ticket 20 already enforces the 0.5 MB conversation limit and accepts an explicit turn script.
+AI Exporter markdown is the canonical format (ADR 0009). The front-matter and bare-markdown rules below survive as one-Turn fallbacks; ticket 25 adds the surrounding guidance, sample download and help page.
 
 - Accept `.md`, `.markdown`, `.txt`, **0.5 MB** maximum.
-- Reject null bytes, invalid UTF-8 and empty bodies.
+- Reject null bytes, invalid UTF-8 and empty files.
+- An AI Exporter file is recognised by a leading `> From:` line, `# you asked` / `# <vendor> response` section headers, `message time:` lines, `---` separators and the `Powered by [AI Exporter]` footer. Section headers are matched only outside fenced code blocks, so a Prompt that quotes markdown cannot split the Conversation.
+- `> From:`, every `message time:` line, the footer and the separators around section headers are discarded and never persisted. Separators and heading-like lines inside a message body are preserved.
+- Adjacent `# you asked` sections with no response between them merge into one Turn. The import confirmation names the merge.
+- A response header with no body, or a user section with no following response, blocks creation with an error naming the Turn, e.g. `Turn 2 has no reply from Claude.`
+- The final reply is accepted even when it looks cut off. The confirmation warns instead: an unclosed fence, a dangling list marker, a heading at the end, a reply whose last block is a list, or a last line with no terminal punctuation.
+- 1–6 Turns; Prompts plus Base replies across the Conversation are ≤100,000 characters. These limits are enforced before any Job is queued.
+- A file with exporter metadata but no sections, or a raw `You:`/`ChatGPT:` chat paste, gets a specific error pointing at the exporter. A file that is neither is treated as bare markdown.
 - Front matter is optional. It must start and end with a `---` line. Parse with a core YAML schema and **`maxAliasCount: 0`**; no custom tags.
 - Only `prompt:` and `model:` are read. Both must be strings if present. Other keys are ignored.
-- `prompt` is 1–10,000 characters. The form may override the front-matter prompt, but a non-empty prompt is always required to schedule.
-- The body after front matter becomes the Base `responses.content_md`.
-- `title` falls back to the filename stem with separators replaced.
-- The front-matter `model:` value is matched against an enabled registry slug or display name to preselect "Generated by". An unknown value is ignored and the form asks the author to choose. The form's `base_model_id` wins at scheduling time.
+- Front-matter and bare markdown become one Turn: the body is the Base `responses.content_md`, and the form's Prompt fills a missing one. The form may override a front-matter prompt.
+- The default title is a summary of the first Prompt; the filename stem is only the fallback when no Prompt is present. The author can edit it.
+- The front-matter `model:` value is matched against an enabled registry slug or display name to preselect "Generated by". An unknown value is ignored and the form asks the author to choose.
+- An exporter's vendor (`claude`, `deepseek`, …) is a hint, never an attribution. It preselected exactly one registry Model only when exactly one entry matches; otherwise the form says how many candidates exist (or that none do) and requires the author to choose. The form's `base_model_id` wins at scheduling time.
+
+The New Comparison confirmation shows the Turn count, a preview of every Prompt and Base reply, merge and truncation warnings, and an estimate of calls (`Turns × Challengers`) and input tokens before scheduling. The submitted `file` is re-parsed by the service, so the server remains the authority.
 
 ---
 

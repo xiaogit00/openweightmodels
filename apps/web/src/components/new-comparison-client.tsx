@@ -19,19 +19,25 @@ import {
   UploadValidationError,
   challengerDisabled,
   decodeUtf8,
+  defaultTitleForImport,
   describeSchedule,
+  estimateConversationCalls,
+  estimateConversationInputTokens,
   matchModelFromFrontMatter,
-  parseMarkdownUpload,
+  matchVendorModels,
+  parseConversationUpload,
   summariseMarkdown,
   toggleChallenger,
   validateFileSize,
+  vendorLabel,
   type BaseSource,
-  type ParsedUpload,
+  type ConversationImport,
+  type ConversationTurnInput,
   type SelectableModel,
 } from '@owm/core/client';
 import { SiteHeader } from './site-header';
 import { ComparisonPreview } from './comparison-preview';
-import { cn } from '@/lib/utils';
+import { cn, plural } from '@/lib/utils';
 
 export type FormModel = SelectableModel & {
   monogram: string;
@@ -39,7 +45,7 @@ export type FormModel = SelectableModel & {
 
 type LoadedFile = {
   file: File;
-  parsed: ParsedUpload;
+  imported: ConversationImport;
   sizeLabel: string;
 };
 
@@ -179,6 +185,7 @@ export function NewComparisonClient({
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const titleTouched = useRef(false);
   const [baseSource, setBaseSource] = useState<BaseSource>('upload');
   const [loaded, setLoaded] = useState<LoadedFile | null>(null);
   const [baseOutput, setBaseOutput] = useState('');
@@ -194,6 +201,9 @@ export function NewComparisonClient({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // The upload tab replays every Turn; the write tab is always one Turn.
+  const turnCount =
+    baseSource === 'upload' ? loaded?.imported.turns.length ?? 1 : 1;
   const schedule = describeSchedule({
     baseSource,
     hasFile: Boolean(loaded),
@@ -201,6 +211,7 @@ export function NewComparisonClient({
     baseModelId: baseModelId || null,
     challengerIds: picked,
     prompt,
+    turnCount,
     models,
   });
   const baseModel = models.find((model) => model.id === baseModelId) ?? null;
@@ -208,10 +219,22 @@ export function NewComparisonClient({
     .map((id) => models.find((model) => model.id === id))
     .filter((model): model is FormModel => Boolean(model));
   const hasBase = baseSource === 'upload' ? Boolean(loaded) : Boolean(baseOutput.trim());
-  const baseBody = baseSource === 'upload' ? loaded?.parsed.body : baseOutput;
+  const baseBody =
+    baseSource === 'upload' ? loaded?.imported.turns[0]?.baseOutput : baseOutput;
   const baseSnippet = baseBody?.trim()
     ? summariseMarkdown(baseBody, 180)
     : undefined;
+  const previewTurns: ConversationTurnInput[] = (loaded?.imported.turns ?? []).map(
+    (turn, index) =>
+      index === 0 && loaded?.imported.format !== 'ai-exporter'
+        ? { ...turn, prompt }
+        : turn,
+  );
+  const estimatedTokens = estimateConversationInputTokens(previewTurns);
+  const estimatedCalls = estimateConversationCalls(
+    previewTurns.length,
+    picked.length,
+  );
 
   async function loadFile(
     nextFile: File,
@@ -221,26 +244,44 @@ export function NewComparisonClient({
     try {
       validateFileSize(nextFile.size);
       const text = decodeUtf8(new Uint8Array(await nextFile.arrayBuffer()));
-      const parsed = parseMarkdownUpload(text, nextFile.name);
-      const matched = matchModelFromFrontMatter(parsed.model, models);
+      const imported = parseConversationUpload(text, nextFile.name);
+      const matched = matchModelFromFrontMatter(imported.model, models);
+      const vendorMatches = matchVendorModels(imported.vendor, models);
+      const soleVendorMatch =
+        vendorMatches.length === 1 ? vendorMatches[0]! : null;
 
       setLoaded({
         file: nextFile,
-        parsed,
+        imported,
         sizeLabel: sizeLabel(nextFile.size, text),
       });
-      setPrompt(parsed.prompt ?? '');
-      setTitle(overrides?.title ?? parsed.titleFromFile);
+      setPrompt(imported.turns[0]?.prompt ?? imported.prompt ?? '');
+      setTitle(overrides?.title ?? defaultTitleForImport(imported));
+      titleTouched.current = Boolean(overrides?.title);
       if (overrides?.categories) setCategories(overrides.categories);
 
       if (matched) {
         setBaseModelId(matched.id);
         setPicked((current) => current.filter((id) => id !== matched.id));
         setModelNotice(null);
-      } else if (parsed.model) {
+      } else if (soleVendorMatch) {
+        setBaseModelId(soleVendorMatch.id);
+        setPicked((current) => current.filter((id) => id !== soleVendorMatch.id));
+        setModelNotice(
+          `This looks like a ${vendorLabel(imported.vendor)} conversation, so we selected ${soleVendorMatch.displayName}. Change it if another model wrote the replies.`,
+        );
+      } else if (imported.vendor) {
+        setBaseModelId('');
+        const name = vendorLabel(imported.vendor);
+        setModelNotice(
+          vendorMatches.length > 1
+            ? `This looks like a ${name} conversation, which matches ${vendorMatches.length} models in the registry. Choose the one that generated the replies.`
+            : `This looks like a ${name} conversation, but no registry model matches it. Choose the model that generated the replies.`,
+        );
+      } else if (imported.model) {
         setBaseModelId('');
         setModelNotice(
-          `We couldn't match “${parsed.model}” to a model in the registry. Choose the model that generated this output.`,
+          `We couldn't match “${imported.model}” to a model in the registry. Choose the model that generated this output.`,
         );
       } else {
         setModelNotice(null);
@@ -256,6 +297,15 @@ export function NewComparisonClient({
 
   function pickFile(file: File | undefined) {
     if (file) void loadFile(file);
+  }
+
+  function changePrompt(next: string) {
+    setPrompt(next);
+    // A bare markdown upload has no Prompt until the author types one, so keep
+    // following it with the default title until the title is edited by hand.
+    if (!titleTouched.current) {
+      setTitle(summariseMarkdown(next, 80) || loaded?.imported.titleFromFile || '');
+    }
   }
 
   function chooseBaseModel(next: string) {
@@ -407,8 +457,9 @@ export function NewComparisonClient({
                         <span className="text-accent-300">browse</span>
                       </span>
                       <span className="text-[12px] font-normal text-neutral-500">
-                        Front-matter <code className="font-mono">prompt:</code> is read
-                        automatically
+                        AI Exporter, front-matter{' '}
+                        <code className="font-mono">prompt:</code> and plain markdown are
+                        read automatically
                       </span>
                     </button>
                     <button
@@ -433,10 +484,10 @@ export function NewComparisonClient({
                       <FileText size={20} className="flex-none text-accent-300" />
                       <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
                         <span className="truncate text-[12px] font-medium">
-                          {loaded.parsed.fileName}
+                          {loaded.file.name}
                         </span>
                         <span className="text-[11px] font-normal text-neutral-500">
-                          {loaded.sizeLabel}
+                          {loaded.sizeLabel} · {plural(previewTurns.length, 'turn')}
                         </span>
                       </div>
                       <button
@@ -448,19 +499,90 @@ export function NewComparisonClient({
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-[10px] sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
+                    <div
+                      className={cn(
+                        'grid grid-cols-1 gap-[10px]',
+                        loaded.imported.format !== 'ai-exporter' &&
+                          'sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)]',
+                      )}
+                    >
                       <BaseModelSelect
                         models={models}
                         value={baseModelId}
                         onChange={chooseBaseModel}
                       />
 
-                      <PromptEditor
-                        value={prompt}
-                        onChange={setPrompt}
-                        label={`Prompt${loaded.parsed.prompt ? ' · from front-matter' : ''}`}
-                      />
+                      {loaded.imported.format !== 'ai-exporter' && (
+                        <PromptEditor
+                          value={prompt}
+                          onChange={changePrompt}
+                          label={`Prompt${loaded.imported.prompt ? ' · from front-matter' : ''}`}
+                        />
+                      )}
                     </div>
+
+                    <section
+                      aria-label={`Imported ${plural(previewTurns.length, 'turn')}`}
+                      className="flex flex-col gap-[6px]"
+                    >
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-[11px] font-medium text-neutral-400">
+                          Check every turn before scheduling
+                        </span>
+                        <span className="text-[11px] font-normal text-neutral-500">
+                          {plural(previewTurns.length, 'turn')}
+                        </span>
+                      </div>
+
+                      <ol className="flex flex-col gap-[5px]">
+                        {previewTurns.map((turn, index) => (
+                          <li
+                            key={`${index}-${turn.prompt.slice(0, 12)}`}
+                            className="rounded-[2px] border border-neutral-800 bg-bg p-[9px]"
+                          >
+                            <div className="flex items-center gap-[6px] text-[11px] font-medium">
+                              <span className="rounded-[2px] bg-neutral-700 px-[5px] py-px text-[10px] text-neutral-100">
+                                Turn {index + 1}
+                              </span>
+                              <span className="text-neutral-400">You</span>
+                            </div>
+                            <p className="mt-[5px] line-clamp-2 text-[12px] font-normal leading-[1.45] text-text">
+                              {summariseMarkdown(turn.prompt, 220) ||
+                                'The Prompt field above will be used.'}
+                            </p>
+                            <div className="mt-[7px] flex items-center gap-[6px] text-[11px] font-medium">
+                              <span className="text-neutral-400">
+                                {loaded.imported.vendors[index]
+                                  ? vendorLabel(loaded.imported.vendors[index]!)
+                                  : 'Reply'}
+                              </span>
+                            </div>
+                            <p className="mt-[3px] line-clamp-3 text-[12px] font-normal leading-[1.45] text-neutral-300">
+                              {summariseMarkdown(turn.baseOutput, 300)}
+                            </p>
+                          </li>
+                        ))}
+                      </ol>
+                    </section>
+
+                    {loaded.imported.warnings.map((warning) => (
+                      <p
+                        key={`${warning.code}-${warning.message}`}
+                        role="status"
+                        className="flex items-start gap-[6px] text-[11px] font-normal leading-[1.45] text-neutral-200"
+                      >
+                        <WarningCircle size={13} className="mt-px flex-none text-accent-300" />
+                        {warning.message}
+                      </p>
+                    ))}
+
+                    <p className="text-[11px] font-normal leading-[1.45] text-neutral-500">
+                      {plural(previewTurns.length, 'turn')}
+                      {picked.length
+                        ? ` × ${plural(picked.length, 'model')} = ${plural(estimatedCalls, 'call')}`
+                        : ''}{' '}
+                      · ~{estimatedTokens.toLocaleString('en-US')} input tokens per model
+                    </p>
 
                     {modelNotice && (
                       <p
@@ -484,7 +606,7 @@ export function NewComparisonClient({
 
                 <PromptEditor
                   value={prompt}
-                  onChange={setPrompt}
+                  onChange={changePrompt}
                   label="Prompt"
                   rows={3}
                   placeholder="Ask the model something…"
@@ -610,7 +732,10 @@ export function NewComparisonClient({
               <span className="text-[11px] font-medium text-neutral-400">Title</span>
               <input
                 value={title}
-                onChange={(event) => setTitle(event.target.value)}
+                onChange={(event) => {
+                  titleTouched.current = true;
+                  setTitle(event.target.value);
+                }}
                 placeholder="What's being compared?"
                 maxLength={200}
                 className="h-[34px] rounded-[2px] border border-neutral-700 bg-surface px-[10px] text-[12px] font-medium text-text focus:border-accent"

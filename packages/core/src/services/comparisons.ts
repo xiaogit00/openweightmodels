@@ -10,12 +10,11 @@ import {
 } from '../db/schema';
 import { CATEGORIES, type ComparisonCard } from '../domain/types';
 import { resolveMaxChallengers } from '../domain/new-comparison';
+import { parseConversationUpload } from '../domain/conversation-import';
 import {
   estimateTokens,
-  parseMarkdownUpload,
   summariseMarkdown,
   validateBaseOutput,
-  validateConversationBytes,
   validatePrompt,
   validateTitle,
   validateTurnScript,
@@ -126,13 +125,23 @@ function resolveConversation(input: CreateComparisonInput): ResolvedConversation
   }
 
   if (input.fileText !== undefined) {
-    validateConversationBytes(input.fileText);
-    const parsed = parseMarkdownUpload(input.fileText, input.fileName ?? '');
+    const imported = parseConversationUpload(input.fileText, input.fileName ?? '');
+    // An AI Exporter file carries one Prompt per Turn. A legacy or bare
+    // markdown file stays a one-Turn Conversation, where the form's Prompt
+    // still wins over the file's, matching the pre-Turn behaviour.
+    const turns =
+      imported.format === 'ai-exporter'
+        ? imported.turns
+        : [
+            {
+              prompt: input.prompt || imported.prompt || imported.turns[0]?.prompt || '',
+              baseOutput: imported.turns[0]!.baseOutput,
+            },
+          ];
     return {
-      // The form's Prompt wins over the file's, matching the pre-Turn behaviour.
-      turns: [{ prompt: input.prompt || parsed.prompt || '', baseOutput: parsed.body }],
-      prompt: parsed.prompt,
-      titleFromFile: parsed.titleFromFile,
+      turns,
+      prompt: imported.prompt,
+      titleFromFile: imported.titleFromFile,
     };
   }
 
@@ -170,8 +179,8 @@ export async function createComparison(
   const prompt = conversationTurns[0]!.prompt;
   const title = validateTitle(
     input.title ||
-      conversation.titleFromFile ||
       summariseMarkdown(prompt, 80) ||
+      conversation.titleFromFile ||
       'Untitled comparison',
   );
   const categories = normaliseCategories(input.categories);

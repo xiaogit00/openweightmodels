@@ -61,6 +61,43 @@ async function errorCode(action: () => Promise<unknown>) {
   }
 }
 
+const exporterFile = [
+  '> From: https://chat.example/abc',
+  '',
+  '# you asked',
+  '',
+  'message time: 2026-10-27 18:35:45',
+  '',
+  'First question about queues',
+  '',
+  '---',
+  '',
+  '# deepseek response',
+  '',
+  'message time: 2026-10-27 18:35:50',
+  '',
+  'BASE ONE: a queue bounds memory.',
+  '',
+  '---',
+  '',
+  '# you asked',
+  '',
+  'message time: 2026-10-27 18:36:40',
+  '',
+  'Second question about backpressure',
+  '',
+  '---',
+  '',
+  '# deepseek response',
+  '',
+  'message time: 2026-10-27 18:36:45',
+  '',
+  'BASE TWO: reject early.',
+  '',
+  '---',
+  'Powered by [AI Exporter](https://saveai.net)',
+].join('\n');
+
 async function createConversation(
   fixture: Awaited<ReturnType<typeof createJobFixture>>,
   turnScript = script,
@@ -103,6 +140,58 @@ describe.skipIf(!available)('multi-turn replay', () => {
       expect(bundle?.runs.map((run) => run.turnNumber)).toEqual([1, 1, 2, 2, 3, 3]);
       expect(bundle?.runs.every((run) => run.turnCount === 3)).toBe(true);
       expect(bundle?.runs.every((run) => run.status === 'queued')).toBe(true);
+    } finally {
+      await removeQueuedRuns(runIds);
+      await fixture.cleanup();
+    }
+  });
+
+  it('imports an AI Exporter upload and replays every Turn for every Challenger', async () => {
+    const fixture = await createJobFixture({ challengers: 2 });
+    let runIds: string[] = [];
+
+    try {
+      // This path goes through the uploaded file, exactly as the form does.
+      const imported = await createComparison({
+        authorId: fixture.userId,
+        fileName: 'DeepSeek_export.md',
+        fileText: exporterFile,
+        baseModelId: fixture.baseModelId,
+        prompt: '',
+        modelIds: fixture.challengerModelIds,
+        title: '',
+        categories: ['Coding'],
+        effort: 1,
+      });
+
+      expect(imported.title).toBe('First question about queues');
+      const conversation = await getComparisonForViewer(imported.id, fixture.userId);
+      expect(conversation?.turns.map((turn) => turn.prompt)).toEqual([
+        'First question about queues',
+        'Second question about backpressure',
+      ]);
+      expect(conversation?.responses.map(({ response }) => response.contentMd)).toEqual(
+        expect.arrayContaining(['BASE ONE: a queue bounds memory.', 'BASE TWO: reject early.']),
+      );
+      expect(JSON.stringify(conversation)).not.toContain('message time:');
+      expect(JSON.stringify(conversation)).not.toContain('Powered by [AI Exporter]');
+      expect(JSON.stringify(conversation)).not.toContain('chat.example');
+
+      const bundle = await getJobForAuthor(imported.jobId, fixture.userId);
+      runIds = bundle?.runs.map((run) => run.id) ?? [];
+      expect(bundle?.runs.map((run) => run.turnNumber)).toEqual([1, 1, 2, 2]);
+      for (const run of [...bundle!.runs]) {
+        await processRun(run.id);
+      }
+
+      const settled = await getJobForAuthor(imported.jobId, fixture.userId);
+      expect(settled?.job.status).toBe('ready');
+      expect(settled?.runs.every((run) => run.status === 'done')).toBe(true);
+
+      const published = await publishComparison(imported.id, fixture.userId);
+      expect(published.title).toBe('First question about queues');
+      const reader = await getComparisonForViewer(imported.id, null);
+      expect(reader?.turns).toHaveLength(2);
     } finally {
       await removeQueuedRuns(runIds);
       await fixture.cleanup();

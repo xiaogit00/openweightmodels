@@ -1,5 +1,6 @@
 /** Creation rules shared by the New Comparison form and its tests. */
 
+import { estimateConversationCalls } from './conversation-import';
 import { MAX_PROMPT_CHARS } from './upload';
 
 export const DEFAULT_MAX_CHALLENGERS = 4;
@@ -38,6 +39,24 @@ export function matchModelFromFrontMatter<T extends SelectableModel>(
       (model) =>
         normalise(model.slug) === key || normalise(model.displayName) === key,
     ) ?? null
+  );
+}
+
+/**
+ * An exporter header names a vendor, not a version. Match it against the
+ * registry's display names and slugs; the caller pre-selects only an exact
+ * single match and otherwise hints that the author must choose.
+ */
+export function matchVendorModels<T extends SelectableModel>(
+  vendor: string | null | undefined,
+  models: readonly T[],
+): T[] {
+  const key = normalise(vendor ?? '');
+  if (!key) return [];
+  return models.filter(
+    (model) =>
+      normalise(model.displayName).startsWith(key) ||
+      normalise(model.slug).startsWith(key),
   );
 }
 
@@ -81,6 +100,8 @@ export function describeSchedule(input: {
   baseModelId: string | null;
   challengerIds: readonly string[];
   prompt: string;
+  /** A Conversation replays every Turn for every Challenger. */
+  turnCount?: number;
   models: readonly SelectableModel[];
 }): ScheduleEstimate {
   const baseSource = input.baseSource ?? 'upload';
@@ -111,7 +132,10 @@ export function describeSchedule(input: {
   const selected = input.models.filter((model) =>
     input.challengerIds.includes(model.id),
   );
-  const calls = input.challengerIds.length;
+  const calls = estimateConversationCalls(
+    input.turnCount ?? 1,
+    input.challengerIds.length,
+  );
   const slowestEtaSeconds = Math.max(0, ...selected.map((model) => model.etaSeconds));
   const callLabel = calls === 1 ? 'hosted API call' : 'hosted API calls';
 

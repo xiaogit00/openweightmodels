@@ -3,6 +3,7 @@ import {
   DEFAULT_MAX_CHALLENGERS,
   describeSchedule,
   matchModelFromFrontMatter,
+  matchVendorModels,
   resolveMaxChallengers,
   toggleChallenger,
   challengerDisabled,
@@ -51,6 +52,38 @@ describe('matchModelFromFrontMatter', () => {
   it('returns null when the file has no model key', () => {
     expect(matchModelFromFrontMatter(null, models)).toBeNull();
     expect(matchModelFromFrontMatter('   ', models)).toBeNull();
+  });
+});
+
+describe('matchVendorModels', () => {
+  it('finds every registry Model whose name starts with the export vendor', () => {
+    expect(matchVendorModels('deepseek', models).map((model) => model.id)).toEqual([
+      'm-deepseek',
+    ]);
+    expect(matchVendorModels('  Llama ', models).map((model) => model.id)).toEqual([
+      'm-llama',
+    ]);
+  });
+
+  it('finds more than one match rather than guessing a version', () => {
+    const registry = [
+      ...models,
+      {
+        id: 'm-deepseek-flash',
+        slug: 'deepseek-v4-1-flash',
+        displayName: 'DeepSeek V4.1 Flash',
+        etaSeconds: 6,
+      },
+    ];
+    expect(matchVendorModels('deepseek', registry).map((model) => model.id)).toEqual([
+      'm-deepseek',
+      'm-deepseek-flash',
+    ]);
+  });
+
+  it('returns no matches for an unknown vendor so the form can ask', () => {
+    expect(matchVendorModels('claude', models)).toEqual([]);
+    expect(matchVendorModels(null, models)).toEqual([]);
   });
 });
 
@@ -131,6 +164,16 @@ describe('describeSchedule', () => {
         challengerIds: ['m-qwen', 'm-deepseek'],
       }),
     ).toEqual({ ready: true, hint: '2 hosted API calls · ~9s' });
+  });
+
+  it('multiplies the call estimate by the Conversation Turn count', () => {
+    expect(
+      describeSchedule({
+        ...valid,
+        challengerIds: ['m-qwen', 'm-deepseek'],
+        turnCount: 3,
+      }),
+    ).toEqual({ ready: true, hint: '6 hosted API calls · ~9s' });
   });
 
   it('asks for a pasted base output on the write tab instead of a file', () => {

@@ -77,7 +77,7 @@ export function decodeUtf8(bytes: Uint8Array) {
   }
 }
 
-function fileNameTitle(name: string) {
+export function titleFromFileName(name: string) {
   const stem = name.replace(/\.(md|markdown|txt)$/i, '').replace(/[-_]+/g, ' ').trim();
   if (!stem) return 'Untitled comparison';
   return stem.charAt(0).toUpperCase() + stem.slice(1);
@@ -163,7 +163,7 @@ export function parseMarkdownUpload(text: string, fileName: string): ParsedUploa
     body: trimmedBody,
     prompt: prompt || null,
     model,
-    titleFromFile: fileNameTitle(fileName),
+    titleFromFile: titleFromFileName(fileName),
     fileName,
   };
 }
