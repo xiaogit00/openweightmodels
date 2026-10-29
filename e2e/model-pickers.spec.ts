@@ -144,7 +144,7 @@ test('the Add model menu searches and scrolls through every eligible Model', asy
   await publishConversation(page, comparisonId);
   await page.goto(`/comparisons/${comparisonId}`);
 
-  const addButton = page.getByRole('button', { name: 'Add model' });
+  const addButton = page.locator('[data-add-button]');
   await addButton.click();
   const menu = page.locator('[data-add-menu]');
   await expect(menu).toBeVisible();
@@ -172,9 +172,12 @@ test('the Add model menu searches and scrolls through every eligible Model', asy
   const target = list.getByRole('button', { name: /gpt-oss-120b/ });
   await expect(target).toBeVisible();
   await target.click();
+  await expect(menu).toBeHidden();
+  await addButton.click();
   await expect(
     page.locator('[data-challenger-tab="gpt-oss-120b"]'),
   ).toBeVisible();
+  await page.keyboard.press('Escape');
 
   // Escape closes the popover and returns focus to its trigger.
   await addButton.click();

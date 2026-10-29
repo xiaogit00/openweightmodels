@@ -64,7 +64,7 @@ async function screens(page: Page) {
       assert: async () => {
         await expect(page.locator('[data-turn-rail]')).toBeVisible();
         await expect(page.locator('[data-turn-section]')).toHaveCount(3);
-        await expect(page.getByLabel('Jump to turn')).toBeVisible();
+        await expect(page.getByRole('group', { name: 'Jump to turn' })).toBeVisible();
       },
     },
     {

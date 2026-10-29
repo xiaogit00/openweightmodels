@@ -97,8 +97,8 @@ test('Comparison at 1440px', async ({ page }) => {
       paddingLeft: styles.paddingLeft,
     };
   });
-  expect(metrics.maxWidth).toBe('1480px');
-  expect(metrics.paddingLeft).toBe('20px');
+  expect(metrics.maxWidth).toBe('1280px');
+  expect(metrics.paddingLeft).toBe('32px');
 
   await screenshot(page, 'comparison-1440.png');
 });

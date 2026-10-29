@@ -110,7 +110,7 @@ function RunText({
       className={cn(
         marks.code &&
           !code &&
-          'rounded-[2px] bg-neutral-800 px-1 py-px text-[11.5px] text-neutral-200',
+          'rounded-[var(--r)] bg-neutral-800 px-1 py-px text-[12.5px] text-neutral-200',
         marks.code && code && 'text-neutral-200',
       )}
     >
@@ -119,10 +119,7 @@ function RunText({
   );
 }
 
-function Inline({
-  runs,
-  ...rest
-}: Props & { runs: Run[] }) {
+function Inline({ runs, ...rest }: Props & { runs: Run[] }) {
   return (
     <>
       {runs.map((run, index) => (
@@ -132,18 +129,18 @@ function Inline({
   );
 }
 
+const paragraph =
+  'm-0 break-words text-[14.5px] font-normal leading-[1.7] text-neutral-100 [text-wrap:pretty]';
+
 export function MarkdownView(props: Props) {
   const { blocks } = props;
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3.5">
       {blocks.map((block, index) => {
         if (block.type === 'paragraph') {
           return (
-            <p
-              key={index}
-              className="m-0 text-[12.5px] font-normal leading-[1.65] text-neutral-100 [text-wrap:pretty]"
-            >
+            <p key={index} className={paragraph}>
               <Inline runs={block.runs} {...props} />
             </p>
           );
@@ -154,7 +151,7 @@ export function MarkdownView(props: Props) {
               key={index}
               className={cn(
                 'm-0 font-heading font-medium text-text',
-                block.depth <= 2 ? 'text-[15px]' : 'text-[13.5px]',
+                block.depth <= 2 ? 'text-[17px]' : 'text-[15px]',
               )}
             >
               <Inline runs={block.runs} {...props} />
@@ -163,7 +160,11 @@ export function MarkdownView(props: Props) {
         }
         if (block.type === 'code') {
           return (
-            <pre key={index} className="code-block" tabIndex={0}>
+            <pre
+              key={index}
+              className="code-block px-4 py-3.5"
+              tabIndex={0}
+            >
               {block.annotatable ? (
                 <RunText
                   run={{
@@ -186,14 +187,19 @@ export function MarkdownView(props: Props) {
           return (
             <Tag
               key={index}
-              className={cn(
-                'm-0 flex flex-col gap-1 pl-5 text-[12.5px] leading-[1.65] text-neutral-100',
-                block.ordered ? 'list-decimal' : 'list-disc',
-              )}
+              className="m-0 flex list-none flex-col gap-1.5 text-[14.5px] leading-[1.7] text-neutral-100"
             >
               {block.items.map((item, itemIndex) => (
-                <li key={itemIndex}>
-                  <Inline runs={item} {...props} />
+                <li key={itemIndex} className="flex gap-2.5 pl-1">
+                  <span
+                    aria-hidden
+                    className="min-w-4 shrink-0 text-[14px] leading-[1.7] text-neutral-400"
+                  >
+                    {block.ordered ? `${itemIndex + 1}.` : '•'}
+                  </span>
+                  <span className="min-w-0 flex-1 [text-wrap:pretty]">
+                    <Inline runs={item} {...props} />
+                  </span>
                 </li>
               ))}
             </Tag>
@@ -208,7 +214,7 @@ export function MarkdownView(props: Props) {
               <div className="flex flex-col gap-2">
                 {block.blocks.map((inner, innerIndex) =>
                   inner.type === 'paragraph' ? (
-                    <p key={innerIndex} className="m-0 text-[12.5px] leading-[1.65]">
+                    <p key={innerIndex} className="m-0 text-[14.5px] leading-[1.7]">
                       <Inline runs={inner.runs} {...props} />
                     </p>
                   ) : null,

@@ -60,7 +60,7 @@ test.describe('automated accessibility scan', () => {
     await signInAs(page, 'ana');
     const comparisonId = await createConversation(page, 'Accessibility conversation fixture');
     await publishConversation(page, comparisonId);
-    await expect(page.getByLabel('Jump to turn')).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Jump to turn' })).toBeVisible();
     await expectNoSeriousViolations(page, 'Multi-turn Comparison');
   });
 
