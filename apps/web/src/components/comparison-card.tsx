@@ -74,11 +74,19 @@ export function ComparisonCardView({
         )}
       </div>
 
-      <div
-        className="font-heading text-[12px] font-medium leading-[1.3] tracking-[-0.005em] [text-wrap:pretty]"
-        style={clamps.title}
-      >
-        {card.title}
+      <div className="flex min-w-0 items-start gap-2">
+        <div
+          className="min-w-0 flex-1 font-heading text-[12px] font-medium leading-[1.3] tracking-[-0.005em] [text-wrap:pretty]"
+          style={clamps.title}
+        >
+          {card.headline}
+        </div>
+        <span
+          data-card-turn-count
+          className="flex h-[16px] flex-none items-center rounded-[2px] border border-neutral-700 px-[5px] text-[10px] font-medium text-neutral-300"
+        >
+          {card.turnCount} {card.turnCount === 1 ? 'turn' : 'turns'}
+        </span>
       </div>
 
       {preview && (

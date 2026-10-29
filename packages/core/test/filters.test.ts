@@ -21,6 +21,8 @@ import type { BoardFilters, ComparisonCard } from '../src/domain/types';
 function card(overrides: Partial<ComparisonCard> & { id: string }): ComparisonCard {
   return {
     title: `Comparison ${overrides.id}`,
+    headline: `Headline ${overrides.id}`,
+    turnCount: 1,
     categories: ['Coding'],
     effort: 1,
     models: [
@@ -117,9 +119,12 @@ describe('filterCards', () => {
     ]);
   });
 
-  it('searches titles and model names case-insensitively', () => {
+  it('searches headlines, titles and model names case-insensitively', () => {
     expect(filterCards(cards, { ...noFilters, q: 'MONTY' }).map((item) => item.id)).toEqual([
       'b',
+    ]);
+    expect(filterCards(cards, { ...noFilters, q: 'headline c' }).map((item) => item.id)).toEqual([
+      'c',
     ]);
     expect(
       filterCards(cards, { ...noFilters, q: 'gemma' }).map((item) => item.id),

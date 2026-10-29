@@ -125,7 +125,12 @@ export type CardModel = {
 
 export type ComparisonCard = {
   id: string;
+  /** The Author's editable title, used for the Comparison page heading. */
   title: string;
+  /** The first Turn's Prompt. The Board headlines a Conversation with it. */
+  headline: string;
+  /** Number of Turns in the Conversation. A one-Turn Comparison is `1`. */
+  turnCount: number;
   categories: string[];
   effort: number;
   models: CardModel[];

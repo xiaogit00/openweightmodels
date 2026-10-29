@@ -48,6 +48,7 @@ test('upload → schedule → live Job → publish → Board → annotate → th
   await expect(page).toHaveURL(/\/comparisons\/[^/]+\/job$/, { timeout: 30_000 });
   const jobUrl = page.url();
   const comparisonUrl = jobUrl.replace(/\/job$/, '');
+  const comparisonId = comparisonUrl.split('/').pop();
 
   // 2. The mock worker settles the Job; the page shows the ready banner.
   await expect(page.getByText('Your comparison is ready')).toBeVisible({ timeout: 90_000 });
@@ -56,7 +57,8 @@ test('upload → schedule → live Job → publish → Board → annotate → th
   // Open the Board first so the published card arrives over SSE.
   const board = await page.context().newPage();
   await board.goto('/');
-  await expect(board.getByText(title)).toHaveCount(0);
+  const boardCard = board.locator(`a.card[href="/comparisons/${comparisonId}"]`);
+  await expect(boardCard).toHaveCount(0);
 
   // 3. Publish and land on the Comparison.
   await page.getByRole('button', { name: 'Publish to board' }).click();
@@ -86,8 +88,8 @@ test('upload → schedule → live Job → publish → Board → annotate → th
   await expect(bell).toHaveAccessibleName('Notifications');
 
   // The live Board receives the published card, and the card opens the Comparison.
-  await expect(board.getByText(title)).toBeVisible({ timeout: 20_000 });
-  await board.getByText(title).click();
+  await expect(boardCard).toBeVisible({ timeout: 20_000 });
+  await boardCard.click();
   await expect(board.getByRole('heading', { name: title })).toBeVisible();
   await board.close();
 

@@ -37,7 +37,11 @@ export function matchesFilters(card: ComparisonCard, filters: BoardFilters) {
   }
   if (filters.effort !== null && card.effort !== filters.effort) return false;
   if (query) {
-    const haystack = [card.title, ...card.models.map((model) => model.name)]
+    const haystack = [
+      card.headline,
+      card.title,
+      ...card.models.map((model) => model.name),
+    ]
       .join(' ')
       .toLowerCase();
     if (!haystack.includes(query)) return false;

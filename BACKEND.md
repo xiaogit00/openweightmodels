@@ -2,7 +2,7 @@
 
 Status: **accepted implementation contract**, with one rework in progress (below). This file supersedes `design_handoff_openweightmodels/BACKEND.md` wherever the two disagree. The design handoff remains the visual source of truth.
 
-> **Rework in progress: multi-turn Conversations.** The target is a Comparison of one Conversation's Turns (ADR 0008), AI Exporter markdown as the canonical Base output format (ADR 0009), and frontier models as first-class registry entries (ADR 0010). The settled design is `.scratch/openweightmodels/spec.md`; tickets 18–25 carry the work. Ticket 20 made creation, the Replay lifecycle and the Job/Comparison reads Turn-aware; ticket 21 added the AI Exporter importer and its confirmation step. The multi-Turn reader (ticket 22), Board treatment (23), Add model (24) and the fuller guidance/help copy (25) remain.
+> **Rework in progress: multi-turn Conversations.** The target is a Comparison of one Conversation's Turns (ADR 0008), AI Exporter markdown as the canonical Base output format (ADR 0009), and frontier models as first-class registry entries (ADR 0010). The settled design is `.scratch/openweightmodels/spec.md`; tickets 18–25 carry the work. Ticket 20 made creation, the Replay lifecycle and the Job/Comparison reads Turn-aware; ticket 21 added the AI Exporter importer and its confirmation step; ticket 22 added the transcript reader; ticket 23 made the Board treat a Comparison by its first Prompt. Add model (24) and the fuller guidance/help copy (25) remain.
 
 Related documents:
 
@@ -413,6 +413,10 @@ Response:
 ```json
 { "items": [ComparisonCard], "total": 123, "nextCursor": "opaque-or-null" }
 ```
+
+`q` matches the editable title, the first Turn's Prompt (the headline) and any Model's display name, so an edited title never removes a Conversation from discovery.
+
+Each `ComparisonCard` carries `headline` (the first Turn's Prompt), `turnCount`, and one entry per Model in `models` even when the Conversation has several Turns. `baseSnippet` is the first Turn's Base output and `challengerSnippet` the first Turn's first Challenger Response, so a later Turn never stands in for the opening. The live `comparison.published`/`run.finished` payload uses the same projection.
 
 Ordering:
 

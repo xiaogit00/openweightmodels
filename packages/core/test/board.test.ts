@@ -6,6 +6,7 @@ import {
   closeRedis,
   decodeCursor,
   getBoardFacets,
+  getCardById,
   listComparisons,
   softDeleteComparison,
 } from '../src/index';
@@ -134,6 +135,66 @@ describe.skipIf(!available)('Board listing', () => {
       expect(ids(list.items)).toEqual([newer.comparisonId, older.comparisonId]);
     } finally {
       await cleanupAll([older, newer]);
+    }
+  });
+
+  it('treats a Conversation by its first Turn and first Base output', async () => {
+    const prefix = `Conversation ${uuidv7().slice(-8)}`;
+    const conversation = await publishedFixture(prefix, {
+      challengers: 2,
+      turns: [
+        {
+          prompt: 'Why does a bounded queue keep memory flat?',
+          baseOutput: 'FIRST BASE: the queue bounds memory.',
+        },
+        {
+          prompt: 'And how do we apply backpressure?',
+          baseOutput: 'SECOND BASE: reject early.',
+        },
+      ],
+    });
+
+    try {
+      const page = await listComparisons({ q: prefix });
+      expect(page.items).toHaveLength(1);
+      const card = page.items[0]!;
+
+      expect(card.headline).toBe('Why does a bounded queue keep memory flat?');
+      expect(card.turnCount).toBe(2);
+      expect(card.baseSnippet).toContain('FIRST BASE');
+      expect(card.baseSnippet).not.toContain('SECOND BASE');
+      // One entry per Model, not one per Response.
+      expect(card.models.map((model) => model.slug)).toEqual([
+        conversation.baseModelSlug,
+        ...conversation.challengerSlugs,
+      ]);
+
+      // The live publish event fetches its card through the same projection.
+      const published = await getCardById(conversation.comparisonId);
+      expect(published?.headline).toBe('Why does a bounded queue keep memory flat?');
+      expect(published?.turnCount).toBe(2);
+      expect(published?.baseSnippet).toContain('FIRST BASE');
+      expect(published?.models).toHaveLength(3);
+    } finally {
+      await cleanupAll([conversation]);
+    }
+  });
+
+  it('searches the first Prompt even when the title has been edited', async () => {
+    const marker = `headline-${uuidv7().slice(-8)}`;
+    const conversation = await publishedFixture(`Edited ${uuidv7().slice(-8)}`, {
+      prompt: `Explain ${marker} in one sentence.`,
+    });
+
+    try {
+      const byHeadline = await listComparisons({ q: marker });
+      expect(ids(byHeadline.items)).toContain(conversation.comparisonId);
+
+      // The editable title still matches, so discovery does not change.
+      const byTitle = await listComparisons({ q: 'Edited ' });
+      expect(ids(byTitle.items)).toContain(conversation.comparisonId);
+    } finally {
+      await cleanupAll([conversation]);
     }
   });
 

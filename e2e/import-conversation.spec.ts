@@ -94,6 +94,16 @@ test('import an AI Exporter conversation, confirm it, then replay every Turn', a
   await expect(page.getByText('BASE ONE: a queue bounds memory.').first()).toBeVisible();
   await expect(page.getByText('BASE TWO: reject early.').first()).toBeVisible();
 
+  // The Board treats the Conversation by its first Prompt, shows the Turn
+  // count, and previews the first Base output rather than the last.
+  await page.goto(`/?q=${encodeURIComponent(title)}`);
+  const card = page.locator('main a.card').filter({ hasText: 'First question' });
+  await expect(card).toBeVisible();
+  await expect(card).toContainText('First question about queues');
+  await expect(card.locator('[data-card-turn-count]')).toHaveText('2 turns');
+  await expect(card).toContainText('BASE ONE: a queue bounds memory.');
+  await expect(card).not.toContainText('BASE TWO: reject early.');
+
   // Leave the shared seed user's bell as clean as this test found it.
   await page.request.patch('/api/notifications', { data: { all: true } });
 });

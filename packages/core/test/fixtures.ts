@@ -4,9 +4,18 @@ import { getDb } from '../src/db/client';
 import { comparisons, jobs, models, responses, turns, users } from '../src/db/schema';
 import type { Category, ComparisonStatus, ResponseStatus } from '../src/domain/types';
 
+export type FixtureTurn = {
+  prompt: string;
+  baseOutput: string;
+};
+
 export type FixtureOptions = {
   /** Number of Challenger Runs. Defaults to 1. */
   challengers?: number;
+  /** A multi-Turn script. Defaults to a single Turn using `prompt`. */
+  turns?: FixtureTurn[];
+  /** First Turn's Prompt when `turns` is omitted. */
+  prompt?: string;
   comparisonStatus?: ComparisonStatus;
   runStatus?: ResponseStatus;
   attempt?: number;
@@ -110,7 +119,13 @@ export async function createJobFixture(options: FixtureOptions = {}) {
   const userId = options.authorId ?? uuidv7();
   const comparisonId = uuidv7();
   const jobId = uuidv7();
-  const turnId = uuidv7();
+  const turnInputs = options.turns ?? [
+    {
+      prompt: options.prompt ?? 'Explain a sliding-window rate limiter with Go code.',
+      baseOutput: 'A base answer, frozen at scheduling time.',
+    },
+  ];
+  const turnIds = turnInputs.map(() => uuidv7());
   const handle = options.authorHandle ?? `fixture-${tag}`;
 
   if (!options.authorId) {
@@ -121,7 +136,7 @@ export async function createJobFixture(options: FixtureOptions = {}) {
     id: comparisonId,
     authorId: userId,
     title: `${options.titlePrefix ?? 'Fixture comparison'} ${tag}`,
-    prompt: 'Explain a sliding-window rate limiter with Go code.',
+    prompt: turnInputs[0]!.prompt,
     categories: options.categories ?? ['Coding'],
     effort: options.effort ?? 1,
     baseModelId: baseModel.id,
@@ -133,42 +148,48 @@ export async function createJobFixture(options: FixtureOptions = {}) {
     annotationCount: options.annotationCount ?? 0,
   });
   await db.insert(jobs).values({ id: jobId, comparisonId, status: 'scheduled' });
-  await db.insert(turns).values({
-    id: turnId,
-    comparisonId,
-    position: 0,
-    prompt: 'Explain a sliding-window rate limiter with Go code.',
-  });
+  await db.insert(turns).values(
+    turnInputs.map((turn, position) => ({
+      id: turnIds[position]!,
+      comparisonId,
+      position,
+      prompt: turn.prompt,
+    })),
+  );
   const baseResponseId = uuidv7();
-  await db.insert(responses).values({
-    id: baseResponseId,
-    comparisonId,
-    turnId,
-    modelId: baseModel.id,
-    isBase: true,
-    contentMd: 'A base answer, frozen at scheduling time.',
-    tokens: 12,
-    latencyMs: 0,
-    status: 'done',
-    finishedAt: new Date(),
-  });
+  await db.insert(responses).values(
+    turnInputs.map((turn, position) => ({
+      id: position === 0 ? baseResponseId : uuidv7(),
+      comparisonId,
+      turnId: turnIds[position]!,
+      modelId: baseModel.id,
+      isBase: true,
+      contentMd: turn.baseOutput,
+      tokens: 12,
+      latencyMs: 0,
+      status: 'done' as const,
+      finishedAt: new Date(),
+    })),
+  );
 
   const runRows = await db
     .insert(responses)
     .values(
-      challengerModels.map((model) => ({
-        id: uuidv7(),
-        comparisonId,
-        turnId,
-        jobId,
-        modelId: model.id,
-        isBase: false,
-        status: options.runStatus ?? ('queued' as const),
-        attempt: options.attempt ?? 0,
-        ...(options.runStatus === 'failed'
-          ? { error: 'API timeout', finishedAt: new Date() }
-          : {}),
-      })),
+      challengerModels.flatMap((model) =>
+        turnIds.map((turnId) => ({
+          id: uuidv7(),
+          comparisonId,
+          turnId,
+          jobId,
+          modelId: model.id,
+          isBase: false,
+          status: options.runStatus ?? ('queued' as const),
+          attempt: options.attempt ?? 0,
+          ...(options.runStatus === 'failed'
+            ? { error: 'API timeout', finishedAt: new Date() }
+            : {}),
+        })),
+      ),
     )
     .returning();
 
@@ -178,6 +199,7 @@ export async function createJobFixture(options: FixtureOptions = {}) {
     comparisonId,
     jobId,
     baseResponseId,
+    turnIds,
     baseModelId: baseModel.id,
     baseModelSlug: baseModel.slug,
     challengerModelIds: challengerModels.map((model) => model.id),

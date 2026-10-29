@@ -5,12 +5,20 @@ type CreatedComment = { id: string; body: string };
 async function firstComparisonId(page: Page) {
   // The deterministic seed owns this published Comparison, so its author is mira
   // and it already has a seeded Discussion and Annotation thread.
-  const response = await page.request.get('/api/comparisons?q=Rate%20limiter&limit=1');
+  // Search matches prompts too, so ask for the seed title's full phrase and
+  // pick the exact title rather than whichever Comparison matched first.
+  const response = await page.request.get(
+    `/api/comparisons?q=${encodeURIComponent('Rate limiter in Go with sliding windows')}`,
+  );
   expect(response.ok()).toBeTruthy();
-  const payload = (await response.json()) as { items: Array<{ id: string }> };
-  const id = payload.items[0]?.id;
-  expect(id).toBeTruthy();
-  return id as string;
+  const payload = (await response.json()) as {
+    items: Array<{ id: string; title: string }>;
+  };
+  const match = payload.items.find(
+    (item) => item.title === 'Rate limiter in Go with sliding windows',
+  );
+  expect(match).toBeTruthy();
+  return match!.id;
 }
 
 async function createComment(
@@ -50,9 +58,7 @@ test('owner edits and deletes Discussion comments', async ({ page }) => {
   // and retracting the matching ticker line without a reload.
   const board = await page.context().newPage();
   await board.goto('/?q=Rate%20limiter');
-  const boardCard = board
-    .locator('a.card')
-    .filter({ hasText: 'Rate limiter in Go with sliding windows' });
+  const boardCard = board.locator(`a.card[href="/comparisons/${comparisonId}"]`);
   const boardComments = boardCard.locator('[data-card-comment-count]');
   await expect(boardComments).toHaveText(String(initialCount));
   const tickerLine = 'mira commented on Rate limiter in Go with sliding windows';

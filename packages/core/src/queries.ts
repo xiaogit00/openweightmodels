@@ -87,37 +87,121 @@ function snippet(markdown: string) {
   return summariseMarkdown(markdown, 220);
 }
 
+/** A done Response with its Turn's position, so a card can pick Turn 1. */
+type CardResponse = { response: ResponseRow; turnPosition: number };
+
+type CardData = {
+  responsesByComparison: Map<string, CardResponse[]>;
+  turnCounts: Map<string, number>;
+  modelMap: Map<string, ModelRow>;
+};
+
+/**
+ * Loads everything a card needs from Turns and Responses. The Board page and
+ * the live publish payload both go through here, so their projection cannot
+ * drift apart.
+ */
+async function loadCardData(
+  comparisonIds: string[],
+  extraModelIds: string[] = [],
+): Promise<CardData> {
+  const empty: CardData = {
+    responsesByComparison: new Map(),
+    turnCounts: new Map(),
+    modelMap: new Map(),
+  };
+  if (!comparisonIds.length) return empty;
+
+  const db = getDb();
+  const [responseRows, turnRows] = await Promise.all([
+    db
+      .select({ response: responses, turnPosition: turns.position })
+      .from(responses)
+      .innerJoin(turns, eq(turns.id, responses.turnId))
+      .where(
+        and(inArray(responses.comparisonId, comparisonIds), eq(responses.status, 'done')),
+      )
+      .orderBy(responses.createdAt),
+    db
+      .select({ comparisonId: turns.comparisonId })
+      .from(turns)
+      .where(inArray(turns.comparisonId, comparisonIds)),
+  ]);
+
+  const modelIds = [
+    ...new Set([
+      ...extraModelIds,
+      ...responseRows.map((entry) => entry.response.modelId),
+    ]),
+  ];
+  const modelRows = modelIds.length
+    ? await db.select().from(models).where(inArray(models.id, modelIds))
+    : [];
+
+  const responsesByComparison = new Map<string, CardResponse[]>();
+  for (const entry of responseRows) {
+    const list = responsesByComparison.get(entry.response.comparisonId) ?? [];
+    list.push(entry);
+    responsesByComparison.set(entry.response.comparisonId, list);
+  }
+  const turnCounts = new Map<string, number>();
+  for (const turn of turnRows) {
+    turnCounts.set(turn.comparisonId, (turnCounts.get(turn.comparisonId) ?? 0) + 1);
+  }
+
+  return {
+    responsesByComparison,
+    turnCounts,
+    modelMap: new Map(modelRows.map((row) => [row.id, row])),
+  };
+}
+
 function cardFromRows(
   comparison: ComparisonRow,
   author: UserRow | undefined,
-  modelMap: Map<string, ModelRow>,
-  comparisonResponses: ResponseRow[],
+  cardData: CardData,
 ): ComparisonCard {
-  const ordered = [...comparisonResponses].sort((a, b) => {
-    if (a.isBase !== b.isBase) return a.isBase ? -1 : 1;
-    return a.createdAt.getTime() - b.createdAt.getTime();
-  });
-  const base = ordered.find((response) => response.isBase);
-  const challengers = ordered.filter((response) => !response.isBase);
+  const ordered = [...(cardData.responsesByComparison.get(comparison.id) ?? [])].sort(
+    (a, b) => {
+      if (a.response.isBase !== b.response.isBase) return a.response.isBase ? -1 : 1;
+      if (a.turnPosition !== b.turnPosition) return a.turnPosition - b.turnPosition;
+      // UUIDv7 ids preserve insertion order, so Challengers keep the order the
+      // Author picked them in even when a fixture shares one timestamp.
+      return a.response.id.localeCompare(b.response.id);
+    },
+  );
+  // The preview comes from Turn 1 only; a later Turn never stands in for the
+  // Conversation's opening.
+  const opening = ordered.filter((entry) => entry.turnPosition === 0);
+  const base = opening.find((entry) => entry.response.isBase)?.response;
+  const challenger = opening.find((entry) => !entry.response.isBase)?.response;
 
-  const cardModels = ordered
-    .map((response) => modelMap.get(response.modelId))
-    .filter((model): model is ModelRow => Boolean(model))
-    .map((model) => ({
+  const cardModels: CardModel[] = [];
+  const seenModels = new Set<string>();
+  for (const { response } of ordered) {
+    if (seenModels.has(response.modelId)) continue;
+    const model = cardData.modelMap.get(response.modelId);
+    if (!model) continue;
+    seenModels.add(response.modelId);
+    cardModels.push({
       id: model.id,
       slug: model.slug,
       name: model.displayName,
       monogram: model.monogram,
-    }));
+    });
+  }
 
   return {
     id: comparison.id,
     title: comparison.title,
+    // The denormalised first Turn's Prompt, which Board search also reads.
+    headline: comparison.prompt,
+    turnCount: Math.max(1, cardData.turnCounts.get(comparison.id) ?? 0),
     categories: comparison.categories,
     effort: comparison.effort,
     models: cardModels,
     baseSnippet: base ? snippet(base.contentMd) : '',
-    challengerSnippet: challengers[0] ? snippet(challengers[0].contentMd) : '',
+    challengerSnippet: challenger ? snippet(challenger.contentMd) : '',
     commentCount: comparison.commentCount,
     annotationCount: comparison.annotationCount,
     author: {
@@ -170,6 +254,9 @@ export async function listComparisons(options: ListOptions = {}): Promise<ListRe
     baseConditions.push(
       or(
         ilike(comparisons.title, pattern),
+        // The headline Prompt is the Conversation's identity; an edited title
+        // must not remove it from discovery.
+        ilike(comparisons.prompt, pattern),
         exists(
           db
             .select({ one: sql`1` })
@@ -236,44 +323,20 @@ export async function listComparisons(options: ListOptions = {}): Promise<ListRe
   }
 
   const ids = page.map((row) => row.id);
-  const [authorRows, responseRows] = await Promise.all([
+  const [authorRows, cardData] = await Promise.all([
     db
       .select()
       .from(users)
       .where(inArray(users.id, [...new Set(page.map((row) => row.authorId))])),
-    db
-      .select()
-      .from(responses)
-      .where(and(inArray(responses.comparisonId, ids), eq(responses.status, 'done')))
-      .orderBy(responses.createdAt),
+    loadCardData(
+      ids,
+      page.map((row) => row.baseModelId),
+    ),
   ]);
-
-  const modelIds = [
-    ...new Set([
-      ...page.map((row) => row.baseModelId),
-      ...responseRows.map((row) => row.modelId),
-    ]),
-  ];
-  const modelRows = modelIds.length
-    ? await db.select().from(models).where(inArray(models.id, modelIds))
-    : [];
-
   const authorMap = new Map(authorRows.map((row) => [row.id, row]));
-  const modelMap = new Map(modelRows.map((row) => [row.id, row]));
-  const responsesByComparison = new Map<string, ResponseRow[]>();
-  for (const response of responseRows) {
-    const list = responsesByComparison.get(response.comparisonId) ?? [];
-    list.push(response);
-    responsesByComparison.set(response.comparisonId, list);
-  }
 
   const items = page.map((comparison) =>
-    cardFromRows(
-      comparison,
-      authorMap.get(comparison.authorId),
-      modelMap,
-      responsesByComparison.get(comparison.id) ?? [],
-    ),
+    cardFromRows(comparison, authorMap.get(comparison.authorId), cardData),
   );
 
   let nextCursor: string | null = null;
@@ -766,25 +829,12 @@ export async function getCardById(id: string): Promise<ComparisonCard | null> {
     .limit(1);
   if (!comparison) return null;
 
-  const [author] = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, comparison.authorId))
-    .limit(1);
-  const responseRows = await db
-    .select()
-    .from(responses)
-    .where(and(eq(responses.comparisonId, id), eq(responses.status, 'done')))
-    .orderBy(responses.createdAt);
-  const modelIds = [
-    ...new Set([comparison.baseModelId, ...responseRows.map((row) => row.modelId)]),
-  ];
-  const modelRows = modelIds.length
-    ? await db.select().from(models).where(inArray(models.id, modelIds))
-    : [];
-  const modelMap = new Map(modelRows.map((row) => [row.id, row]));
+  const [author, cardData] = await Promise.all([
+    db.select().from(users).where(eq(users.id, comparison.authorId)).limit(1),
+    loadCardData([id], [comparison.baseModelId]),
+  ]);
 
-  return cardFromRows(comparison, author, modelMap, responseRows);
+  return cardFromRows(comparison, author[0], cardData);
 }
 
 export async function getModels(): Promise<ModelRow[]> {
