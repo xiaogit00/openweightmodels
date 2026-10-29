@@ -26,6 +26,7 @@ export default async function NewComparisonPage() {
         displayName: model.displayName,
         monogram: model.monogram,
         etaSeconds: model.etaSeconds,
+        openWeights: model.openWeights,
       }))}
     />
   );

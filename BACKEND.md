@@ -66,6 +66,7 @@ Better Auth owns `auth_sessions` (session id, token, user, expiry, IP/user agent
 | `api_base` | text null | endpoint base; **never a secret** |
 | `api_model_id` | text null | provider's model identifier |
 | `eta_seconds` | integer | used for ETA copy |
+| `open_weights` | boolean | true when the Model's weights are published; false for a closed frontier API. Pickers label the difference |
 | `enabled` | boolean | disabled models are hidden from pickers, rejected by the API, and a queued Run on one fails instead of calling the provider |
 | `created_at` | timestamptz | |
 
@@ -372,7 +373,7 @@ Page routes: `/sign-in` requests a link, `/auth/complete` decides between onboar
 
 | Method | Path | Notes |
 |---|---|---|
-| `GET` | `/models` | enabled registry for pickers |
+| `GET` | `/models` | enabled registry for pickers; each Model carries `openWeights` so closed frontier APIs are labelled distinctly |
 | `GET` | `/api/health` | unauthenticated ALB/container health check; 200 with `degraded` when only Redis is down, 503 when Postgres is unreachable |
 | `GET` | `/admin/overview` | admin-only registry, published and hidden Comparisons, reports, suspended members and recent actions for the Admin page |
 | `PATCH` | `/admin/models/:id` | admin-only `{ enabled }` (M2) |

@@ -54,7 +54,7 @@ function providerError(status: number, body: string) {
 
 function rateLimiterText(model: ModelRow) {
   switch (model.slug) {
-    case 'qwen-2-5-72b':
+    case 'qwen-3-8-27b':
       return `A sliding-window log is exact but stores every timestamp. A ring buffer of size \`limit\` gives O(1) checks and bounded memory:
 
 \`\`\`go
@@ -79,7 +79,7 @@ func (l *Limiter) Allow() bool {
 \`\`\`
 
 This version is per-limiter, not per-key. Wrap it in a \`sync.Map\` if you need one per client.`;
-    case 'deepseek-v3':
+    case 'deepseek-v4-1-flash':
       return `Two common approaches: a sliding log (exact, O(n) memory) and a sliding window counter (approximate, O(1) memory). I'll show the counter, which weights the previous window by how much of it still overlaps:
 
 \`\`\`go
@@ -93,7 +93,7 @@ curr++
 \`\`\`
 
 The approximation error stays small under uniform traffic, but bursts right at a boundary can briefly exceed the limit. Use the log version if you need hard guarantees.`;
-    case 'mistral-large':
+    case 'mistral-large-4':
       return `The simplest correct approach is \`golang.org/x/time/rate\`, but that is a token bucket, not a sliding window. Here is a minimal sliding log:
 
 \`\`\`go

@@ -110,6 +110,14 @@ _Avoid_: proprietary model, commercial model, closed model (as the preferred ter
 The curated catalogue of Models the platform can run.
 _Avoid_: model list, provider list
 
+**Model family**:
+A line of Models that shares a name and release history, e.g. Llama or Claude. The registry keeps one current release and, while it is still callable, one previous release per family.
+_Avoid_: vendor, brand
+
+**Model release**:
+The `current` or `previous` slot a Model occupies within its family. A retired release is removed from the catalogue and its row is disabled.
+_Avoid_: version (when referring to the registry slot), generation
+
 **Job**:
 One batch of generation work for a Comparison: the initial Challenger set, or a later add-model request. A Job contains one Replay per Challenger.
 _Avoid_: task, batch, run

@@ -17,8 +17,8 @@ test('add a Challenger to a published multi-Turn Comparison replays every Turn',
     models: Array<{ id: string; slug: string }>;
   };
   const base = models.find((model) => model.slug === 'llama-3-3-70b');
-  const challenger = models.find((model) => model.slug === 'qwen-2-5-72b');
-  const added = models.find((model) => model.slug === 'deepseek-v3');
+  const challenger = models.find((model) => model.slug === 'qwen-3-8-27b');
+  const added = models.find((model) => model.slug === 'deepseek-v4-1-flash');
   expect(base).toBeTruthy();
   expect(challenger).toBeTruthy();
   expect(added).toBeTruthy();
@@ -46,7 +46,7 @@ test('add a Challenger to a published multi-Turn Comparison replays every Turn',
   await page.getByRole('button', { name: 'Add model' }).click();
   const menu = page.locator('[data-add-menu]');
   await expect(menu).toBeVisible();
-  await menu.getByRole('button', { name: /DeepSeek V3/ }).click();
+  await menu.getByRole('button', { name: /DeepSeek V4.1 Flash/ }).click();
 
   const confirmation = menu.locator('[data-add-replay-confirmation]');
   await expect(confirmation).toBeVisible();
@@ -56,14 +56,14 @@ test('add a Challenger to a published multi-Turn Comparison replays every Turn',
   // Cancelling keeps the comparison untouched.
   await menu.getByRole('button', { name: 'Cancel' }).click();
   await expect(confirmation).toHaveCount(0);
-  await expect(page.locator('[data-challenger-tab="deepseek-v3"]')).toHaveCount(0);
+  await expect(page.locator('[data-challenger-tab="deepseek-v4-1-flash"]')).toHaveCount(0);
 
-  await menu.getByRole('button', { name: /DeepSeek V3/ }).click();
+  await menu.getByRole('button', { name: /DeepSeek V4.1 Flash/ }).click();
   await menu.getByRole('button', { name: 'Add model' }).click();
 
   // The Replay streams in: the new model appears immediately for the Author
   // with a marker while its later Turns are still pending.
-  const authorTab = page.locator('[data-challenger-tab="deepseek-v3"]');
+  const authorTab = page.locator('[data-challenger-tab="deepseek-v4-1-flash"]');
   await expect(authorTab).toBeVisible();
   await expect(authorTab.locator('[data-replay-in-progress]')).toBeVisible();
 
@@ -75,7 +75,7 @@ test('add a Challenger to a published multi-Turn Comparison replays every Turn',
     .poll(
       async () => {
         await reader.goto(`/comparisons/${id}`);
-        return reader.locator('[data-challenger-tab="deepseek-v3"]').count();
+        return reader.locator('[data-challenger-tab="deepseek-v4-1-flash"]').count();
       },
       { timeout: 60_000 },
     )
@@ -84,10 +84,10 @@ test('add a Challenger to a published multi-Turn Comparison replays every Turn',
   await expect
     .poll(
       async () => {
-        await reader.goto(`/comparisons/${id}?model=deepseek-v3`);
+        await reader.goto(`/comparisons/${id}?model=deepseek-v4-1-flash`);
         return reader
           .locator('[data-turn-section="2"]')
-          .getByText(/DeepSeek V3 reads the task as/)
+          .getByText(/DeepSeek V4.1 Flash 1017 reads the task as/)
           .count();
       },
       { timeout: 60_000 },

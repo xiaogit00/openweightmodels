@@ -211,7 +211,8 @@ visual suite there.
 | `BACKEND.md` | Concrete data model, API, jobs, SSE, quotas and edge-case semantics |
 | `GLOSSARY.md` | Canonical domain vocabulary |
 | `docs/DECISIONS.md` | Every settled decision, rejected alternative, edge case and open question |
-| `docs/adr/` | Architectural decisions 0001–0007 |
+| `docs/MODEL-REGISTRY.md` | Curation rule for the Model catalogue: releases kept, disabling, adding a new Model |
+| `docs/adr/` | Architectural decisions 0001–0010 |
 | `docs/IMPLEMENTATION-STATUS.md` | What is built, what is missing, known issues, next steps |
 | `docs/DEPLOYMENT.md` | AWS staging topology, first deploy, release, rollback, cost and smoke tests |
 | `docs/ITERATING.md` | Day-to-day loop: local development, pre-release checks, deploying to staging |

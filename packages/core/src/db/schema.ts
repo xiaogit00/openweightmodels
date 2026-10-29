@@ -82,6 +82,9 @@ export const models = pgTable(
     apiBase: text('api_base'),
     apiModelId: text('api_model_id'),
     etaSeconds: integer('eta_seconds').notNull().default(8),
+    // Published weights versus a closed frontier API. Existing rows predate
+    // the distinction and were all open-weight.
+    openWeights: boolean('open_weights').notNull().default(true),
     enabled: boolean('enabled').notNull().default(true),
     createdAt: createdAt(),
   },

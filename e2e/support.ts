@@ -91,7 +91,7 @@ async function fixtureModels(
   expect(response.ok()).toBeTruthy();
   const { models } = (await response.json()) as { models: FixtureModel[] };
   const base = models.find((model) => model.slug === 'llama-3-3-70b');
-  const challenger = models.find((model) => model.slug === 'qwen-2-5-72b');
+  const challenger = models.find((model) => model.slug === 'qwen-3-8-27b');
   expect(base).toBeTruthy();
   expect(challenger).toBeTruthy();
   return { base: base!, challenger: challenger! };

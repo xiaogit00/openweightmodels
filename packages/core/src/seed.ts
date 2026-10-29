@@ -45,7 +45,7 @@ const SEED: SeedRow[] = [
   {
     title: 'Rate limiter in Go with sliding windows',
     cat: 'Coding',
-    models: ['llama-3-3-70b', 'qwen-2-5-72b', 'deepseek-v3', 'mistral-large'],
+    models: ['llama-3-3-70b', 'qwen-3-8-27b', 'deepseek-v4-1-flash', 'mistral-large-4'],
     s0: 'Here is a sliding-window rate limiter that tracks request timestamps per key. It is safe for concurrent use and evicts old entries lazily on each call.',
     s1: 'A sliding-window log is exact but stores every timestamp. A ring buffer of size limit gives O(1) checks and bounded memory.',
     effort: 2,
@@ -57,7 +57,7 @@ const SEED: SeedRow[] = [
   {
     title: 'Explain the Monty Hall problem to a 10-year-old',
     cat: 'Reasoning',
-    models: ['mistral-large', 'deepseek-v3'],
+    models: ['mistral-large-4', 'deepseek-v4-1-flash'],
     s0: 'Imagine three doors. Behind one is a bike, behind two are goats. You pick door one, then the host opens a different door with a goat.',
     s1: 'Think of it like this: when you first pick, you have a 1 in 3 chance. The host is not choosing at random — he knows where the bike is.',
     effort: 1,
@@ -69,7 +69,7 @@ const SEED: SeedRow[] = [
   {
     title: '300-word story: a lighthouse keeper who can’t sleep',
     cat: 'Creative',
-    models: ['gemma-2-27b', 'phi-4', 'llama-3-3-70b'],
+    models: ['gemma-4-31b', 'phi-4', 'llama-3-3-70b'],
     s0: 'The lamp turned every eleven seconds, and Ada counted each one. Sleep had become a rumour she told herself at dawn.',
     s1: 'Night forty-two. The sea had stopped asking questions. It only breathed against the rocks and waited for her to answer.',
     effort: 1,
@@ -81,7 +81,7 @@ const SEED: SeedRow[] = [
   {
     title: 'Refactor a React class component to hooks',
     cat: 'Coding',
-    models: ['qwen-2-5-coder', 'codestral'],
+    models: ['kimi-k3', 'mistral-large-3'],
     s0: 'Replace componentDidMount with useEffect(() => {…}, []) and move the fetch into a small helper so the effect body stays readable.',
     s1: 'function Profile({ id }) { const [user, setUser] = useState(null); useEffect(() => { let live = true; … }, [id]); }',
     effort: 2,
@@ -93,7 +93,7 @@ const SEED: SeedRow[] = [
   {
     title: 'Prove √2 is irrational, then explain the proof',
     cat: 'Math',
-    models: ['deepseek-v3', 'llama-3-3-70b', 'qwen-2-5-72b'],
+    models: ['deepseek-v4-1-flash', 'llama-3-3-70b', 'qwen-3-8-27b'],
     s0: 'Assume √2 = p/q in lowest terms. Then 2q² = p², so p is even. Write p = 2k and substitute to show q is even too — a contradiction.',
     s1: 'Suppose for contradiction that √2 is rational. Write it as a/b with no common factors. Squaring gives 2b² = a².',
     effort: 3,
@@ -105,7 +105,7 @@ const SEED: SeedRow[] = [
   {
     title: 'Summarize a 40-page RFC into 5 decisions',
     cat: 'Long-context',
-    models: ['phi-4', 'gemma-2-27b'],
+    models: ['phi-4', 'gemma-4-31b'],
     s0: '1. Adopt QUIC as the default transport for internal services. 2. Keep mTLS at the mesh edge. 3. Retries are capped at two.',
     s1: 'The RFC lands on five calls: transport, auth, retries, quotas, and the migration window. Only the retry budget is hard to reverse.',
     effort: 2,
@@ -117,7 +117,7 @@ const SEED: SeedRow[] = [
   {
     title: 'SQL for monthly cohort retention',
     cat: 'Coding',
-    models: ['mistral-large', 'qwen-2-5-72b', 'deepseek-v3', 'codestral'],
+    models: ['mistral-large-4', 'qwen-3-8-27b', 'deepseek-v4-1-flash', 'mistral-large-3'],
     s0: 'WITH cohorts AS (SELECT user_id, date_trunc(‘month’, created_at) AS cohort FROM users) SELECT cohort, month_offset, count(*) …',
     s1: 'First bucket users by signup month, then join activity by month offset. The left join keeps zero-activity months visible.',
     effort: 3,
@@ -129,7 +129,7 @@ const SEED: SeedRow[] = [
   {
     title: 'A haiku sequence about tides',
     cat: 'Creative',
-    models: ['llama-3-3-70b', 'mistral-large'],
+    models: ['llama-3-3-70b', 'mistral-large-4'],
     s0: 'moon pulls the blanket / the shore forgets its edges / gulls rewrite the line',
     s1: 'low water, low light / a crab inventories stones / the sea, returning',
     effort: 1,
@@ -141,7 +141,7 @@ const SEED: SeedRow[] = [
   {
     title: 'Plan a 3-day Kyoto itinerary on a budget',
     cat: 'Reasoning',
-    models: ['qwen-2-5-72b', 'deepseek-v3', 'phi-4'],
+    models: ['qwen-3-8-27b', 'deepseek-v4-1-flash', 'phi-4'],
     s0: 'Day 1 — East: Fushimi Inari at 7am before the crowds, then Philosopher’s Path and a ¥900 lunch near Demachiyanagi.',
     s1: 'Base yourself near Kyoto Station. Get the bus day pass (¥700) and group sights by ward; temples close around 17:00.',
     effort: 2,
@@ -153,7 +153,7 @@ const SEED: SeedRow[] = [
   {
     title: 'Regex to validate IPv6 (with explanation)',
     cat: 'Coding',
-    models: ['codestral', 'llama-3-3-70b'],
+    models: ['mistral-large-3', 'llama-3-3-70b'],
     s0: '^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|::|…)$ — covers compressed forms, but readability suffers.',
     s1: 'Honest answer: don’t. Use a parser. But if you must, here’s a pattern that handles compressed groups and embedded IPv4.',
     effort: 1,
@@ -165,7 +165,7 @@ const SEED: SeedRow[] = [
   {
     title: 'Logic grid puzzle: five houses, five pets',
     cat: 'Reasoning',
-    models: ['deepseek-v3', 'phi-4'],
+    models: ['deepseek-v4-1-flash', 'phi-4'],
     s0: 'From clue 3, the green house is immediately left of the white. Clue 9 fixes the Norwegian in house 1. Build the grid by elimination.',
     s1: 'Let’s build the grid. Positions 1–5. Clue 9 fixes Norwegian at 1; clue 14 puts the blue house next to it.',
     effort: 3,
@@ -177,7 +177,7 @@ const SEED: SeedRow[] = [
   {
     title: 'Translate a legal clause EN → DE, keep register',
     cat: 'Language',
-    models: ['gemma-2-27b', 'mistral-large', 'qwen-2-5-72b'],
+    models: ['gemma-4-31b', 'mistral-large-4', 'qwen-3-8-27b'],
     s0: 'Die Haftung des Auftragnehmers ist auf Vorsatz und grobe Fahrlässigkeit beschränkt. Weitergehende Ansprüche sind ausgeschlossen.',
     s1: 'Der Auftragnehmer haftet nur für Vorsatz und grobe Fahrlässigkeit. Ansprüche aus Garantie bleiben unberührt.',
     effort: 2,
@@ -189,7 +189,7 @@ const SEED: SeedRow[] = [
   {
     title: 'Write a bash one-liner to find the 10 largest files',
     cat: 'Coding',
-    models: ['phi-4', 'codestral', 'llama-3-3-70b'],
+    models: ['phi-4', 'mistral-large-3', 'llama-3-3-70b'],
     s0: 'du -ah . | sort -rh | head -n 10',
     s1: 'find . -type f -printf \'%s %p\\n\' | sort -nr | head -10',
     effort: 1,
@@ -201,7 +201,7 @@ const SEED: SeedRow[] = [
   {
     title: 'Integrate x·e^x dx step by step',
     cat: 'Math',
-    models: ['qwen-2-5-72b', 'gemma-2-27b'],
+    models: ['qwen-3-8-27b', 'gemma-4-31b'],
     s0: 'Use integration by parts: u = x, dv = e^x dx, so du = dx, v = e^x. The integral becomes x·e^x − ∫e^x dx.',
     s1: 'Let’s apply ∫u dv = uv − ∫v du with u = x and dv = e^x dx. The boundary term is the part people forget.',
     effort: 1,
@@ -213,7 +213,7 @@ const SEED: SeedRow[] = [
   {
     title: 'Explain transformers to a product manager',
     cat: 'Language',
-    models: ['mistral-large', 'llama-3-3-70b', 'deepseek-v3'],
+    models: ['mistral-large-4', 'llama-3-3-70b', 'deepseek-v4-1-flash'],
     s0: 'A transformer reads every word at once and decides which ones matter for each output. Attention is the routing layer.',
     s1: 'Think autocomplete, but it looks at the whole page before guessing the next word. The “attention” is just a relevance score.',
     effort: 2,
@@ -225,7 +225,7 @@ const SEED: SeedRow[] = [
   {
     title: 'Design a schema for a recipe app',
     cat: 'Coding',
-    models: ['deepseek-v3', 'qwen-2-5-coder'],
+    models: ['deepseek-v4-1-flash', 'kimi-k3'],
     s0: 'recipes(id, title, servings) · ingredients(id, name) · recipe_items(recipe_id, ingredient_id, quantity, unit)',
     s1: 'Start with three tables and one join; tags as a separate many-to-many. Keep units in their own table if conversions matter.',
     effort: 2,
@@ -426,11 +426,11 @@ export async function seedDatabase() {
       const model = modelMap.get(slug);
       if (!model) continue;
       const content = isFirst
-        ? slug === 'qwen-2-5-72b'
+        ? slug === 'qwen-3-8-27b'
           ? QWEN_BASE
-          : slug === 'deepseek-v3'
+          : slug === 'deepseek-v4-1-flash'
             ? DEEPSEEK_BASE
-            : slug === 'mistral-large'
+            : slug === 'mistral-large-4'
               ? MISTRAL_BASE
               : `${row.s1}\n\nThis is a generated challenger response.`
         : `${row.s1}\n\nThis is a generated challenger response.`;
@@ -458,10 +458,10 @@ export async function seedDatabase() {
     const firstResponses = responseRows.filter((response) => response.comparisonId === firstId);
     const base = firstResponses.find((response) => response.isBase);
     const qwen = firstResponses.find(
-      (response) => response.modelId === modelMap.get('qwen-2-5-72b')?.id,
+      (response) => response.modelId === modelMap.get('qwen-3-8-27b')?.id,
     );
     const deepseek = firstResponses.find(
-      (response) => response.modelId === modelMap.get('deepseek-v3')?.id,
+      (response) => response.modelId === modelMap.get('deepseek-v4-1-flash')?.id,
     );
 
     const insertAnnotation = async (args: {
@@ -611,7 +611,7 @@ export async function seedDatabase() {
           id: uuidv7(),
           comparisonId: firstId,
           authorId: userMap.get('ana')!.id,
-          aboutModelId: modelMap.get('deepseek-v3')!.id,
+          aboutModelId: modelMap.get('deepseek-v4-1-flash')!.id,
           body: 'Only one that explained the trade-off before writing code. That’s what I’d want in a review.',
           createdAt: ago(48),
         },

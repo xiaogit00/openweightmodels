@@ -34,8 +34,8 @@ export default async function TermsPage() {
         <h2>1. What the service is</h2>
         <p>
           OpenWeightModels is a public forum for side-by-side comparisons of open-weight
-          model outputs. Anyone can read the Board and published Comparisons. Writing
-          requires an account.
+          and frontier model outputs. Anyone can read the Board and published
+          Comparisons. Writing requires an account.
         </p>
       </section>
 

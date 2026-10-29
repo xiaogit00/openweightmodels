@@ -18,6 +18,7 @@ function model(overrides: Partial<ModelRow> = {}): ModelRow {
     apiBase: null,
     apiModelId: 'fixture/challenger',
     etaSeconds: 4,
+    openWeights: true,
     enabled: true,
     createdAt: new Date(),
     ...overrides,

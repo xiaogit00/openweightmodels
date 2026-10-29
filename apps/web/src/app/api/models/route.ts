@@ -13,6 +13,7 @@ export async function GET() {
       monogram: model.monogram,
       etaSeconds: model.etaSeconds,
       provider: model.provider,
+      openWeights: model.openWeights,
     })),
   });
 }

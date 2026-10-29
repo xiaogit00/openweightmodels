@@ -27,7 +27,7 @@ test('author adds a Challenger to a published Comparison', async ({ page, browse
   await page.locator('input[type="file"]').setInputFiles(baseOutput);
   await expect(page.getByText('e2e-add-challenger-base.md')).toBeVisible();
   await page.getByPlaceholder("What's being compared?").fill(title);
-  await page.getByRole('button', { name: /Qwen2\.5 72B/ }).click();
+  await page.getByRole('button', { name: /Qwen3\.8 27B/ }).click();
   await page.getByRole('button', { name: 'Coding', exact: true }).click();
   await page.getByRole('button', { name: 'Schedule comparison' }).click();
 
@@ -44,26 +44,30 @@ test('author adds a Challenger to a published Comparison', async ({ page, browse
   await reader.goto(comparisonUrl);
   await expect(reader.getByRole('heading', { name: title })).toBeVisible();
   await expect(reader.getByRole('button', { name: 'Add model' })).toHaveCount(0);
-  await expect(reader.locator('[data-challenger-tab="deepseek-v3"]')).toHaveCount(0);
+  await expect(reader.locator('[data-challenger-tab="deepseek-v4-1-flash"]')).toHaveCount(0);
 
   // The menu offers enabled models only, skips the Base and existing Challenger,
   // and advertises an ETA.
   await page.getByRole('button', { name: 'Add model' }).click();
   const menu = page.locator('[data-add-menu]');
   await expect(menu).toBeVisible();
+  await expect(menu.locator('[data-model-weight="open"]').first()).toContainText('Open');
+  await expect(menu.locator('[data-model-weight="frontier"]').first()).toContainText(
+    'Frontier',
+  );
   await expect(menu.getByText('Llama 3.3 70B')).toHaveCount(0);
-  await expect(menu.getByText('Qwen2.5 72B')).toHaveCount(0);
-  const deepseek = menu.getByRole('button', { name: /DeepSeek V3/ });
+  await expect(menu.getByText('Qwen3.8 27B')).toHaveCount(0);
+  const deepseek = menu.getByRole('button', { name: /DeepSeek V4.1 Flash/ });
   await expect(deepseek).toContainText(/~\d+s/);
   await deepseek.click();
 
   // The author sees the new tab immediately; the reader only after it is done.
-  await expect(page.locator('[data-challenger-tab="deepseek-v3"]')).toBeVisible();
+  await expect(page.locator('[data-challenger-tab="deepseek-v4-1-flash"]')).toBeVisible();
   await expect
     .poll(
       async () => {
         await reader.reload();
-        return reader.locator('[data-challenger-tab="deepseek-v3"]').count();
+        return reader.locator('[data-challenger-tab="deepseek-v4-1-flash"]').count();
       },
       { timeout: 60_000 },
     )

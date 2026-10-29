@@ -1,0 +1,1 @@
+ALTER TABLE "models" ADD COLUMN "open_weights" boolean DEFAULT true NOT NULL;

@@ -18,7 +18,7 @@ test('only admins reach the admin surface; model toggles and takedowns are recor
   const { models } = (await modelsResponse.json()) as {
     models: Array<{ id: string; name: string }>;
   };
-  const phi = models.find((model) => model.name === 'Phi-4');
+  const phi = models.find((model) => model.name === 'Phi 4');
   expect(phi).toBeTruthy();
 
   const denied = await page.request.patch(`/api/admin/models/${phi!.id}`, {
@@ -31,22 +31,22 @@ test('only admins reach the admin surface; model toggles and takedowns are recor
   await expect(page.getByRole('heading', { name: 'Admin', exact: true })).toBeVisible();
 
   // Disabling removes a Model from the registry pickers immediately.
-  await page.getByRole('button', { name: 'Disable Phi-4' }).click();
-  await expect(page.getByRole('button', { name: 'Enable Phi-4' })).toBeVisible();
+  await page.getByRole('button', { name: 'Disable Phi 4' }).click();
+  await expect(page.getByRole('button', { name: 'Enable Phi 4' })).toBeVisible();
 
   const picker = await page.request.get('/api/models');
   expect(
     ((await picker.json()) as { models: Array<{ name: string }> }).models.some(
-      (model) => model.name === 'Phi-4',
+      (model) => model.name === 'Phi 4',
     ),
   ).toBe(false);
 
   await page.goto('/new');
-  await expect(page.getByText('Phi-4', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Phi 4', { exact: true })).toHaveCount(0);
 
   await page.goto('/admin');
-  await page.getByRole('button', { name: 'Enable Phi-4' }).click();
-  await expect(page.getByRole('button', { name: 'Disable Phi-4' })).toBeVisible();
+  await page.getByRole('button', { name: 'Enable Phi 4' }).click();
+  await expect(page.getByRole('button', { name: 'Disable Phi 4' })).toBeVisible();
 
   // Pick a fixture to take down, then find and hide it from the admin surface.
   const target = 'Board fixture 56';

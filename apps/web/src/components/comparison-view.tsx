@@ -40,6 +40,7 @@ import {
   estimateConversationCalls,
   formatHandle,
   isPendingResponse,
+  modelWeightShortLabel,
   relativeTime,
   relativeTimeAgo,
 } from '@owm/core/client';
@@ -86,6 +87,7 @@ export type ComparisonPageData = {
     name: string;
     monogram: string;
     etaSeconds: number;
+    openWeights: boolean;
   }>;
   maxChallengers: number;
   currentUserId: string | null;
@@ -818,6 +820,17 @@ function AddModelMenu({
                     {model.monogram}
                   </span>
                   <span className="min-w-0 flex-1 truncate">{model.name}</span>
+                  <span
+                    data-model-weight={model.openWeights ? 'open' : 'frontier'}
+                    className={cn(
+                      'flex-none rounded-[2px] border px-1 py-px text-[10px] font-medium leading-none',
+                      model.openWeights
+                        ? 'border-neutral-600 text-neutral-400'
+                        : 'border-accent-700 text-accent-200',
+                    )}
+                  >
+                    {modelWeightShortLabel(model.openWeights)}
+                  </span>
                   <span className="text-[11px] font-normal text-neutral-400">
                     {addingModelId === model.id ? 'Adding…' : `~${model.etaSeconds}s`}
                   </span>

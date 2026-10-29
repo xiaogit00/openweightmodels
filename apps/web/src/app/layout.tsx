@@ -19,7 +19,7 @@ const space = Space_Grotesk({
 
 export const metadata: Metadata = {
   title: 'OpenWeightModels',
-  description: 'Community comparisons of open-weight model outputs.',
+  description: 'Community comparisons of open-weight and frontier model outputs.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

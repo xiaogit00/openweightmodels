@@ -18,7 +18,7 @@ test('replay a three-Turn Conversation and read it as a transcript', async ({ pa
     models: Array<{ id: string; slug: string }>;
   };
   const base = models.find((model) => model.slug === 'llama-3-3-70b');
-  const challenger = models.find((model) => model.slug === 'qwen-2-5-72b');
+  const challenger = models.find((model) => model.slug === 'qwen-3-8-27b');
   expect(base).toBeTruthy();
   expect(challenger).toBeTruthy();
 

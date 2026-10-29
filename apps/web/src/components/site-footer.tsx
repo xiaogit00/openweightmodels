@@ -16,7 +16,7 @@ export function SiteFooter() {
         Privacy
       </Link>
       <span className="flex-1" />
-      <span>Community comparisons of open-weight model outputs.</span>
+      <span>Community comparisons of open-weight and frontier model outputs.</span>
     </footer>
   );
 }

@@ -2,7 +2,7 @@
 
 Snapshot for resuming work after a context clear. `BACKEND.md` is the contract; `docs/DECISIONS.md` is the decision record; `GLOSSARY.md` is the vocabulary; `design_handoff_openweightmodels/` remains the visual source of truth (v2 overrides `styles.css`).
 
-> **Next work:** tickets 20–25 are implemented. Creation, the Replay lifecycle and the Job/Comparison reads are Turn-aware; the AI Exporter importer and confirmation handle multi-Turn files; the transcript reader, Board treatment and add-model flow work Turn by Turn; and the upload step now carries exporter guidance, a real sample download, limits, specific refusal copy and an export guide at `/help/exporting`. The settled design is `.scratch/openweightmodels/spec.md` (ADRs 0008–0010). Some sections below still describe the single-Prompt UI; `BACKEND.md` is the contract where they differ.
+> **Next work:** tickets 18 and 20–25 are implemented. The Model registry is a curated open-weight and frontier catalogue with a verified current/previous release per family, an `openWeights` flag and pickers that label the difference. Creation, the Replay lifecycle and the Job/Comparison reads are Turn-aware; the AI Exporter importer and confirmation handle multi-Turn files; the transcript reader, Board treatment and add-model flow work Turn by Turn; and the upload step now carries exporter guidance, a real sample download, limits, specific refusal copy and an export guide at `/help/exporting`. The settled design is `.scratch/openweightmodels/spec.md` (ADRs 0008–0010). Some sections below still describe the single-Prompt UI; `BACKEND.md` is the contract where they differ.
 
 ---
 
@@ -147,7 +147,9 @@ SSE uses Redis pub/sub + Postgres replay via `Last-Event-ID`, a 2s polling fallb
   ADR 0007.
 - `packages/core/src/db/bootstrap.ts` (`pnpm db:bootstrap`) applies migrations
   and upserts `MODEL_REGISTRY` without creating users, Comparisons or other
-  development content. It preserves an Admin-disabled Model.
+  development content. It preserves an Admin-disabled Model and disables rows
+  whose slug has left the catalogue, without deleting them, so old Comparisons
+  keep resolving. Curation rules are in `docs/MODEL-REGISTRY.md`.
 - Runtime configuration accepts ECS-shaped discrete variables:
   `DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD/DB_SSL` assemble a TLS
   connection URL (URL-encoded parts), and `REDIS_HOST/REDIS_PORT/REDIS_TLS`

@@ -41,7 +41,7 @@ test('upload → schedule → live Job → publish → Board → annotate → th
   await expect(page.locator('textarea').first()).toHaveValue(/sliding-window rate limiter/);
 
   await page.getByPlaceholder("What's being compared?").fill(title);
-  await page.getByRole('button', { name: /Qwen2\.5 72B/ }).click();
+  await page.getByRole('button', { name: /Qwen3\.8 27B/ }).click();
   await page.getByRole('button', { name: 'Coding', exact: true }).click();
   await page.getByRole('button', { name: 'Schedule comparison' }).click();
 
