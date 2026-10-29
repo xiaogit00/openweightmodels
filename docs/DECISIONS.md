@@ -49,7 +49,7 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 | 16 | Authors can **unpublish** (back to `ready`) and **soft-delete** | Production content needs an author-controlled exit. |
 | 17 | Adding a Challenger to a published Comparison **auto-publishes on completion** | The author already reviewed the Comparison; a second review per model is friction. |
 | 18 | Max **4 Challengers per Comparison**; at 4 selected every tile is disabled and the counter reads “4 of 4” | Matches creation UX and bounds spend. Add-model cannot exceed it. |
-| 19 | Pending and failed added-model tabs are **author-only** | The public must never see a shimmer or a failed provider call. |
+| 19 | Pending and failed added-model tabs are **author-only** until the Replay's first Turn is done; a multi-Turn Replay then streams into the published Comparison with a “Replay in progress” marker | The public must never see a model before it has any answer, or a failed provider call presented as a finished tab. Once a Replay has a done Turn, hiding the rest would misrepresent the transcript. |
 | 20 | A failed Run blocks `ready` until retried, skipped, or auto-skipped after **24h** | Prevents permanent orphan drafts without discarding successful Runs. |
 | 21 | **One-level Discussion replies**; reply-to-reply re-parents to the top-level comment; `about_model_id` is inherited | Matches the design; avoids unbounded trees. |
 | 22 | Comments with replies are **tombstoned**; childless comments hard-delete | Preserves conversation context without keeping orphan bodies. |
@@ -58,7 +58,7 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 | 25 | **No self-voting** on own comments or Annotations | A vote count that includes the author by default is weaker evidence. |
 | 26 | Model filter labels use **full display names** | `name.split(' ')[0]` collapses "Qwen2.5 72B" and "Qwen2.5 Coder" into identical chips. |
 
-**Rejected**: editable Prompt; add-model requiring a second review; unlimited Challengers; public pending tabs; leaving failed Jobs stuck forever; unlimited reply nesting; newest-first Discussion; Reddit-style self-upvotes; first-word model labels.
+**Rejected**: editable Prompt; add-model requiring a second review; unlimited Challengers; public pending tabs before a model has any finished Turn; leaving failed Jobs stuck forever; unlimited reply nesting; newest-first Discussion; Reddit-style self-upvotes; first-word model labels.
 
 ---
 
@@ -209,7 +209,7 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 3. **Retry** increments `attempt` on the same Response row; it does not create a new tab or a duplicate model row.
 4. **Skip while streaming** is not allowed in v1; only `failed` or `queued` Runs can be skipped.
 5. **Add-model on a `ready` draft** sets the Comparison back to `generating`; on a `published` Comparison it stays `published`.
-6. **Add-model on a published Comparison** shows the pending tab to the author only; completion publishes it atomically.
+6. **Add-model on a published Comparison** shows the pending tab to the author only until its first Turn is done; from then on the Replay streams into the published Comparison, and finishes publishing per Turn atomically.
 7. **A fifth Challenger** is rejected (`409 too_many_challengers`).
 8. **A model already present** is rejected (`409 model_exists`); the Base model cannot be a Challenger. A skipped (dismissed) failed add frees its Challenger slot, but its model remains used and cannot be added again.
 9. **Unpublish** clears `published_at`, returns to `ready`, keeps comments/Annotations, and removes it from the Board stream.

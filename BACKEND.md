@@ -2,7 +2,7 @@
 
 Status: **accepted implementation contract**, with one rework in progress (below). This file supersedes `design_handoff_openweightmodels/BACKEND.md` wherever the two disagree. The design handoff remains the visual source of truth.
 
-> **Rework in progress: multi-turn Conversations.** The target is a Comparison of one Conversation's Turns (ADR 0008), AI Exporter markdown as the canonical Base output format (ADR 0009), and frontier models as first-class registry entries (ADR 0010). The settled design is `.scratch/openweightmodels/spec.md`; tickets 18–25 carry the work. Ticket 20 made creation, the Replay lifecycle and the Job/Comparison reads Turn-aware; ticket 21 added the AI Exporter importer and its confirmation step; ticket 22 added the transcript reader; ticket 23 made the Board treat a Comparison by its first Prompt. Add model (24) and the fuller guidance/help copy (25) remain.
+> **Rework in progress: multi-turn Conversations.** The target is a Comparison of one Conversation's Turns (ADR 0008), AI Exporter markdown as the canonical Base output format (ADR 0009), and frontier models as first-class registry entries (ADR 0010). The settled design is `.scratch/openweightmodels/spec.md`; tickets 18–25 carry the work. Ticket 20 made creation, the Replay lifecycle and the Job/Comparison reads Turn-aware; ticket 21 added the AI Exporter importer and its confirmation step; ticket 22 added the transcript reader; ticket 23 made the Board treat a Comparison by its first Prompt; ticket 24 replays every Turn when a Challenger is added to a published Conversation. The fuller guidance/help copy (25) remains.
 
 Related documents:
 
@@ -335,9 +335,10 @@ queued → calling → streaming → done
 
 - Maximum **4 challengers per Comparison**, including creation-time challengers. A skipped Run is dismissed and does not hold a slot; its model still counts as used, so it cannot be added twice.
 - The Base model cannot be added as a Challenger; an existing model cannot be added twice.
-- On a published Comparison, a newly added Challenger is visible to the **Author only** while generating; the public sees the tab when it completes. It is published atomically on completion, with no second review.
-- A failed add is an author-only error tab with Retry/Dismiss; the public never sees it.
-- Public reads (`GET /comparisons/:id`) omit skipped, failed and pending challenger Responses; the Author's read includes them.
+- Adding a Challenger queues one Response per stored Turn, all on one Job. Only the first Turn is enqueued; a successful Turn enqueues its successor, so the new Replay follows the same sequential contract as a creation-time Replay.
+- On a published Comparison, a newly added Challenger is visible to the **Author only** until its first Turn is done. From then on the reader sees the whole Replay, including pending and failed Turns, so it streams into the published Comparison with a "Replay in progress" marker. It is published atomically per Turn, with no second review.
+- A failed add is an author-only error tab with Retry/Dismiss while no Turn has finished. A failure inside a replay that already has a done Turn stays visible in place with Retry/Skip.
+- Public reads (`GET /comparisons/:id`) include every Response of a Challenger that has at least one done Turn; a Challenger with no done Turn stays author-only.
 
 ---
 
@@ -403,7 +404,7 @@ Suspension policy: a suspended member keeps read access and their sessions. Thei
 | `DELETE` | `/comparisons/:id` | author; soft delete |
 | `POST` | `/comparisons/:id/publish` | author; requires ≥1 done challenger; returns `{ card }` |
 | `POST` | `/comparisons/:id/unpublish` | author; sets back to `ready` |
-| `POST` | `/comparisons/:id/responses` | author; `{ modelId }`; adds a Challenger and Job |
+| `POST` | `/comparisons/:id/responses` | author; `{ modelId }`; queues one Response per stored Turn and a Job; returns `{ jobId, responseId, turnCount, estimatedCalls, responses }` |
 | `GET` | `/comparisons/:id/responses` | author-only; current Responses for resync after an added Run settles |
 
 List query parameters: `cat`, `models` (comma-separated slugs), `effort`, `q`, `sort=live|top|new`, `cursor`, `limit` (default 48, max 100).

@@ -457,18 +457,18 @@ export async function getComparisonForViewer(
       .where(eq(turns.comparisonId, id))
       .orderBy(turns.position),
   ]);
-  // An added Challenger is public once it has a done Response. A stopped
-  // Replay keeps its done Turns and its skipped tail visible so readers can see
-  // where it stopped; pending and failed Responses stay on the Author's page.
+  // An added Challenger becomes public with its first finished Turn. From then
+  // on the reader sees the whole Replay, including pending and failed Turns, so
+  // a multi-Turn add streams in and never hides a gap. A Replay with no done
+  // Turn yet stays on the Author's page; a stopped Replay keeps its done Turns
+  // and its skipped tail visible.
   const doneModelIds = new Set(
     allResponseRows.filter((row) => row.status === 'done').map((row) => row.modelId),
   );
   const responseRows =
     comparison.authorId === viewerId
       ? allResponseRows
-      : allResponseRows.filter(
-          (row) => row.status === 'done' || (row.status === 'skipped' && doneModelIds.has(row.modelId)),
-        );
+      : allResponseRows.filter((row) => row.isBase || doneModelIds.has(row.modelId));
   const modelIds = [...new Set(responseRows.map((row) => row.modelId))];
   const modelRows = modelIds.length
     ? await db.select().from(models).where(inArray(models.id, modelIds))

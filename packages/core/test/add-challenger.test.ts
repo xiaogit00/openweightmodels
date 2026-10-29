@@ -10,6 +10,7 @@ import {
   getComparisonRow,
   getCardById,
   getDb,
+  getJobForAuthor,
   models,
   processRun,
   retryRun,
@@ -154,6 +155,151 @@ describe.skipIf(!available)('adding a Challenger to a published Comparison', () 
       const doneCard = await getCardById(fixture.comparisonId);
       expect(doneCard?.models.map((model) => model.slug)).toContain(extra.slug);
       expect((await getComparisonRow(fixture.comparisonId))?.status).toBe('published');
+    } finally {
+      await fixture.cleanup();
+    }
+  });
+
+  it('replays every Turn for a model added to a published Conversation', async () => {
+    process.env.MOCK_DELAY_MS = '0';
+    const turnScript = [
+      { prompt: 'First question', baseOutput: 'BASE ONE' },
+      { prompt: 'Second question', baseOutput: 'BASE TWO' },
+      { prompt: 'Third question', baseOutput: 'BASE THREE' },
+    ];
+    const fixture = await createJobFixture({
+      comparisonStatus: 'published',
+      runStatus: 'done',
+      turns: turnScript,
+    });
+    const extra = await createExtraModel();
+
+    try {
+      const before = await getComparisonForViewer(
+        fixture.comparisonId,
+        fixture.userId,
+      );
+      const beforeRow = await getComparisonRow(fixture.comparisonId);
+      const baseBefore = before?.responses.filter(({ response }) => response.isBase);
+      const existingBefore = challengers(before);
+
+      const result = await addModelToComparison(
+        fixture.comparisonId,
+        extra.id,
+        fixture.userId,
+      );
+      expect(result.jobId).toBeTruthy();
+      expect(result.turnCount).toBe(turnScript.length);
+      expect(result.estimatedCalls).toBe(turnScript.length);
+      expect(result.responses.map((response) => response.position)).toEqual([0, 1, 2]);
+
+      // The Author sees the whole Replay queued immediately, one Response per
+      // stored Turn, all pointing at the same Job.
+      const authorView = await getComparisonForViewer(
+        fixture.comparisonId,
+        fixture.userId,
+      );
+      const added = authorView?.responses.filter(
+        ({ response }) => response.modelId === extra.id,
+      );
+      expect(added).toHaveLength(turnScript.length);
+      expect(added?.every(({ response }) => response.status === 'queued')).toBe(true);
+      expect(added?.every(({ response }) => response.jobId === result.jobId)).toBe(true);
+      expect(new Set(added?.map(({ response }) => response.turnId))).toEqual(
+        new Set(fixture.turnIds),
+      );
+
+      // A replay with no finished Turn stays author-only.
+      const publicPending = await getComparisonForViewer(fixture.comparisonId, null);
+      expect(
+        publicPending?.responses.some(({ response }) => response.modelId === extra.id),
+      ).toBe(false);
+
+      // Each finished Turn publishes in place; the rest of the Replay streams
+      // into the reader's view as pending rather than waiting for the whole
+      // Replay to finish.
+      await processRun(result.responseId);
+      const publicMid = await getComparisonForViewer(fixture.comparisonId, null);
+      const midStatus = new Map(
+        (publicMid?.responses ?? [])
+          .filter(({ response }) => response.modelId === extra.id)
+          .map(({ response }) => [
+            fixture.turnIds.indexOf(response.turnId),
+            response.status,
+          ]),
+      );
+      expect(Object.fromEntries(midStatus)).toEqual({
+        0: 'done',
+        1: 'queued',
+        2: 'queued',
+      });
+
+      // Finish the Replay in Turn order.
+      const job = await getJobForAuthor(result.jobId, fixture.userId);
+      for (const run of job?.runs ?? []) {
+        if (run.id !== result.responseId) await processRun(run.id);
+      }
+
+      const publicDone = await getComparisonForViewer(fixture.comparisonId, null);
+      const doneRows = (publicDone?.responses ?? []).filter(
+        ({ response }) => response.modelId === extra.id,
+      );
+      expect(doneRows).toHaveLength(turnScript.length);
+      expect(doneRows.every(({ response }) => response.status === 'done')).toBe(true);
+      expect(
+        new Set(challengers(publicDone).map(({ response }) => response.modelId)).size,
+      ).toBe(2);
+
+      // Adding a Replay never changes the comparison's published state or the
+      // content that was already reviewed.
+      const afterRow = await getComparisonRow(fixture.comparisonId);
+      expect(afterRow?.status).toBe('published');
+      expect(afterRow?.title).toBe(beforeRow?.title);
+      expect(afterRow?.prompt).toBe(beforeRow?.prompt);
+      expect(afterRow?.baseModelId).toBe(beforeRow?.baseModelId);
+      const after = await getComparisonForViewer(fixture.comparisonId, fixture.userId);
+      for (const reviewed of [...(baseBefore ?? []), ...existingBefore]) {
+        expect(
+          after?.responses.find(
+            ({ response }) => response.id === reviewed.response.id,
+          )?.response.contentMd,
+        ).toBe(reviewed.response.contentMd);
+      }
+
+      const card = await getCardById(fixture.comparisonId);
+      expect(card?.models.map((model) => model.slug)).toContain(extra.slug);
+      expect(card?.turnCount).toBe(turnScript.length);
+    } finally {
+      await fixture.cleanup();
+    }
+  });
+
+  it('counts Challengers, not Turns, against the cap', async () => {
+    process.env.MAX_CHALLENGERS = '2';
+    const fixture = await createJobFixture({
+      challengers: 2,
+      comparisonStatus: 'published',
+      runStatus: 'done',
+      turns: [
+        { prompt: 'First question', baseOutput: 'BASE ONE' },
+        { prompt: 'Second question', baseOutput: 'BASE TWO' },
+      ],
+    });
+    const extra = await createExtraModel();
+
+    try {
+      expect(
+        await errorCode(() =>
+          addModelToComparison(fixture.comparisonId, extra.id, fixture.userId),
+        ),
+      ).toBe('too_many_challengers');
+      const remaining = challengers(
+        await getComparisonForViewer(fixture.comparisonId, fixture.userId),
+      );
+      expect(remaining).toHaveLength(4);
+      expect(
+        new Set(remaining.map(({ response }) => response.modelId)).size,
+      ).toBe(2);
     } finally {
       await fixture.cleanup();
     }

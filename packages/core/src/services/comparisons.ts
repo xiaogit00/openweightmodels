@@ -402,11 +402,21 @@ export async function updateComparison(
   await db.update(comparisons).set(values).where(eq(comparisons.id, id));
 }
 
+export type AddModelResult = {
+  jobId: string;
+  /** The first Turn's Response; later Turns are queued behind it. */
+  responseId: string;
+  turnCount: number;
+  /** Turns × the one new Challenger. */
+  estimatedCalls: number;
+  responses: Array<{ id: string; turnId: string; position: number }>;
+};
+
 export async function addModelToComparison(
   comparisonId: string,
   modelId: string,
   userId: string,
-): Promise<{ jobId: string; responseId: string }> {
+): Promise<AddModelResult> {
   await assertCanWrite(userId);
   const db = getDb();
   const row = await requireOwnedComparison(comparisonId, userId);
@@ -450,30 +460,39 @@ export async function addModelToComparison(
     .limit(1);
   if (existing) throw conflict('model_exists', 'That model already has a response here.');
 
-  // A Challenger's Replay starts at the first Turn. A single-Turn Comparison
-  // only has this one; ticket 20 extends a Replay across the remaining Turns.
-  const [firstTurn] = await db
-    .select({ id: turns.id })
+  // An added Challenger replays the whole stored Conversation: one queued
+  // Response per Turn, with only the first Turn enqueued. A successful Turn
+  // enqueues its own successor, exactly as a creation-time Replay does.
+  const turnRows = await db
+    .select({ id: turns.id, position: turns.position })
     .from(turns)
     .where(eq(turns.comparisonId, comparisonId))
-    .orderBy(turns.position)
-    .limit(1);
-  if (!firstTurn) throw conflict('no_turns', 'That comparison has no turns to replay.');
+    .orderBy(turns.position);
+  if (!turnRows.length) {
+    throw conflict('no_turns', 'That comparison has no turns to replay.');
+  }
 
   const jobId = uuidv7();
-  const responseId = uuidv7();
+  const responseIds = turnRows.map(() => uuidv7());
+  const newResponses = turnRows.map((turn, index) => ({
+    id: responseIds[index]!,
+    turnId: turn.id,
+    position: turn.position,
+  }));
 
   await db.transaction(async (tx) => {
     await tx.insert(jobs).values({ id: jobId, comparisonId, status: 'scheduled' });
-    await tx.insert(responses).values({
-      id: responseId,
-      comparisonId,
-      turnId: firstTurn.id,
-      jobId,
-      modelId,
-      isBase: false,
-      status: 'queued',
-    });
+    await tx.insert(responses).values(
+      newResponses.map((response) => ({
+        id: response.id,
+        comparisonId,
+        turnId: response.turnId,
+        jobId,
+        modelId,
+        isBase: false,
+        status: 'queued' as const,
+      })),
+    );
     if (row.status !== 'published') {
       await tx
         .update(comparisons)
@@ -482,8 +501,14 @@ export async function addModelToComparison(
     }
   });
 
-  await enqueueRun(responseId);
-  return { jobId, responseId };
+  await enqueueRun(responseIds[0]!);
+  return {
+    jobId,
+    responseId: responseIds[0]!,
+    turnCount: turnRows.length,
+    estimatedCalls: turnRows.length,
+    responses: newResponses,
+  };
 }
 
 export async function retryRun(responseId: string, userId: string) {

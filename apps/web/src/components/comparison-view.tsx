@@ -37,6 +37,7 @@ import {
   ANNOTATION_KIND_META,
   ANNOTATION_KINDS,
   EFFORT_LEVELS,
+  estimateConversationCalls,
   formatHandle,
   isPendingResponse,
   relativeTime,
@@ -53,6 +54,7 @@ import {
   editCommentInTree,
 } from '@/lib/discussion';
 import type { ComparisonResponseView } from '@/lib/comparison-responses';
+import { modelsWithReplayInProgress } from '@/lib/comparison-responses';
 import {
   isResponseStatus,
   responseErrorMessage,
@@ -655,6 +657,195 @@ function AnnotationActions({
 
 type RunAction = 'retry' | 'dismiss';
 
+type AddableModel = ComparisonPageData['models'][number];
+
+/**
+ * The Add model menu. A one-Turn Comparison adds on click, as before; a
+ * multi-Turn Comparison asks first, because the new model replays every stored
+ * Turn and the Author should see that cost before it is spent.
+ */
+function AddModelMenu({
+  atCap,
+  challengerTotal,
+  maxChallengers,
+  models,
+  addingModelId,
+  addError,
+  onAdd,
+  turnCount,
+  variant,
+  open,
+  onOpenChange,
+}: {
+  atCap: boolean;
+  challengerTotal: number;
+  maxChallengers: number;
+  models: AddableModel[];
+  addingModelId: string | null;
+  addError: string | null;
+  onAdd: (model: AddableModel) => void;
+  turnCount: number;
+  variant: 'tab' | 'pill';
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [confirming, setConfirming] = useState<AddableModel | null>(null);
+  const multiTurn = turnCount > 1;
+  const calls = estimateConversationCalls(turnCount, 1);
+  const callLabel = calls === 1 ? 'hosted API call' : 'hosted API calls';
+
+  useEffect(() => {
+    if (!open) setConfirming(null);
+  }, [open]);
+
+  const close = () => {
+    setConfirming(null);
+    onOpenChange(false);
+  };
+
+  return (
+    <Popover.Root
+      open={open}
+      onOpenChange={(value) => {
+        if (value) {
+          onOpenChange(true);
+        } else {
+          close();
+        }
+      }}
+    >
+      <Popover.Trigger asChild>
+        <button
+          type="button"
+          data-add-button
+          disabled={atCap}
+          aria-label={
+            atCap
+              ? `Adding is disabled: ${challengerTotal} of ${maxChallengers} challengers`
+              : 'Add model'
+          }
+          title={
+            atCap
+              ? `A comparison can hold at most ${maxChallengers} challengers.`
+              : multiTurn
+                ? 'Replay every turn with a new model.'
+                : 'Generate another response from the same prompt.'
+          }
+          className={cn(
+            'flex flex-none items-center gap-[5px] whitespace-nowrap px-2.5 text-[12px] font-medium transition-colors',
+            variant === 'pill' && 'rounded-[2px] py-1.5',
+            atCap
+              ? 'cursor-not-allowed text-neutral-600'
+              : 'text-neutral-400 hover:text-accent-200',
+          )}
+        >
+          <Plus size={13} />
+          Add model
+          {atCap && (
+            <span className="text-[10px] text-neutral-500">
+              {challengerTotal} of {maxChallengers}
+            </span>
+          )}
+        </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          align="start"
+          sideOffset={6}
+          aria-label="Add model"
+          data-add-menu
+          className="z-40 flex w-[280px] flex-col gap-[2px] rounded-[2px] border border-neutral-700 bg-neutral-800 p-1.5 shadow-lg"
+        >
+          {confirming ? (
+            <>
+              <span className="px-2 pb-1 pt-1.5 text-[10px] font-medium tracking-[0.06em] text-neutral-500">
+                REPLAY EVERY TURN
+              </span>
+              <span className="flex items-center gap-2 px-2 pb-1 text-[12px] font-medium text-text">
+                <span className="monogram !h-[18px] !w-[18px] !text-[10px]">
+                  {confirming.monogram}
+                </span>
+                {confirming.name}
+              </span>
+              <span
+                data-add-replay-confirmation
+                className="px-2 pb-1.5 text-[11.5px] leading-[1.5] text-neutral-300"
+              >
+                {confirming.name} replays {turnCount}{' '}
+                {turnCount === 1 ? 'turn' : 'turns'} · {calls} {callLabel}.
+              </span>
+              {addError && (
+                <span className="px-2 pb-1 text-[11px] text-danger" role="alert">
+                  {addError}
+                </span>
+              )}
+              <div className="flex gap-1.5 px-1 pb-0.5">
+                <button
+                  type="button"
+                  disabled={Boolean(addingModelId)}
+                  onClick={() => onAdd(confirming)}
+                  className="btn-secondary h-7 flex-1 disabled:opacity-50"
+                >
+                  {addingModelId === confirming.id ? 'Adding…' : 'Add model'}
+                </button>
+                <button
+                  type="button"
+                  disabled={Boolean(addingModelId)}
+                  onClick={() => setConfirming(null)}
+                  className="btn-neutral h-7 flex-1 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="px-2 pb-1 pt-1.5 text-[10px] font-medium tracking-[0.06em] text-neutral-500">
+                {multiTurn ? 'REPLAY THE CONVERSATION' : 'GENERATE ANOTHER RESPONSE'}
+              </span>
+              {models.map((model) => (
+                <button
+                  key={model.id}
+                  type="button"
+                  disabled={Boolean(addingModelId)}
+                  onClick={() => {
+                    if (multiTurn) setConfirming(model);
+                    else onAdd(model);
+                  }}
+                  className="flex h-8 items-center gap-2 rounded-[2px] px-2 text-left text-[12px] font-medium text-text transition-colors hover:bg-neutral-700 disabled:opacity-50"
+                >
+                  <span className="monogram !h-[18px] !w-[18px] !text-[10px]">
+                    {model.monogram}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{model.name}</span>
+                  <span className="text-[11px] font-normal text-neutral-400">
+                    {addingModelId === model.id ? 'Adding…' : `~${model.etaSeconds}s`}
+                  </span>
+                </button>
+              ))}
+              {models.length === 0 && (
+                <span className="px-2 py-1 text-[11px] text-neutral-400">
+                  Every available model is already in this comparison.
+                </span>
+              )}
+              {addError && (
+                <span className="px-2 py-1 text-[11px] text-danger" role="alert">
+                  {addError}
+                </span>
+              )}
+              <span className="px-2 pb-1 pt-1.5 text-[11px] leading-[1.4] text-neutral-500">
+                {multiTurn
+                  ? 'Replays every turn for the model you pick.'
+                  : 'Runs the same prompt through the model\u2019s hosted API.'}
+              </span>
+            </>
+          )}
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
 export function ComparisonView(props: ComparisonPageData) {
   const {
     comparison,
@@ -706,15 +897,21 @@ export function ComparisonView(props: ComparisonPageData) {
   const multiTurn = turns.length > 1;
   const challengers = useMemo(() => {
     const bySlug = new Map<string, ComparisonResponseView>();
+    // A Model becomes public once it has a finished Turn. From then on its whole
+    // Replay is visible, so pending and failed Turns can drive the tab's state.
+    const publicSlugs = new Set(
+      responseList
+        .filter((item) => !item.isBase && item.status === 'done')
+        .map((item) => item.model.slug),
+    );
+    const rank = (status: ComparisonResponseView['status']) =>
+      status === 'failed' ? 4 : isPendingResponse(status) ? 3 : status === 'done' ? 2 : 1;
     for (const response of [...responseList]
       .filter((item) => !item.isBase)
       .sort((left, right) => left.turn.position - right.turn.position)) {
-      // The Author sees a stopped Replay even when it stopped at Turn 1; readers
-      // only see Challengers with at least one done Turn.
-      const visible = isAuthor ? true : response.status === 'done';
-      if (!visible) continue;
+      if (!isAuthor && !publicSlugs.has(response.model.slug)) continue;
       const existing = bySlug.get(response.model.slug);
-      if (!existing || (existing.status !== 'done' && response.status === 'done')) {
+      if (!existing || rank(response.status) > rank(existing.status)) {
         bySlug.set(response.model.slug, response);
       }
     }
@@ -725,6 +922,15 @@ export function ComparisonView(props: ComparisonPageData) {
       .filter((response) => !response.isBase && response.status !== 'skipped')
       .map((response) => response.model.slug),
   ).size;
+  // A newly added Replay streams into the published Comparison: its model is
+  // marked while later Turns are still queued, calling or streaming.
+  const replayInProgress = useMemo(
+    () =>
+      modelsWithReplayInProgress(responseList, {
+        includeModelsWithoutDoneTurn: isAuthor,
+      }),
+    [responseList, isAuthor],
+  );
   const atCap = challengerTotal >= maxChallengers;
   // The Add affordance belongs to published Comparisons; a ready draft still
   // goes through the Job page to publish.
@@ -1562,16 +1768,29 @@ export function ComparisonView(props: ComparisonPageData) {
       const payload = (await response.json()) as {
         jobId?: string;
         responseId?: string;
+        turnCount?: number;
+        responses?: Array<{ id: string; turnId: string; position: number }>;
         error?: { message?: string };
       };
-      if (!response.ok || !payload.jobId || !payload.responseId) {
+      if (
+        !response.ok ||
+        !payload.jobId ||
+        !payload.responseId ||
+        !payload.responses?.length
+      ) {
         setAddError(payload.error?.message ?? 'Could not add that model.');
         return;
       }
 
-      const queuedView: ComparisonResponseView = {
-        id: payload.responseId,
-        jobId: payload.jobId,
+      // Show the whole Replay at once: one queued pane per stored Turn. The
+      // server returns the Response ids so the Job's status events update these
+      // exact rows as the Replay advances.
+      const turnByPosition = new Map(
+        responseList.map((item) => [item.turn.position, item.turn]),
+      );
+      const queuedViews: ComparisonResponseView[] = payload.responses.map((entry) => ({
+        id: entry.id,
+        jobId: payload.jobId!,
         isBase: false,
         contentMd: '',
         tokens: 0,
@@ -1579,14 +1798,14 @@ export function ComparisonView(props: ComparisonPageData) {
         status: 'queued',
         error: null,
         model: { slug: model.slug, name: model.name, monogram: model.monogram },
-        turn: responseList[0]?.turn ?? {
-          id: '',
-          position: 0,
+        turn: turnByPosition.get(entry.position) ?? {
+          id: entry.turnId,
+          position: entry.position,
           prompt: comparison.prompt,
         },
         blocks: [],
-      };
-      setResponseList((current) => [...current, queuedView]);
+      }));
+      setResponseList((current) => [...current, ...queuedViews]);
       setMenuOpen(false);
       switchTab(model.slug);
     } catch {
@@ -1936,6 +2155,7 @@ export function ComparisonView(props: ComparisonPageData) {
                 const pending = isPendingResponse(response.status);
                 const failed = response.status === 'failed';
                 const stoppedAtPosition = stoppedAtBySlug.get(response.model.slug);
+                const inProgress = replayInProgress.has(response.model.slug);
                 return (
                   <button
                     key={response.model.slug}
@@ -1947,8 +2167,8 @@ export function ComparisonView(props: ComparisonPageData) {
                         ? `${response.model.name} — stopped at turn ${stoppedAtPosition + 1}`
                         : failed
                           ? `${response.model.name} — failed: ${response.error ?? 'API timeout'}`
-                          : pending
-                            ? `${response.model.name} — in progress`
+                          : inProgress || pending
+                            ? `${response.model.name} — Replay in progress`
                             : undefined
                     }
                     title={
@@ -1956,7 +2176,9 @@ export function ComparisonView(props: ComparisonPageData) {
                         ? `Stopped at turn ${stoppedAtPosition + 1}`
                         : failed
                           ? response.error ?? 'API timeout'
-                          : undefined
+                          : inProgress
+                            ? 'Replay in progress'
+                            : undefined
                     }
                     className={cn(
                       'flex flex-none items-center gap-[6px] whitespace-nowrap rounded-[2px] px-2.5 py-1.5 text-[12px] font-medium transition-colors',
@@ -1970,6 +2192,14 @@ export function ComparisonView(props: ComparisonPageData) {
                     </span>
                     {response.model.name}
                     {pending && <CircleNotch size={12} className="anim-spin text-accent-300" />}
+                    {inProgress && (
+                      <span
+                        data-replay-in-progress
+                        className="rounded-[2px] border border-accent-700 px-1 py-0.5 text-[10px] font-medium leading-none text-accent-200"
+                      >
+                        Replay in progress
+                      </span>
+                    )}
                     {failed && <WarningCircle size={12} className="text-danger" />}
                     {stoppedAtPosition !== undefined && !failed && (
                       <MinusCircle size={12} className="text-neutral-400" />
@@ -1981,6 +2211,24 @@ export function ComparisonView(props: ComparisonPageData) {
                 <span className="flex items-center px-2 text-[12px] text-neutral-500">
                   No challenger responses
                 </span>
+              )}
+              {canAdd && (
+                <AddModelMenu
+                  atCap={atCap}
+                  challengerTotal={challengerTotal}
+                  maxChallengers={maxChallengers}
+                  models={availableModels}
+                  addingModelId={addingModelId}
+                  addError={addError}
+                  onAdd={(model) => void addChallenger(model)}
+                  turnCount={turns.length}
+                  variant="pill"
+                  open={menuOpen}
+                  onOpenChange={(open) => {
+                    setMenuOpen(open);
+                    if (open) setAddError(null);
+                  }}
+                />
               )}
             </div>
 
@@ -2195,88 +2443,22 @@ export function ComparisonView(props: ComparisonPageData) {
                 </span>
               )}
               {canAdd && (
-                <Popover.Root
+                <AddModelMenu
+                  atCap={atCap}
+                  challengerTotal={challengerTotal}
+                  maxChallengers={maxChallengers}
+                  models={availableModels}
+                  addingModelId={addingModelId}
+                  addError={addError}
+                  onAdd={(model) => void addChallenger(model)}
+                  turnCount={turns.length}
+                  variant="tab"
                   open={menuOpen}
                   onOpenChange={(open) => {
                     setMenuOpen(open);
                     if (open) setAddError(null);
                   }}
-                >
-                  <Popover.Trigger asChild>
-                    <button
-                      type="button"
-                      data-add-button
-                      disabled={atCap}
-                      aria-label={
-                        atCap
-                          ? `Adding is disabled: ${challengerTotal} of ${maxChallengers} challengers`
-                          : 'Add model'
-                      }
-                      title={
-                        atCap
-                          ? `A comparison can hold at most ${maxChallengers} challengers.`
-                          : 'Generate another response from the same prompt.'
-                      }
-                      className={cn(
-                        'flex flex-none items-center gap-[5px] whitespace-nowrap px-2.5 text-[12px] font-medium transition-colors',
-                        atCap
-                          ? 'cursor-not-allowed text-neutral-600'
-                          : 'text-neutral-400 hover:text-accent-200',
-                      )}
-                    >
-                      <Plus size={13} />
-                      Add model
-                      {atCap && (
-                        <span className="text-[10px] text-neutral-500">
-                          {challengerTotal} of {maxChallengers}
-                        </span>
-                      )}
-                    </button>
-                  </Popover.Trigger>
-                  <Popover.Portal>
-                    <Popover.Content
-                      align="start"
-                      sideOffset={6}
-                      aria-label="Add model"
-                      data-add-menu
-                      className="z-40 flex w-[260px] flex-col gap-[2px] rounded-[2px] border border-neutral-700 bg-neutral-800 p-1.5 shadow-lg"
-                    >
-                      <span className="px-2 pb-1 pt-1.5 text-[10px] font-medium tracking-[0.06em] text-neutral-500">
-                        GENERATE ANOTHER RESPONSE
-                      </span>
-                      {availableModels.map((model) => (
-                        <button
-                          key={model.id}
-                          type="button"
-                          disabled={Boolean(addingModelId)}
-                          onClick={() => void addChallenger(model)}
-                          className="flex h-8 items-center gap-2 rounded-[2px] px-2 text-left text-[12px] font-medium text-text transition-colors hover:bg-neutral-700 disabled:opacity-50"
-                        >
-                          <span className="monogram !h-[18px] !w-[18px] !text-[10px]">
-                            {model.monogram}
-                          </span>
-                          <span className="min-w-0 flex-1 truncate">{model.name}</span>
-                          <span className="text-[11px] font-normal text-neutral-400">
-                            {addingModelId === model.id ? 'Adding…' : `~${model.etaSeconds}s`}
-                          </span>
-                        </button>
-                      ))}
-                      {availableModels.length === 0 && (
-                        <span className="px-2 py-1 text-[11px] text-neutral-400">
-                          Every available model is already in this comparison.
-                        </span>
-                      )}
-                      {addError && (
-                        <span className="px-2 py-1 text-[11px] text-danger" role="alert">
-                          {addError}
-                        </span>
-                      )}
-                      <span className="px-2 pb-1 pt-1.5 text-[11px] leading-[1.4] text-neutral-500">
-                        Runs the same prompt through the model&apos;s hosted API.
-                      </span>
-                    </Popover.Content>
-                  </Popover.Portal>
-                </Popover.Root>
+                />
               )}
             </div>
 
