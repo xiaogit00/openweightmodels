@@ -6,8 +6,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { authClient } from '@/lib/auth-client';
-import { initials } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { Avatar } from './avatar';
+import { POPOVER_SURFACE } from './ui/popover-surface';
 
 export function AccountMenu({ handle }: { handle: string | null }) {
   const router = useRouter();
@@ -42,9 +43,7 @@ export function AccountMenu({ handle }: { handle: string | null }) {
     }
   };
 
-  const label = handle
-    ? `${initials(handle)} — account menu for @${handle}`
-    : 'Account menu';
+  const label = handle ? `Account menu for @${handle}` : 'Account menu';
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
@@ -52,30 +51,30 @@ export function AccountMenu({ handle }: { handle: string | null }) {
         <button
           type="button"
           aria-label={label}
-          className={`grid h-8 w-8 place-items-center rounded-[2px] ${
+          className={`grid h-7 w-7 flex-none place-items-center rounded-[var(--r)] ${
             handle ? '' : 'border border-neutral-700 text-neutral-200'
           }`}
         >
-          {handle ? <Avatar handle={handle} /> : <User size={16} />}
+          {handle ? <Avatar handle={handle} size={28} /> : <User size={16} />}
         </button>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
           align="end"
           sideOffset={6}
-          className="z-40 flex w-[190px] flex-col rounded-[2px] border border-neutral-700 bg-neutral-800 p-1 shadow-lg"
+          className={cn(POPOVER_SURFACE, 'w-[220px] p-1')}
         >
           <div className="flex items-center gap-2 px-2 py-2">
-            {handle ? <Avatar handle={handle} size={20} /> : <User size={16} />}
-            <span className="truncate text-[12px] font-medium text-neutral-100">
+            {handle ? <Avatar handle={handle} size={22} /> : <User size={16} />}
+            <span className="truncate text-[13px] font-medium text-neutral-100">
               {handle ? `@${handle}` : 'Signed in'}
             </span>
           </div>
-          <div className="my-1 h-px bg-neutral-700" />
+          <div className="my-1 h-px bg-neutral-800" />
           <Link
             href="/account"
             onClick={() => setOpen(false)}
-            className="flex h-7 items-center gap-1.5 rounded-[2px] px-2 text-[12px] text-neutral-200 hover:bg-surface"
+            className="flex h-8 items-center gap-1.5 rounded-[var(--r)] px-2 text-[13px] text-neutral-200 hover:bg-surface"
           >
             <User size={13} />
             Account
@@ -84,7 +83,7 @@ export function AccountMenu({ handle }: { handle: string | null }) {
             <Link
               href="/admin"
               onClick={() => setOpen(false)}
-              className="flex h-7 items-center gap-1.5 rounded-[2px] px-2 text-[12px] text-neutral-200 hover:bg-surface"
+              className="flex h-8 items-center gap-1.5 rounded-[var(--r)] px-2 text-[13px] text-neutral-200 hover:bg-surface"
             >
               <ShieldCheck size={13} />
               Admin
@@ -94,7 +93,7 @@ export function AccountMenu({ handle }: { handle: string | null }) {
             type="button"
             onClick={() => void signOut()}
             disabled={signingOut}
-            className="flex h-7 items-center gap-1.5 rounded-[2px] px-2 text-[12px] text-neutral-200 hover:bg-surface disabled:opacity-60"
+            className="flex h-8 items-center gap-1.5 rounded-[var(--r)] px-2 text-[13px] text-neutral-200 hover:bg-surface disabled:opacity-60"
           >
             <SignOut size={13} />
             {signingOut ? 'Signing out…' : 'Sign out'}

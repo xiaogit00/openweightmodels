@@ -3,6 +3,9 @@ import { ChatCircle, Highlighter } from '@phosphor-icons/react/dist/ssr';
 import type { ComparisonCard as CardData } from '@owm/core/client';
 import { formatHandle, relativeTime } from '@owm/core/client';
 import { Avatar } from './avatar';
+import { Chip } from './ui/chip';
+import { EffortGlyph } from './ui/effort-glyph';
+import { InitialsBadge } from './ui/initials-badge';
 import { cn } from '@/lib/utils';
 
 const clamps = {
@@ -19,20 +22,6 @@ const clamps = {
     overflow: 'hidden',
   },
 };
-
-function EffortMeter({ effort }: { effort: number }) {
-  return (
-    <span className="flex h-[10px] items-end gap-[2px]" title="Effort">
-      <span className="h-[5px] w-[3px] rounded-[1px] bg-accent" />
-      <span
-        className={cn('h-[7px] w-[3px] rounded-[1px]', effort >= 2 ? 'bg-accent' : 'bg-neutral-700')}
-      />
-      <span
-        className={cn('h-[10px] w-[3px] rounded-[1px]', effort >= 3 ? 'bg-accent' : 'bg-neutral-700')}
-      />
-    </span>
-  );
-}
 
 export function ComparisonCardView({
   card,
@@ -56,17 +45,17 @@ export function ComparisonCardView({
   const content = (
     <>
       <div className="flex min-w-0 items-center gap-[6px]">
-        <span className="chip chip-base min-w-0 flex-[0_1_auto]">
-          <span className="monogram monogram-base">{base?.monogram ?? '–'}</span>
+        <Chip tone="base" className="min-w-0 flex-[0_1_auto]">
+          <InitialsBadge initials={base?.monogram ?? '–'} size={20} tone="base" />
           <span className="overflow-hidden text-ellipsis">{base?.name ?? 'Base model'}</span>
-        </span>
+        </Chip>
         <span className="text-[10.5px] font-medium text-neutral-500">vs</span>
-        <span className="chip min-w-0 flex-[0_2_auto]">
-          <span className="monogram">{challenger?.monogram ?? '–'}</span>
+        <Chip className="min-w-0 flex-[0_2_auto]">
+          <InitialsBadge initials={challenger?.monogram ?? '–'} size={20} />
           <span className="overflow-hidden text-ellipsis">
             {challenger?.name ?? 'Compare to…'}
           </span>
-        </span>
+        </Chip>
         {rest.length > 0 && (
           <span className="flex-none text-[11px] font-medium text-neutral-400">
             +{rest.length}
@@ -108,7 +97,7 @@ export function ComparisonCardView({
         <span className="flex h-[18px] items-center rounded-[2px] bg-neutral-800 px-[6px] font-medium text-neutral-200">
           {card.categories[0] ?? 'Uncategorised'}
         </span>
-        <EffortMeter effort={card.effort} />
+        <EffortGlyph effort={card.effort} title="Effort" />
         <span>{effortLabel}</span>
         <span className="flex-1" />
         <span data-card-comment-count className="flex items-center gap-[3px]">

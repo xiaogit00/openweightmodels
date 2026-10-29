@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { AccountMenu } from './account-menu';
 import { Logo } from './logo';
 import { NotificationBell } from './notification-bell';
+import { ThemeControl } from './theme-control';
 
 export function SiteHeader({
   handle,
@@ -26,36 +27,38 @@ export function SiteHeader({
 }) {
   const viewerSignedIn = signedIn ?? handle !== null;
   return (
-    <header className="sticky top-0 z-20 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-neutral-800 bg-bg px-5 py-[10px]">
+    <header className="sticky top-0 z-20 flex min-h-[53px] flex-wrap items-center gap-x-5 gap-y-2 border-b border-neutral-800 bg-bg px-6 py-[10px]">
       <Logo />
       {variant === 'page' && (
         <Link
           href="/"
-          className="flex items-center gap-[5px] text-[12px] font-medium text-neutral-400 transition-colors hover:text-text"
+          className="flex flex-none items-center gap-[5px] text-[13px] font-medium text-neutral-400 transition-colors hover:text-text"
         >
-          <ArrowLeft size={13} />
+          <ArrowLeft size={13} aria-hidden />
           Board
         </Link>
       )}
       {search}
-      <div className="flex-1" />
-      {showNew && (
-        <Link href={onNewHref} className="btn-primary h-8">
-          <Plus size={14} />
-          New comparison
-        </Link>
-      )}
-      {viewerSignedIn ? (
-        <>
-          <NotificationBell />
-          <AccountMenu handle={handle} />
-        </>
-      ) : (
-        <Link href={signInHref} className="btn-secondary h-8">
-          <SignIn size={14} />
-          Sign in
-        </Link>
-      )}
+      <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
+        {showNew && (
+          <Link href={onNewHref} className="btn-primary">
+            <Plus size={14} aria-hidden />
+            New comparison
+          </Link>
+        )}
+        <ThemeControl />
+        {viewerSignedIn ? (
+          <>
+            <NotificationBell />
+            <AccountMenu handle={handle} />
+          </>
+        ) : (
+          <Link href={signInHref} className="btn-secondary">
+            <SignIn size={14} aria-hidden />
+            Sign in
+          </Link>
+        )}
+      </div>
     </header>
   );
 }

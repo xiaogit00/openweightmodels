@@ -5,6 +5,7 @@ import * as Popover from '@radix-ui/react-popover';
 import { useEffect, useState } from 'react';
 import { THEME_COOKIE, themeFromCookie, type Theme } from '@/lib/theme';
 import { cn } from '@/lib/utils';
+import { POPOVER_SURFACE } from './ui/popover-surface';
 
 const OPTIONS: ReadonlyArray<{ value: Theme; label: string }> = [
   { value: 'system', label: 'System' },
@@ -63,7 +64,7 @@ export function ThemeControl() {
           align="end"
           sideOffset={6}
           aria-label="Theme"
-          className="z-40 flex w-[160px] flex-col rounded-[var(--r-lg)] border border-neutral-700 bg-neutral-800 p-1 shadow-lg"
+          className={cn(POPOVER_SURFACE, 'anim-pop-sm w-[160px] p-1')}
         >
           {OPTIONS.map((option) => {
             const active = theme === option.value;
@@ -74,7 +75,7 @@ export function ThemeControl() {
                 aria-pressed={active}
                 onClick={() => choose(option.value)}
                 className={cn(
-                  'flex w-full items-center justify-between gap-2 rounded-[var(--r)] px-2 py-[7px] text-left text-[12px] transition-colors',
+                  'flex w-full items-center justify-between gap-2 rounded-[var(--r)] px-2 py-2 text-left text-[13px] transition-colors',
                   active
                     ? 'bg-surface font-medium text-text'
                     : 'text-neutral-300 hover:bg-surface',

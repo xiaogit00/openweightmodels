@@ -50,6 +50,7 @@ import { Avatar } from './avatar';
 import { ReportControl } from './report-control';
 import { SiteHeader } from './site-header';
 import { MarkdownView } from './markdown-view';
+import { SegmentedControl } from './ui/segmented-control';
 import { cn } from '@/lib/utils';
 import { signInPath } from '@/lib/next-path';
 import {
@@ -348,7 +349,7 @@ function InlineEditor({
             event.stopPropagation();
             onCancel();
           }}
-          className="btn-neutral h-7"
+          className="btn-secondary h-7"
         >
           Cancel
         </button>
@@ -462,7 +463,7 @@ function ActionsMenu({
                   type="button"
                   disabled={busy}
                   onClick={cancelConfirm}
-                  className="btn-neutral h-7 flex-1"
+                  className="btn-secondary h-7 flex-1"
                 >
                   Cancel
                 </button>
@@ -604,7 +605,7 @@ function AnnotationActions({
                   type="button"
                   disabled={busy}
                   onClick={cancelConfirm}
-                  className="btn-neutral h-7 flex-1"
+                  className="btn-secondary h-7 flex-1"
                 >
                   Cancel
                 </button>
@@ -803,7 +804,7 @@ function AddModelMenu({
                   type="button"
                   disabled={Boolean(addingModelId)}
                   onClick={() => setConfirming(null)}
-                  className="btn-neutral h-7 flex-1 disabled:opacity-50"
+                  className="btn-secondary h-7 flex-1 disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -2014,7 +2015,7 @@ export function ComparisonView(props: ComparisonPageData) {
 
         <div
           ref={stickyRef}
-          className="sticky top-[52px] z-10 flex flex-wrap items-center gap-2 border-b border-neutral-800 bg-bg py-2"
+          className="sticky top-[53px] z-10 flex flex-wrap items-center gap-2 border-b border-neutral-800 bg-bg py-2"
         >
           <button
             type="button"
@@ -2040,32 +2041,20 @@ export function ComparisonView(props: ComparisonPageData) {
 
           {annOn && (
             <>
-              <div
-                role="group"
-                aria-label="Filter annotations by kind"
-                className="flex min-w-0 max-w-full flex-wrap gap-[2px] rounded-[2px] bg-surface p-[2px]"
-              >
-                {KIND_FILTERS.map((filter) => (
-                  <button
-                    key={filter.value}
-                    type="button"
-                    aria-pressed={kind === filter.value}
-                    onClick={() => {
-                      setKind(filter.value);
-                      setPopover(null);
-                    }}
-                    className={cn(
-                      'flex h-6 items-center gap-1 rounded-[2px] px-2 text-[11px] font-medium',
-                      kind === filter.value
-                        ? 'bg-neutral-700 text-text'
-                        : 'text-neutral-400',
-                    )}
-                  >
-                    <filter.Icon size={12} />
-                    {filter.label}
-                  </button>
-                ))}
-              </div>
+              <SegmentedControl
+                label="Filter annotations by kind"
+                className="min-w-0 max-w-full flex-wrap"
+                value={kind}
+                options={KIND_FILTERS.map((filter) => ({
+                  value: filter.value,
+                  label: filter.label,
+                  icon: <filter.Icon size={12} aria-hidden />,
+                }))}
+                onChange={(value) => {
+                  setKind(value);
+                  setPopover(null);
+                }}
+              />
               {canWrite ? (
                 <span className="text-[12px] text-neutral-500">
                   Select any text to annotate it
@@ -2383,7 +2372,7 @@ export function ComparisonView(props: ComparisonPageData) {
                                   type="button"
                                   disabled={Boolean(runBusy)}
                                   onClick={() => void actOnRun(turnActive, 'dismiss')}
-                                  className="btn-neutral h-[28px] disabled:opacity-45"
+                                  className="btn-secondary h-[28px] disabled:opacity-45"
                                 >
                                   Skip remaining
                                 </button>
@@ -2550,7 +2539,7 @@ export function ComparisonView(props: ComparisonPageData) {
                     type="button"
                     disabled={Boolean(runBusy)}
                     onClick={() => void actOnRun(active, 'dismiss')}
-                    className="btn-neutral h-[28px] disabled:opacity-45"
+                    className="btn-secondary h-[28px] disabled:opacity-45"
                   >
                     {runBusy?.id === active.id && runBusy.action === 'dismiss'
                       ? 'Dismissing…'
@@ -2857,32 +2846,17 @@ export function ComparisonView(props: ComparisonPageData) {
               {totalComments}
             </span>
             <div className="flex-1" />
-            <div
-              role="group"
-              aria-label="Filter discussion"
-              className="flex flex-wrap gap-[2px] rounded-[2px] bg-surface p-[2px]"
-            >
-              {[
+            <SegmentedControl
+              label="Filter discussion"
+              className="flex-wrap"
+              value={commentFilter}
+              options={[
                 { value: 'All', label: 'All' },
                 ...commentModels.map((model) => ({ value: model.slug, label: model.name })),
                 { value: 'General', label: 'General' },
-              ].map((filter) => (
-                <button
-                  key={filter.value}
-                  type="button"
-                  aria-pressed={commentFilter === filter.value}
-                  onClick={() => setCommentFilter(filter.value)}
-                  className={cn(
-                    'h-6 whitespace-nowrap rounded-[2px] px-[9px] text-[11px] font-medium',
-                    commentFilter === filter.value
-                      ? 'bg-neutral-700 text-text'
-                      : 'text-neutral-400',
-                  )}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
+              ]}
+              onChange={setCommentFilter}
+            />
           </div>
 
           {canWrite ? (

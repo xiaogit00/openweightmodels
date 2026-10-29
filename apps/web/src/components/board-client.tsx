@@ -31,6 +31,8 @@ import {
 } from '@owm/core/client';
 import { SiteHeader } from './site-header';
 import { ComparisonCardView } from './comparison-card';
+import { MicroLabel } from './ui/micro-label';
+import { SegmentedControl } from './ui/segmented-control';
 import { cn } from '@/lib/utils';
 
 type BoardModel = {
@@ -638,7 +640,7 @@ export function BoardClient({
   }, [error, loadMore, nextCursor, phase]);
 
   const tickerEvents = events.filter((event) => event.summary);
-  // The marquee needs a duplicated list to loop seamlessly. Reduced motion
+  // The ticker needs a duplicated list to loop seamlessly. Reduced motion
   // renders one static pass so the reader does not get a repeated sentence.
   const ticker = tickerEvents.length
     ? reducedMotion
@@ -654,17 +656,17 @@ export function BoardClient({
         handle={handle}
         signedIn={signedIn}
         search={
-          <label className="flex h-8 min-w-0 flex-[1_1_200px] items-center gap-2 rounded-[2px] border border-transparent bg-surface px-[10px] focus-within:border-neutral-700 sm:flex-[0_1_420px]">
-            <MagnifyingGlass size={15} className="text-neutral-400" />
+          <label className="flex h-8 min-w-[120px] max-w-[440px] flex-[1_1_120px] items-center gap-2 rounded-[var(--r)] border border-neutral-800 bg-surface px-3 focus-within:border-neutral-700">
+            <MagnifyingGlass size={15} className="flex-none text-neutral-400" aria-hidden />
             <input
               ref={searchRef}
               value={filters.q}
               onChange={(event) => patchFilters({ q: event.target.value })}
               placeholder="Search prompts or models"
               aria-label="Search comparisons"
-              className="min-w-0 flex-1 border-0 bg-transparent text-[12px] text-text"
+              className="min-w-0 flex-1 border-0 bg-transparent text-[13px] text-text"
             />
-            <span className="rounded-[2px] border border-neutral-700 px-[5px] py-[2px] text-[10.5px] font-medium text-neutral-500">
+            <span className="hidden flex-none rounded-[var(--r)] border border-neutral-700 px-[5px] py-[2px] font-mono text-[11px] font-medium text-neutral-400 sm:block">
               /
             </span>
           </label>
@@ -687,7 +689,7 @@ export function BoardClient({
         </span>
         <div className="flex min-w-0 flex-1 overflow-hidden">
           <div
-            className={cn('flex flex-none gap-7', !reducedMotion && 'marquee')}
+            className={cn('flex flex-none gap-7', !reducedMotion && 'anim-tick')}
             data-ticker
           >
             {ticker.map((event, index) => {
@@ -709,11 +711,11 @@ export function BoardClient({
       <div className="grid flex-1 grid-cols-1 lg:grid-cols-[216px_minmax(0,1fr)]">
         <aside
           aria-label="Board filters"
-          className="flex flex-col gap-[18px] overflow-auto border-b border-neutral-800 px-5 py-4 lg:sticky lg:top-[82px] lg:h-[calc(100vh-82px)] lg:self-start lg:border-b-0 lg:border-r lg:px-3 lg:py-4 lg:pl-5">
+          className="flex flex-col gap-[18px] overflow-auto border-b border-neutral-800 px-5 py-4 lg:sticky lg:top-[83px] lg:h-[calc(100vh-83px)] lg:self-start lg:border-b-0 lg:border-r lg:px-3 lg:py-4 lg:pl-5">
           <div className="grid grid-cols-2 gap-px lg:flex lg:flex-col">
-            <span className="micro-label col-span-2 px-2 pb-[6px] lg:col-span-1">
+            <MicroLabel className="col-span-2 px-2 pb-[6px] lg:col-span-1">
               CATEGORIES
-            </span>
+            </MicroLabel>
             {['All', ...CATEGORIES].map((category) => {
               const active = filters.cat === category;
               return (
@@ -740,7 +742,7 @@ export function BoardClient({
 
           <div className="grid grid-cols-2 gap-px lg:flex lg:flex-col">
             <div className="col-span-2 flex items-baseline justify-between px-2 pb-[6px] lg:col-span-1">
-              <span className="micro-label">MODELS</span>
+              <MicroLabel>MODELS</MicroLabel>
               {filters.models.length > 0 && (
                 <button
                   type="button"
@@ -786,28 +788,20 @@ export function BoardClient({
           </div>
 
           <div className="flex flex-col gap-[6px] px-2">
-            <span className="micro-label">EFFORT</span>
-            <div className="grid grid-cols-3 gap-[2px] rounded-[2px] bg-surface p-[2px]">
-              {EFFORT_LEVELS.map((level) => {
-                const active = filters.effort === level.value;
-                return (
-                  <button
-                    key={level.value}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() =>
-                      patchFilters({ effort: active ? null : level.value })
-                    }
-                    className={cn(
-                      'h-6 rounded-[2px] text-[11px] font-medium transition-colors',
-                      active ? 'bg-neutral-700 text-text' : 'text-neutral-400',
-                    )}
-                  >
-                    {level.label}
-                  </button>
-                );
-              })}
-            </div>
+            <MicroLabel>EFFORT</MicroLabel>
+            <SegmentedControl
+              label="Effort filter"
+              className="grid grid-cols-3"
+              stretch
+              value={filters.effort}
+              options={EFFORT_LEVELS.map((level) => ({
+                value: level.value,
+                label: level.label,
+              }))}
+              onChange={(value) =>
+                patchFilters({ effort: filters.effort === value ? null : value })
+              }
+            />
           </div>
         </aside>
 
@@ -954,7 +948,7 @@ export function BoardClient({
                 type="button"
                 onClick={() => void loadMore()}
                 disabled={phase !== 'idle'}
-                className="btn-neutral"
+                className="btn-secondary"
               >
                 {loadingMore && (
                   <CircleNotch size={12} className="anim-spin" />

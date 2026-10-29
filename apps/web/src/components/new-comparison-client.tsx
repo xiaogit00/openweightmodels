@@ -45,6 +45,8 @@ import {
 import { SiteHeader } from './site-header';
 import { ComparisonPreview } from './comparison-preview';
 import { HowToGetThisFile } from './how-to-get-this-file';
+import { EffortGlyph } from './ui/effort-glyph';
+import { SegmentedControl } from './ui/segmented-control';
 import { EXPORT_GUIDE_PATH, LIMITS_LABEL } from '@/lib/export-guidance';
 import { cn, plural } from '@/lib/utils';
 
@@ -353,31 +355,13 @@ function ChallengerPicker({
             className="h-8 w-full rounded-[2px] border border-neutral-700 bg-bg px-2 text-[12px] font-normal text-text placeholder:text-neutral-500 focus:border-accent"
           />
         </label>
-        <div
-          role="group"
-          aria-label="Filter by weights"
-          className="flex gap-[2px] self-start rounded-[2px] bg-surface p-[2px]"
-        >
-          {WEIGHT_FILTERS.map((filter) => {
-            const selected = weight === filter.value;
-            return (
-              <button
-                key={filter.value}
-                type="button"
-                aria-pressed={selected}
-                onClick={() => setWeight(filter.value)}
-                className={cn(
-                  'rounded-[2px] px-[9px] py-[5px] text-[11px] font-medium transition-colors',
-                  selected
-                    ? 'bg-neutral-700 text-text'
-                    : 'bg-transparent text-neutral-400 hover:text-neutral-200',
-                )}
-              >
-                {filter.label}
-              </button>
-            );
-          })}
-        </div>
+        <SegmentedControl
+          label="Filter by weights"
+          className="self-start"
+          value={weight}
+          options={WEIGHT_FILTERS}
+          onChange={setWeight}
+        />
       </div>
 
       {view.selected.length > 0 && (
@@ -671,33 +655,19 @@ export function NewComparisonClient({
               active={!hasBase || !baseModelId}
             />
 
-            <div className="flex gap-[2px] self-start rounded-[2px] bg-surface p-[2px]">
-              {([
+            <SegmentedControl
+              label="Base output source"
+              className="self-start"
+              value={baseSource}
+              options={[
                 { value: 'upload', label: 'Upload a conversation' },
                 { value: 'write', label: 'Write a prompt' },
-              ] satisfies Array<{ value: BaseSource; label: string }>).map((tab) => {
-                const selected = baseSource === tab.value;
-                return (
-                  <button
-                    key={tab.value}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => {
-                      setBaseSource(tab.value);
-                      setSubmitError(null);
-                    }}
-                    className={cn(
-                      'rounded-[2px] px-3 py-[6px] text-[12px] font-medium transition-colors',
-                      selected
-                        ? 'bg-neutral-700 text-text'
-                        : 'bg-transparent text-neutral-400 hover:text-neutral-200',
-                    )}
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
+              ]}
+              onChange={(next) => {
+                setBaseSource(next);
+                setSubmitError(null);
+              }}
+            />
 
             <input
               ref={inputRef}
@@ -992,30 +962,27 @@ export function NewComparisonClient({
 
             <div className="flex flex-col gap-[6px]">
               <span className="text-[11px] font-medium text-neutral-400">Effort level</span>
-              <div className="flex gap-[2px] self-start rounded-[2px] bg-surface p-[2px]">
-                {EFFORT_LEVELS.map((level) => {
-                  const selected = effort === level.value;
-                  return (
-                    <button
-                      key={level.value}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() => setEffort(level.value)}
-                      className={cn(
-                        'flex flex-col items-start gap-px rounded-[2px] px-3 py-[6px] text-left transition-colors',
-                        selected
-                          ? 'bg-neutral-700 text-text'
-                          : 'bg-transparent text-neutral-400 hover:text-neutral-200',
-                      )}
-                    >
-                      <span className="text-[12px] font-medium">{level.label}</span>
+              <SegmentedControl
+                label="Effort level"
+                className="self-start"
+                itemClassName="h-auto flex-col items-start justify-start gap-px px-3 py-[6px] text-left"
+                value={effort}
+                options={EFFORT_LEVELS.map((level) => ({
+                  value: level.value,
+                  label: (
+                    <>
+                      <span className="flex items-center gap-2 text-[12px] font-medium">
+                        <EffortGlyph effort={level.value} />
+                        {level.label}
+                      </span>
                       <span className="text-[10.5px] font-normal text-neutral-300">
                         {level.sub}
                       </span>
-                    </button>
-                  );
-                })}
-              </div>
+                    </>
+                  ),
+                }))}
+                onChange={(value) => setEffort(value)}
+              />
             </div>
           </section>
 

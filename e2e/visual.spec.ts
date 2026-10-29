@@ -21,7 +21,10 @@ test.beforeAll(() => {
   });
 });
 
-test.use({ viewport: { width: 1440, height: 900 } });
+// Screenshots pin a colour scheme: the app follows the OS until a visitor
+// chooses, so an ambient light preference would otherwise silently rewrite the
+// baselines. Ticket 10 adds the light set beside these.
+test.use({ viewport: { width: 1440, height: 900 }, colorScheme: 'dark' });
 
 const PIXEL_TOLERANCE = 0.01;
 
@@ -51,7 +54,8 @@ test('Board at 1440px', async ({ page }) => {
   await expect(page.locator('main a.card').first()).toBeVisible();
 
   // v2 handoff: 52px header row, 30px ticker, 216px sidebar, 20px gutters,
-  // 8px card gap.
+  // 8px card gap. Ticket 02 raises the shared header to 53px; the remaining
+  // Board metrics belong to ticket 03.
   const metrics = await page.evaluate(() => {
     const header = document.querySelector('header')!;
     const ticker = document.querySelector('[data-ticker]')!.parentElement!.parentElement!;
@@ -67,7 +71,7 @@ test('Board at 1440px', async ({ page }) => {
       gap: getComputedStyle(grid).gap,
     };
   });
-  expect(Math.abs(metrics.header - 52)).toBeLessThanOrEqual(1);
+  expect(Math.abs(metrics.header - 53)).toBeLessThanOrEqual(1);
   expect(Math.abs(metrics.ticker - 30)).toBeLessThanOrEqual(1);
   expect(Math.abs(metrics.sidebar - 216)).toBeLessThanOrEqual(1);
   expect(metrics.paddingLeft).toBe('20px');

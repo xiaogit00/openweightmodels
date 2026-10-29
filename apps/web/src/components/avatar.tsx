@@ -1,4 +1,5 @@
 import { cn, initials } from '@/lib/utils';
+import { InitialsBadge } from './ui/initials-badge';
 
 export function Avatar({
   handle,
@@ -10,21 +11,6 @@ export function Avatar({
   className?: string;
 }) {
   return (
-    <span
-      className={cn(
-        'grid flex-none place-items-center rounded-[2px] bg-neutral-700 text-neutral-200',
-        className,
-      )}
-      style={{
-        width: size,
-        height: size,
-        // The accessibility floor is 10px; initials stay readable in the
-        // smallest 14px card avatar.
-        fontSize: Math.max(10, Math.round(size * 0.36)),
-      }}
-      aria-hidden
-    >
-      {initials(handle)}
-    </span>
+    <InitialsBadge initials={initials(handle)} size={size} className={cn('text-neutral-200', className)} />
   );
 }

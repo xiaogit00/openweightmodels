@@ -274,39 +274,43 @@
   }
 }
 
-@keyframes marquee {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
+/*
+ * Motion is opt-in through these classes so `prefers-reduced-motion` can turn
+ * it off in one place, including inline uses that used to carry keyframes.
+ * Names follow design_handoff_redesign/README.md: pop, spin, shimmer, owmTick
+ * and owmPulse.
+ */
+.anim-pop {
+  animation: pop 150ms ease-out;
 }
 
-.marquee {
-  animation: marquee 45s linear infinite;
+.anim-pop-sm {
+  animation: pop 120ms ease-out;
 }
 
-.marquee:hover {
-  animation-play-state: paused;
-}
-
-/* Motion is opt-in through these classes so `prefers-reduced-motion` can turn
-   it off in one place, including inline uses that used to carry keyframes. */
 .anim-spin {
-  animation: spin-soft 1s linear infinite;
+  animation: spin 1s linear infinite;
 }
 
 .anim-pulse {
-  animation: pulse-soft 1.6s infinite;
+  animation: owm-pulse 2s ease-in-out infinite;
 }
 
 .anim-pulse-fast {
-  animation: pulse-soft 1.2s infinite;
+  animation: owm-pulse 1.2s ease-in-out infinite;
 }
 
 .anim-shimmer {
   animation: shimmer 1.2s infinite;
+}
+
+/* The live ticker scrolls two copies of its list through the viewport. */
+.anim-tick {
+  animation: owm-tick 70s linear infinite;
+}
+
+.anim-tick:hover {
+  animation-play-state: paused;
 }
 
 .anim-rise {
@@ -326,11 +330,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .marquee,
+  .anim-pop,
+  .anim-pop-sm,
   .anim-spin,
   .anim-pulse,
   .anim-pulse-fast,
   .anim-shimmer,
+  .anim-tick,
+  .popover-surface,
   .anim-rise,
   .anim-rise-slow,
   .arrive-a,
@@ -345,7 +352,27 @@
   }
 }
 
-@keyframes pulse-soft {
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes owm-tick {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes owm-pulse {
   0%,
   100% {
     opacity: 1;
@@ -397,7 +424,7 @@
   }
 }
 
-@keyframes spin-soft {
+@keyframes spin {
   to {
     transform: rotate(360deg);
   }
@@ -415,21 +442,36 @@
 }
 
 @layer components {
-  .btn-primary {
+  /*
+   * One solid accent fill per screen: the primary action. Everything else is
+   * outlined (1px neutral-700, hover accent-900) or ghost (transparent, hover
+   * surface). Callers may override the height with an h-* utility for dense
+   * surfaces; 32px is the default.
+   */
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     height: 32px;
-    padding: 0 12px;
-    border: 1px solid var(--color-accent);
-    border-radius: 2px;
-    background: var(--color-accent);
-    color: var(--color-bg);
-    font: 600 12px var(--font-body);
+    padding: 0 14px;
+    border: 1px solid transparent;
+    border-radius: var(--r);
+    background: transparent;
+    font: 500 13px/1 var(--font-body);
     cursor: pointer;
     white-space: nowrap;
-    transition: background 120ms ease-out;
+    transition:
+      background 120ms ease-out,
+      border-color 120ms ease-out,
+      color 120ms ease-out;
+  }
+
+  .btn-primary {
+    background: var(--color-accent);
+    color: var(--on-accent);
   }
 
   .btn-primary:hover:not(:disabled) {
@@ -437,66 +479,105 @@
   }
 
   .btn-secondary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    height: 30px;
-    padding: 0 10px;
-    border: 1px solid var(--color-accent);
-    border-radius: 2px;
-    background: transparent;
-    color: var(--color-accent-200);
-    font: 500 12px var(--font-body);
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 120ms ease-out;
+    border-color: var(--color-neutral-700);
+    color: var(--color-neutral-200);
   }
 
   .btn-secondary:hover:not(:disabled) {
+    border-color: var(--color-accent-700);
     background: var(--color-accent-900);
-  }
-
-  .btn-neutral {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    height: 30px;
-    padding: 0 10px;
-    border: 1px solid var(--color-neutral-700);
-    border-radius: 2px;
-    background: transparent;
-    color: var(--color-neutral-200);
-    font: 500 12px var(--font-body);
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 120ms ease-out;
-  }
-
-  .btn-neutral:hover:not(:disabled) {
-    background: var(--color-neutral-800);
+    color: var(--color-accent-200);
   }
 
   .btn-ghost {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    height: 30px;
     padding: 0 10px;
-    border: 0;
-    border-radius: 2px;
-    background: transparent;
     color: var(--color-neutral-300);
-    font: 500 12px var(--font-body);
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 120ms ease-out;
   }
 
   .btn-ghost:hover:not(:disabled) {
     background: var(--color-surface);
+    color: var(--color-text);
+  }
+
+  .btn-primary:disabled,
+  .btn-secondary:disabled,
+  .btn-ghost:disabled {
+    border-color: transparent;
+    background: var(--color-neutral-800);
+    color: var(--color-neutral-400);
+    cursor: not-allowed;
+  }
+
+  /* Large inputs and the primary submit on creation/admin forms. */
+  .btn-lg {
+    height: 42px;
+    padding: 0 20px;
+    font-size: 14px;
+  }
+
+  /* Segmented control: a 3px track with 28px (or 24px dense) inner buttons. */
+  .segmented {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--color-neutral-800);
+    border-radius: var(--r-lg);
+    background: var(--color-surface);
+  }
+
+  .segmented[data-stretch="true"] {
+    display: flex;
+    width: 100%;
+  }
+
+  .segmented-item {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 28px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: var(--r);
+    background: transparent;
+    color: var(--color-neutral-400);
+    font: 500 12px/1 var(--font-body);
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background 120ms ease-out,
+      color 120ms ease-out;
+  }
+
+  .segmented[data-stretch="true"] .segmented-item {
+    flex: 1;
+  }
+
+  .segmented-item:hover:not(:disabled) {
+    color: var(--color-text);
+  }
+
+  .segmented-item[aria-pressed="true"] {
+    background: var(--color-neutral-800);
+    color: var(--color-text);
+  }
+
+  .segmented-item:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  /* A popover panel: menus, notification and account surfaces. */
+  .popover-surface {
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--color-neutral-700);
+    border-radius: var(--r-lg);
+    background: var(--color-bg);
+    box-shadow: var(--shadow-lg);
+    animation: pop 150ms ease-out;
   }
 
   .micro-label {
@@ -531,11 +612,12 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    height: 20px;
-    padding: 0 7px 0 3px;
-    border: 1px solid var(--color-neutral-700);
-    border-radius: 2px;
-    font: 500 11px var(--font-body);
+    height: 24px;
+    padding: 0 8px 0 2px;
+    border: 1px solid transparent;
+    border-radius: var(--r);
+    background: var(--color-neutral-800);
+    font: 500 11.5px/1 var(--font-body);
     color: var(--color-neutral-200);
     white-space: nowrap;
     overflow: hidden;
@@ -544,6 +626,7 @@
 
   .chip-base {
     border-color: var(--color-accent-700);
+    background: var(--color-accent-900);
     color: var(--color-accent-200);
   }
 
@@ -555,8 +638,13 @@
     height: 16px;
     border-radius: var(--r);
     background: var(--color-neutral-700);
-    font: 600 10px var(--font-mono);
+    font: 600 9px var(--font-mono);
     color: var(--color-neutral-100);
+  }
+
+  /* InitialsBadge draws its decorative letters as generated content. */
+  .monogram[data-initials]::before {
+    content: attr(data-initials);
   }
 
   .monogram-base {

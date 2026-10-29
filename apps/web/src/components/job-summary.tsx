@@ -438,7 +438,7 @@ export function JobSummary({ view }: { view: JobView }) {
                           type="button"
                           onClick={() => void handleRunAction(actionRun, 'skip')}
                           disabled={Boolean(pending)}
-                          className="btn-neutral h-[26px] px-[10px] disabled:opacity-45"
+                          className="btn-secondary h-[26px] px-[10px] disabled:opacity-45"
                         >
                           {pending === 'skip' ? 'Skipping…' : 'Skip remaining'}
                         </button>
@@ -495,7 +495,7 @@ export function JobSummary({ view }: { view: JobView }) {
                 </div>
                 <Link
                   href={`/comparisons/${view.comparison.id}`}
-                  className="btn-neutral h-8 whitespace-nowrap"
+                  className="btn-secondary h-8 whitespace-nowrap"
                 >
                   {published ? 'View comparison' : 'Review first'}
                 </Link>

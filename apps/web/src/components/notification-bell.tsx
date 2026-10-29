@@ -11,6 +11,8 @@ import {
   notificationLabel,
   type NotificationItem,
 } from '@/lib/notifications';
+import { POPOVER_SURFACE } from './ui/popover-surface';
+import { MicroLabel } from './ui/micro-label';
 import { cn } from '@/lib/utils';
 
 type NotificationsResponse = {
@@ -106,7 +108,7 @@ export function NotificationBell() {
             <span
               aria-hidden="true"
               data-notification-dot
-              className="absolute -right-0.5 -top-0.5 grid h-[15px] min-w-[15px] place-items-center rounded-[2px] bg-accent px-1 text-[10.5px] font-semibold leading-none text-bg"
+              className="absolute -right-1 -top-1 grid h-[15px] min-w-[15px] place-items-center rounded-full bg-accent px-1 text-[10px] font-semibold leading-none text-on-accent"
             >
               {unread > 9 ? '9+' : unread}
             </span>
@@ -119,16 +121,16 @@ export function NotificationBell() {
           sideOffset={6}
           aria-label="Notifications"
           data-notification-panel
-          className="z-40 flex w-[310px] flex-col rounded-[2px] border border-neutral-700 bg-neutral-800 shadow-lg"
+          className={cn(POPOVER_SURFACE, 'w-[310px]')}
         >
-          <div className="flex items-center justify-between gap-2 border-b border-neutral-700 px-3 py-[10px]">
-            <span className="micro-label">Notifications</span>
+          <div className="flex items-center justify-between gap-2 border-b border-neutral-800 px-3 py-2.5">
+            <MicroLabel>Notifications</MicroLabel>
             {unread > 0 && (
               <button
                 type="button"
                 disabled={updating}
                 onClick={() => void markRead({ all: true })}
-                className="rounded-[2px] text-[11px] font-medium text-accent-200 hover:text-accent-100 disabled:opacity-60"
+                className="rounded-[var(--r)] text-[13px] font-medium text-accent-300 hover:text-accent-200 disabled:opacity-60"
               >
                 Mark all read
               </button>
@@ -136,22 +138,22 @@ export function NotificationBell() {
           </div>
 
           {!loaded ? (
-            <p className="px-3 py-4 text-[12px] text-neutral-400">Loading…</p>
+            <p className="px-3 py-4 text-[13px] text-neutral-400">Loading…</p>
           ) : failed ? (
             <div className="flex flex-col items-start gap-2 px-3 py-4">
-              <p className="text-[12px] text-neutral-300">Couldn’t load notifications.</p>
+              <p className="text-[13px] text-neutral-300">Couldn’t load notifications.</p>
               <button
                 type="button"
                 onClick={() => void load()}
-                className="text-[11px] font-medium text-accent-200 hover:text-accent-100"
+                className="text-[13px] font-medium text-accent-300 hover:text-accent-200"
               >
                 Try again
               </button>
             </div>
           ) : items.length === 0 ? (
             <div className="flex flex-col gap-1 px-3 py-5">
-              <p className="text-[12px] font-medium text-neutral-200">You’re all caught up</p>
-              <p className="text-[11px] text-neutral-400">
+              <p className="text-[13px] font-medium text-neutral-100">You’re all caught up</p>
+              <p className="text-[12px] text-neutral-400">
                 Notifications appear when a job finishes.
               </p>
             </div>
@@ -160,7 +162,7 @@ export function NotificationBell() {
               {items.map((notification) => {
                 const href = notificationHref(notification);
                 const className = cn(
-                  'flex w-full items-start gap-2 rounded-[2px] px-2 py-2 text-left hover:bg-surface',
+                  'flex w-full items-start gap-2 rounded-[var(--r)] px-2 py-2 text-left hover:bg-surface',
                   notification.readAt ? 'text-neutral-300' : 'text-text',
                 );
                 const body = (
@@ -168,25 +170,25 @@ export function NotificationBell() {
                     <span
                       aria-hidden="true"
                       className={cn(
-                        'mt-[5px] h-[6px] w-[6px] flex-none rounded-[2px]',
+                        'mt-[6px] h-[6px] w-[6px] flex-none rounded-full',
                         notification.readAt ? 'bg-transparent' : 'bg-accent',
                       )}
                     />
                     <span className="flex min-w-0 flex-col gap-[2px]">
                       <span
                         className={cn(
-                          'text-[12px] leading-[16px]',
+                          'text-[13px] leading-[17px]',
                           notification.readAt ? '' : 'font-medium',
                         )}
                       >
                         {notificationLabel(notification)}
                       </span>
                       {notification.comparison && (
-                        <span className="truncate text-[11px] text-neutral-400">
+                        <span className="truncate text-[12px] text-neutral-400">
                           {notification.comparison.title}
                         </span>
                       )}
-                      <span className="text-[10.5px] text-neutral-500">
+                      <span className="text-[11px] text-neutral-500">
                         {relativeTimeAgo(notification.createdAt, now)}
                       </span>
                     </span>

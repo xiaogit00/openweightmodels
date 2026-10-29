@@ -91,7 +91,7 @@ export function AccountSettings({ handle }: { handle: string | null }) {
             type="button"
             onClick={() => void remove()}
             disabled={!confirmed || deleting}
-            className="btn-neutral border-danger/60 text-danger hover:bg-danger/10 disabled:cursor-not-allowed disabled:opacity-50"
+            className="btn-secondary border-danger/60 text-danger hover:bg-danger/10 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {deleting ? 'Deleting…' : 'Delete my account'}
           </button>

@@ -37,7 +37,11 @@ test('upload → schedule → live Job → publish → Board → annotate → th
   await page.locator('input[type="file"]').setInputFiles(baseOutput);
 
   await expect(page.getByText('e2e-base-output.md')).toBeVisible();
-  await expect(page.locator('select option:checked')).toHaveText('Llama 3.3 70B');
+  // The front-matter vendor resolves to Llama 3.3 70B. It is the previous
+  // release of its family, so the picker labels the option "(previous)".
+  await expect(page.locator('select option:checked')).toHaveText(
+    'Llama 3.3 70B (previous)',
+  );
   await expect(page.locator('textarea').first()).toHaveValue(/sliding-window rate limiter/);
 
   await page.getByPlaceholder("What's being compared?").fill(title);

@@ -219,7 +219,7 @@ test.describe('keyboard operation', () => {
     await expect(page.getByRole('tab', { name: /Resolved/ })).toBeFocused();
   });
 
-  test('reduced motion keeps the ticker static and removes arrival, shimmer and pulse', async ({
+  test('reduced motion keeps the ticker static and suppresses every motion utility', async ({
     page,
   }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -231,7 +231,7 @@ test.describe('keyboard operation', () => {
     const motion = await page.evaluate(() => {
       const probe = document.createElement('div');
       probe.innerHTML =
-        '<div class="marquee"></div><div class="anim-shimmer"></div><div class="anim-pulse"></div><div class="anim-pulse-fast"></div><div class="anim-spin"></div><div class="anim-rise"></div><div class="anim-rise-slow"></div><div class="arrive-a"></div><div class="arrive-b"></div>';
+        '<div class="anim-tick"></div><div class="anim-pop"></div><div class="anim-pop-sm"></div><div class="popover-surface"></div><div class="anim-shimmer"></div><div class="anim-pulse"></div><div class="anim-pulse-fast"></div><div class="anim-spin"></div><div class="anim-rise"></div><div class="anim-rise-slow"></div><div class="arrive-a"></div><div class="arrive-b"></div>';
       document.body.append(probe);
       const names = [...probe.children].map(
         (node) => getComputedStyle(node).animationName,
@@ -244,17 +244,7 @@ test.describe('keyboard operation', () => {
       };
     });
 
-    expect(motion.names).toEqual([
-      'none',
-      'none',
-      'none',
-      'none',
-      'none',
-      'none',
-      'none',
-      'none',
-      'none',
-    ]);
+    expect(motion.names).toEqual(Array<string>(12).fill('none'));
     expect(motion.running).toBe(0);
   });
 });

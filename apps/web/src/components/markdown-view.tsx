@@ -80,7 +80,11 @@ function RunText({
           onOpen(annotation.id, event.currentTarget);
         }}
         style={{
-          background: open ? 'var(--color-accent-800)' : 'var(--color-accent-900)',
+          background: code
+            ? `color-mix(in oklab, var(--color-accent) ${open ? 48 : 30}%, transparent)`
+            : open
+              ? 'var(--color-accent-800)'
+              : 'var(--color-accent-900)',
           boxShadow: 'inset 0 -1.5px 0 var(--color-accent)',
           cursor: 'pointer',
           borderRadius: 2,
