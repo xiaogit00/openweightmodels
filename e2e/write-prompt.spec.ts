@@ -70,7 +70,7 @@ test('write a prompt, paste a reply, schedule and publish a one-Turn Comparison'
   await page.getByRole('button', { name: 'Publish to board' }).click();
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
   await expect(page.getByText(reply)).toBeVisible();
-  // The Prompt stays collapsed until the reader asks for it.
-  await page.getByRole('button', { name: 'Prompt', exact: true }).click();
-  await expect(page.getByText(prompt)).toBeVisible();
+  // Locked decision 4: the Prompt disclosure is gone. The Prompt is shown once
+  // per response column instead, so it is already on screen.
+  await expect(page.getByText(prompt).first()).toBeVisible();
 });

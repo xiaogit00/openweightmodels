@@ -263,7 +263,6 @@ export function AnnotateSelectionButton({
   return (
     <button
       type="button"
-      aria-label="Annotate selection"
       onMouseDown={(event) => {
         event.preventDefault();
         onOpen(event.currentTarget);

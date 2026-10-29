@@ -130,7 +130,9 @@ test('upload → schedule → live Job → publish → Board → annotate → th
     .getByPlaceholder('Share what you noticed across the outputs…')
     .fill(commentBody);
   await page.getByRole('button', { name: 'Post', exact: true }).click();
-  await expect(page.getByText(commentBody)).toBeVisible();
+  await expect(
+    page.locator('[data-comment]').filter({ hasText: commentBody }),
+  ).toBeVisible();
 
   // 6. A second signed-in reader votes on the Annotation and the comment.
   const switched = await page.request.post('/api/dev/user', {
