@@ -7,9 +7,10 @@ SES for magic links, ECR for images, Secrets Manager for credentials and
 CloudWatch Logs. The infrastructure is AWS CDK in TypeScript under `infra/`
 (ADR 0006).
 
-> **What this document does not cover:** CI/CD with GitHub OIDC, budgets,
-> alarms, rate limits at the edge and an error tracker. Those are ticket 16.
-> This stack deliberately has no long-lived AWS access keys in the repository.
+> **What this document covers:** the staging stacks, release sequence, CI/CD
+> with GitHub OIDC, rate limits, alarms, budgets, the provider spend cap, the
+> error tracker and rollback. There are no long-lived AWS access keys in the
+> repository or in GitHub.
 
 ---
 
@@ -35,7 +36,7 @@ ECS Fargate service `owm-staging-worker` (min 1, max 2, CPU target 70%)
 
 | Resource | Staging choice | Why |
 |---|---|---|
-| CDK stacks | `OwmStagingFoundation` and `OwmStagingApp` | Task definitions can be registered without rolling services; migrations run between the two (see §5) |
+| CDK stacks | `OwmStagingFoundation`, `OwmStagingApp`, `OwmStagingOps` and optional `OwmStagingCi` | Task definitions can be registered without rolling services; migrations run between Foundation and App (see §5); alarms and budgets are independent of a release; CI owns the OIDC role |
 | Network | 2 AZs, public subnets for the ALB, private subnets with one NAT gateway | One NAT is the cheap staging choice; production should use one per AZ |
 | Web / worker | 0.5 vCPU / 1 GiB, ARM64 (Graviton) | Cheaper Fargate sizing for this load; images are built `linux/arm64` |
 | Postgres | 20 GB gp3, encrypted, 7-day backups, single-AZ, `db.t4g.micro` | Disposable staging data; deletion protection is off so the stack can be torn down |
@@ -118,6 +119,13 @@ variables:
 | `OWM_CERTIFICATE_ARN` | one of | — | Existing ACM certificate in the same region |
 | `OWM_SES_IDENTITY` | no | domain | Verified SES domain or email address |
 | `OWM_EMAIL_FROM` | no | `OpenWeightModels <no-reply@domain>` | Magic-link sender |
+| `OWM_ALARM_EMAIL` | yes | — | Named owner for CloudWatch and budget alarms; the SNS email subscription |
+| `OWM_MONTHLY_BUDGET_USD` | no | `200` | AWS infrastructure budget (not model spend) |
+| `OWM_MONTHLY_SPEND_CAP_USD` | no | `100` | Absolute provider-spend ceiling per UTC month; `0` is rejected in staging |
+| `OWM_SENTRY_DSN` | no | unset | Sentry-compatible error tracker; unset writes structured errors to logs only |
+| `OWM_GITHUB_REPO` | for `deploy:ci` | — | `owner/repository` allowed to assume the deploy role |
+| `OWM_GITHUB_BRANCH` | no | `main` | Branch allowed to deploy through OIDC |
+| `OWM_GITHUB_OIDC_PROVIDER_ARN` | no | create | Reuse an existing GitHub OIDC provider |
 | `OWM_SIGNIN_ALLOWED_EMAILS` | no | unset (any address) | Comma-separated sign-in allowlist: `owner@example.com` for one address, `@example.com` for a domain |
 | `OWM_ALLOW_SEARCH_INDEXING` | no | `false` | Set `true` only for a public launch; it is a build argument, so it needs a rebuild |
 | `OWM_PROVIDER` | no | `openrouter` | `mock` for an infrastructure-only smoke test |
@@ -130,10 +138,14 @@ variables:
 To see the templates without AWS credentials:
 
 ```bash
-pnpm cdk:synth -c domainName=staging.example.com -c hostedZoneId=Z0123456789
+pnpm cdk:synth \
+  -c domainName=staging.example.com \
+  -c hostedZoneId=Z0123456789 \
+  -c alarmEmail=owner@example.com
 ```
 
-The two stacks are emitted into `infra/cdk.out` (gitignored).
+The three stacks are emitted into `infra/cdk.out` (gitignored). `OwmStagingCi`
+is added only when `OWM_GITHUB_REPO` (or `-c githubRepo=owner/repo`) is set.
 
 ---
 
@@ -145,6 +157,10 @@ export OWM_DOMAIN_NAME=staging.openweightmodels.com
 # Replace with the actual zone ID from Route 53; `Z...` is only a placeholder.
 export OWM_HOSTED_ZONE_ID=Z0123456789ABCDEFGHIJ
 export OWM_HOSTED_ZONE_NAME=openweightmodels.com
+# Required: the person who owns alarms and the budget.
+export OWM_ALARM_EMAIL=ops@openweightmodels.net
+# Strongly recommended before exposing the app: a Sentry project DSN.
+export OWM_SENTRY_DSN=https://key@o123.ingest.sentry.io/456789
 # Optional; defaults to OWM_DOMAIN_NAME. Matching the staging hostname keeps
 # the SES identity and the From address identical.
 export OWM_SES_IDENTITY=staging.openweightmodels.com
@@ -182,9 +198,11 @@ The first run:
    exit 0.
 7. Creates `OwmStagingApp`: HTTPS listener, HTTP redirect, DNS record, target
    group and the two ECS services.
-8. Pins each service to the newest task-definition revision and forces a new
+8. Creates `OwmStagingOps`: the alarm SNS topic with `OWM_ALARM_EMAIL`, the
+   CloudWatch alarms, log metric filters and the monthly AWS budget.
+9. Pins each service to the newest task-definition revision and forces a new
    deployment, then waits for `services-stable`.
-9. Requests `https://<domain>/api/health` until it returns 200.
+10. Requests `https://<domain>/api/health` until it returns 200.
 
 The first deploy typically takes 30–60 minutes; RDS, ElastiCache, the NAT
 gateway and ACM validation dominate. Do not interrupt it.
@@ -210,8 +228,17 @@ deployment so schema changes land before new application code serves traffic:
 2. Deploy `OwmStagingFoundation` → registers new task-definition revisions.
 3. Run the migration task from the new worker image, wait for the exit code.
 4. Deploy `OwmStagingApp` (usually a no-op after the first release).
-5. Update `owm-staging-web` and `owm-staging-worker` to the new revision with
+5. Deploy `OwmStagingOps` (alarms, budget and owner; idempotent).
+6. Update `owm-staging-web` and `owm-staging-worker` to the new revision with
    `--force-new-deployment`, then wait for both services to be stable.
+
+**Migrations are automatic.** Step 3 is the only path that changes the schema:
+it runs `packages/core/src/db/bootstrap.ts` (Drizzle migrations plus the Model
+registry) and the release aborts before any service update if the task exits
+non-zero. The migration task uses the new worker image, so a rollback to an
+older application revision must not depend on a schema change. Write migrations
+so the previous application version keeps working: add nullable columns and new
+tables in one release, backfill, then drop or tighten in a later release.
 
 The ECS services reference their task definition **family**, not an ARN, so
 registering a new revision does not change a cross-stack export. The script
@@ -299,7 +326,99 @@ aws logs tail /aws/ecs/owm-staging/migrate --since 30m
 
 CloudWatch metrics are the standard ECS/ALB/RDS/ElastiCache metrics. Container
 Insights is **off** in staging to keep the cost down; ALB, ECS service and RDS
-metrics are free. Alarms and a named owner are ticket 16.
+metrics are free.
+
+### Alarms, budgets and the spend cap
+
+`OwmStagingOps` creates one SNS topic (`<name>-alarms`) with an email
+subscription to `OWM_ALARM_EMAIL`. Every alarm notifies that address on both
+`ALARM` and `OK`:
+
+| Alarm | Signal | Threshold |
+|---|---|---|
+| ALB 5xx | `HTTPCode_ELB_5XX_Count` sum over 5 min | ≥ 5 for 10 min |
+| Target 5xx | `HTTPCode_Target_5XX_Count` sum over 5 min | ≥ 5 for 10 min |
+| Unhealthy web tasks | `UnHealthyHostCount` maximum | ≥ 1 for 2 min |
+| Worker stopped | ECS `RunningTaskCount` minimum | < 1 for 2 min |
+| Queue depth | `OWM/Queue Depth` maximum | > 25 for 2 min |
+| Job failure rate | `100 * Failed / Finished` over 15 min | > 20% |
+
+The last two come from JSON lines the worker writes: one `{"metric":"queue",…}`
+line per minute, and one `{"metric":"job","outcome":…}` line per settled Run.
+CloudWatch Logs metric filters turn them into metrics, so the worker needs no
+CloudWatch SDK or IAM permission. Confirm the filters after a release:
+
+```bash
+aws logs describe-metric-filters --log-group-name /aws/ecs/owm-staging/worker
+aws cloudwatch get-metric-statistics --namespace OWM/Queue --metric-name Depth \
+  --start-time "$(date -u -v-15M '+%Y-%m-%dT%H:%M:%SZ')" \
+  --end-time "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+  --period 60 --statistics Maximum
+```
+
+**Infrastructure budget.** `OwmStagingOps` creates a monthly `COST` budget of
+`OWM_MONTHLY_BUDGET_USD` (default 200) and notifies the alarm topic at 80% actual
+and 100% forecasted. AWS Budgets only sees AWS charges.
+
+**Provider spend cap.** Model spend is not an AWS charge, so the application
+enforces its own ceiling. `MONTHLY_SPEND_CAP_USD` is passed to the worker;
+`createComparison`, Add model and Retry refuse with `429 spend_cap_reached`
+once the UTC-month sum of provider-reported `responses.cost_usd` reaches the
+cap. `processRun` checks again before every provider call, so a Run queued
+before the cap was hit fails without calling the provider. The cap resets on the
+first day of the next UTC month; the 429 carries `Retry-After`.
+
+```bash
+# Current spend, from the database
+psql "$DATABASE_URL" -c \
+  "select coalesce(sum(cost_usd),0) from responses where finished_at >= date_trunc('month', now() at time zone 'utc');"
+```
+
+**Error tracker.** Set `OWM_SENTRY_DSN` to a Sentry-compatible project. The
+worker reports every failed provider call with `responseId`, `jobId`,
+`comparisonId`, `modelSlug`, `turnId`, `attempt`, tokens and latency; web 500s
+are reported with the route's status and code. Secrets, provider keys and
+database passwords are redacted before an event leaves the process. Without a
+DSN the same structured `error.report` JSON is written to the log group.
+
+### Continuous delivery (GitHub OIDC)
+
+`.github/workflows/ci.yml` runs on every pull request and on `main`:
+
+1. `pnpm typecheck`, `pnpm test` and `pnpm build` against Postgres 17 and Redis 7
+   service containers (with `pnpm db:bootstrap`, so CI uses the real schema).
+2. On `main` only, a second job assumes the staging deploy role with a GitHub
+   OIDC token and runs `pnpm deploy:staging`.
+
+No AWS access key is stored in GitHub. Create the role once:
+
+```bash
+export OWM_GITHUB_REPO=owner/openweightmodels
+export OWM_GITHUB_BRANCH=main
+pnpm deploy:ci
+```
+
+`pnpm deploy:ci` creates `OwmStagingCi` with the GitHub OIDC provider (or imports
+one via `OWM_GITHUB_OIDC_PROVIDER_ARN`) and the `<name>-github-deploy` role. Its
+trust policy is fenced to `repo:<owner>/<repo>:ref:refs/heads/<branch>` and
+`repo:<owner>/<repo>:environment:staging`. The role has `AdministratorAccess`
+because `cdk deploy` manages every staging resource; it exists only in the
+staging account.
+
+In GitHub, create an Environment named `staging` and set:
+
+| Kind | Name | Value |
+|---|---|---|
+| variable | `AWS_DEPLOY_ROLE_ARN` | output of `pnpm deploy:ci` |
+| variable | `AWS_REGION` | e.g. `eu-west-1` |
+| variable | `OWM_DOMAIN_NAME` | staging hostname |
+| variable | `OWM_HOSTED_ZONE_ID` / `OWM_HOSTED_ZONE_NAME` | Route 53 zone |
+| variable | `OWM_ALARM_EMAIL` | alarm owner |
+| variable | `OWM_MONTHLY_BUDGET_USD` / `OWM_MONTHLY_SPEND_CAP_USD` | ceilings |
+| variable | `OWM_SES_IDENTITY`, `OWM_EMAIL_FROM`, `OWM_SIGNIN_ALLOWED_EMAILS` | mail and access |
+| secret | `OWM_SENTRY_DSN` | error tracker |
+
+Require reviewers on the `staging` environment if a deploy should need approval.
 
 ### Secrets
 
@@ -376,6 +495,19 @@ snapshot (`aws rds create-db-snapshot`) and restore to a new instance if the
 rollback requires it. `infra/scripts/deploy.sh` never modifies data beyond the
 idempotent registry upsert.
 
+Rollback drill, in order:
+
+1. Stop the bleeding: revert the offending commit on `main` and let CI deploy
+   the previous code, or pin the ECS services to the prior task-definition
+   revisions as above.
+2. If the migration must be undone, restore the pre-release snapshot to a new
+   RDS instance and repoint the app; do not hand-edit the schema. The migration
+   is not reversible by `cdk deploy`.
+3. If the release is unusable and the data is disposable (staging), delete
+   `OwmStagingApp` and `OwmStagingOps`, fix forward, and redeploy.
+4. Confirm the rollback with `/api/health`, a sign-in, one published Comparison
+   and one settled Run; check `JobFailureRateAlarm` returned to `OK`.
+
 ### Cost
 
 Approximate monthly floor for one staging environment in `eu-west-1`, 730
@@ -396,7 +528,8 @@ slightly):
 Delete the environment with the same configuration exports still set:
 
 ```bash
-pnpm --filter @owm/infra exec cdk destroy OwmStagingApp OwmStagingFoundation
+pnpm --filter @owm/infra exec cdk destroy \
+  OwmStagingOps OwmStagingApp OwmStagingFoundation
 ```
 
 CDK needs to synthesize the app to destroy it, so keep `OWM_DOMAIN_NAME` and
@@ -412,14 +545,19 @@ the NAT gateway running when the environment is not in use.
 
 ## 8. Staging limitations
 
-These are intentional or owned by ticket 16:
+These are intentional:
 
 - Single-AZ RDS, one NAT gateway, no deletion protection, no PITR beyond the
   seven-day automated backup window.
 - SES sandbox: only verified recipients receive magic links until production
   access is granted.
-- No CI/CD, GitHub OIDC, budget alarms, CloudWatch alarms, WAF or error
-  tracker yet.
+- The deploy role is broad (`AdministratorAccess`) and staging-only; a shared
+  production account should use a narrower permission set.
+- No WAF or ALB edge rate limiting. Abuse controls are enforced in the app and
+  Better Auth; a distributed source can still consume TLS and request capacity.
+- The spend cap depends on provider-reported cost. A provider that omits usage
+  in a streamed response contributes zero to the monthly sum; OpenRouter reports
+  it today.
 - Redis is a single node. Losing it loses BullMQ queue contents; Postgres still
   holds the Runs, but automatic re-enqueueing of stranded Runs is not
   implemented (BACKEND.md §5).

@@ -10,10 +10,36 @@ import {
   users,
 } from '../db/schema';
 import { logActivity, logJobEvent } from '../events';
+import { reportError } from '../error-reporting';
 import { getProvider, type ChatMessage } from '../providers';
 import { getCardById } from '../queries';
 import { enqueueAutoSkip, enqueueRun } from '../queue';
+import { assertWithinSpendCap } from '../spend';
 import type { ResponseStatus } from '../domain/types';
+
+/**
+ * One JSON line per settled Run. CloudWatch Logs metric filters turn these into
+ * the Job failure-rate alarm; the same line is readable in `aws logs tail`.
+ */
+type RunContext = {
+  responseId: string;
+  jobId: string | null;
+  comparisonId: string;
+  modelId: string;
+  modelSlug: string;
+  attempt: number;
+};
+
+function logJobMetric(outcome: 'finished' | 'failed', context: RunContext & { error?: string }) {
+  console.log(
+    JSON.stringify({
+      metric: 'job',
+      outcome,
+      at: new Date().toISOString(),
+      ...context,
+    }),
+  );
+}
 
 function errorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -246,6 +272,41 @@ export async function processRun(responseId: string) {
   const messages = await replayMessages(response.comparisonId, response.modelId, turn.id);
   if (!messages) return;
 
+  const runContext: RunContext = {
+    responseId,
+    jobId: response.jobId,
+    comparisonId: response.comparisonId,
+    modelId: response.modelId,
+    modelSlug: model.slug,
+    attempt: response.attempt,
+  };
+
+  // Defence in depth: the API checks the cap before scheduling, but a Run can
+  // be queued before the cap is reached. Stop before the provider is called
+  // rather than discovering the overspend on the invoice.
+  try {
+    await assertWithinSpendCap();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Monthly spend cap reached';
+    const [failed] = await db
+      .update(responses)
+      .set({ status: 'failed', error: message, finishedAt: new Date() })
+      .where(and(eq(responses.id, responseId), eq(responses.status, 'queued')))
+      .returning({ id: responses.id });
+    if (!failed) return;
+    logJobMetric('failed', { ...runContext, error: message });
+    if (response.jobId) {
+      await recordRunStatus(response, 'failed', {
+        modelName: model.displayName,
+        tokens: 0,
+        error: message,
+      });
+      await enqueueAutoSkip(responseId, response.attempt);
+      await finalizeJob(response.jobId);
+    }
+    return;
+  }
+
   // Claim the Run atomically: two workers holding the same BullMQ job (or a
   // retry racing the previous attempt) must not both call the provider.
   const [claimed] = await db
@@ -333,6 +394,8 @@ export async function processRun(responseId: string) {
       });
     }
 
+    logJobMetric('finished', runContext);
+
     // Continue this Challenger's Replay in Turn order. Other Challengers are
     // already running independently.
     await enqueueNextTurn(response);
@@ -349,6 +412,14 @@ export async function processRun(responseId: string) {
         finishedAt: new Date(),
       })
       .where(eq(responses.id, responseId));
+
+    logJobMetric('failed', { ...runContext, error: message });
+    await reportError(error, {
+      ...runContext,
+      turnId: turn.id,
+      tokens,
+      latencyMs,
+    });
 
     if (response.jobId) {
       await recordRunStatus(response, 'failed', {

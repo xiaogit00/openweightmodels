@@ -197,6 +197,12 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 | 86 | ECS injects database credentials as Secrets Manager `username`/`password` and the app assembles `DATABASE_URL`; Redis receives host/port/TLS and the provider key is a worker-only secret | No password or key appears in a plain task environment, and URL-special characters cannot corrupt the connection string. |
 | 87 | Production mail uses the SES v2 API through the web task role (`EMAIL_TRANSPORT=ses`); local Mailpit keeps SMTP | No SES SMTP credentials to create, store or rotate. |
 | 88 | `/api/health` returns 503 only when Postgres is unreachable; Redis failure reports `degraded` with 200 | Postgres is canonical, Redis loss is survivable and should not empty the ALB target group. |
+| 89 | Rate limits are fixed-window counters in Redis, with an in-process fallback, and are enforced per user and per IP on every authenticated write plus a stricter generation bucket | Two web tasks must share one bucket; a Redis outage degrades the control rather than failing all writes open or closed. `requireUser()` is the single write seam. |
+| 90 | Magic links are limited per IP by Better Auth and per email by the app; `/magic-link/verify` has a stricter per-IP rule | The plugin's bucket is per IP only; email is the abusive dimension for unsolicited mail, and verification is guessable. |
+| 91 | Provider spend has a monthly UTC cap over provider-reported `responses.cost_usd`; AWS Budgets covers only AWS charges | OpenRouter spend never appears on the AWS bill, so one budget cannot bound both. The worker re-checks before every provider call. |
+| 92 | Worker queue depth and failed/finished Runs are JSON log lines turned into CloudWatch metrics by log metric filters | Avoids a CloudWatch SDK and `cloudwatch:PutMetricData` in the worker while keeping alarms in CloudWatch. |
+| 93 | Error reporting is a minimal Sentry envelope over `fetch`, with structured JSON as the fallback | No SDK dependency, no startup coupling, and the same redaction path applies whether or not a DSN is set. |
+| 94 | CI uses GitHub OIDC to assume a staging deploy role; no AWS access key is stored | Short-lived credentials per run, fenced to one repository, branch and the `staging` environment. |
 
 **Rejected**: Vercel + hosted queue (serverless SSE/worker rework); SQLite/in-process jobs; App Runner; Lambda/API Gateway; ElastiCache Serverless; Fly/Render once AWS was required; single-app repo; Prisma; shadcn's visual layer.
 
@@ -254,7 +260,7 @@ These are intentionally unresolved. Do not assume them.
 4. Should a user be able to change their handle later? Not designed.
 
 ### Auth and access
-5. Broader magic-link and write-abuse controls are unspecified. Better Auth now applies its default 5-requests-per-60-seconds-per-IP limit to the magic-link endpoints; per-email/per-IP write limits and spend caps remain ticket 16.
+5. Resolved by ticket 16: magic-link requests are limited per email and per IP, verification attempts have a stricter per-IP rule, and writes/generations have per-user and per-IP limits (decisions 89–90).
 6. Resolved: account deletion, data export and the retention windows are implemented in ticket 15; see `docs/PRIVACY.md`.
 7. Report/flag, user suspension and admin audit logging are launch gates.
 8. Where does the admin UI live, and who can see deleted Comparisons?
@@ -288,9 +294,9 @@ These are intentionally unresolved. Do not assume them.
 30. Resolved: the Board keeps one SSE subscription across sort/filter changes, anchored with `after` and resuming from `Last-Event-ID`.
 
 ### Infrastructure and operations
-31. AWS region, domain, DNS and TLS are deployment inputs documented in `docs/DEPLOYMENT.md`; the CDK stack layout, secret injection and release ordering are resolved by ADR 0007. CI/CD, secret rotation and backup/restore drills remain open (ticket 16).
+31. Resolved by ticket 16: CI/CD, GitHub OIDC, budgets, alarms and the spend cap are implemented in `infra/` and `.github/workflows/ci.yml`; secret rotation and backup/restore drills remain operational exercises.
 32. RDS Multi-AZ timing and ElastiCache sizing/cost are staging defaults in `docs/DEPLOYMENT.md`; production sizing is still undecided.
-33. CloudWatch alarms, on-call ownership and Sentry/error reporting are launch gates.
+33. Resolved by ticket 16: CloudWatch alarms have a named `OWM_ALARM_EMAIL` owner, and application errors go to a Sentry-compatible tracker when `OWM_SENTRY_DSN` is set.
 34. SES production access must be requested; exact sender/domain is undecided.
 35. WAF and rate limiting at the edge are not specified.
 
@@ -304,9 +310,9 @@ Not M1 work, but required before public exposure:
 - Report/flag queue, user suspension, admin audit log.
 - Account deletion and data export. **Implemented in ticket 15.**
 - SES production access and sender-domain verification.
-- CloudWatch alarms with a named owner; restore drill for RDS.
-- Magic-link abuse controls and per-IP rate limits.
-- Cost budget alarms and an absolute spend cap.
+- CloudWatch alarms with a named owner; restore drill for RDS. **Alarms and owner implemented in ticket 16; the restore drill is still owner work.**
+- Magic-link abuse controls and per-IP rate limits. **Implemented in ticket 16.**
+- Cost budget alarms and an absolute spend cap. **Implemented in ticket 16.**
 - Final accessibility audit, including keyboard-only annotation and popover focus return.
 
 ---

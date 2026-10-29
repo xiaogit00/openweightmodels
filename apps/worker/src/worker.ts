@@ -4,6 +4,7 @@ import {
   autoSkipRun,
   createRedisConnection,
   processRun,
+  reportError,
 } from '@owm/core';
 
 export type RunWorkerOptions = {
@@ -47,9 +48,17 @@ export function createRunWorker(options: RunWorkerOptions = {}) {
 
   worker.on('failed', (job, error) => {
     console.error(`[worker] ${job?.name ?? 'job'} ${job?.id ?? ''} failed`, error);
+    void reportError(error, {
+      queue: RUN_QUEUE,
+      jobId: job?.id,
+      jobName: job?.name,
+      responseId: job?.data?.responseId,
+      attemptsMade: job?.attemptsMade,
+    });
   });
   worker.on('error', (error) => {
     console.error('[worker] error', error);
+    void reportError(error, { queue: RUN_QUEUE, source: 'worker' });
   });
 
   return worker;

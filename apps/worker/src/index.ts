@@ -1,10 +1,15 @@
 import './env';
 import { RUN_QUEUE, closeDb, closeRedis, closeRunQueue } from '@owm/core';
 import { startHealthServer } from './health';
+import { startQueueMetrics } from './metrics';
 import { createRunWorker } from './worker';
 
 const worker = createRunWorker();
 console.log(`[worker] consuming ${RUN_QUEUE} with concurrency ${worker.opts.concurrency}`);
+
+// A CloudWatch Logs metric filter turns the periodic JSON line into queue
+// depth. Disabled locally; the ECS task sets QUEUE_METRICS=true.
+const queueMetrics = startQueueMetrics();
 
 // Off by default so local `pnpm dev:worker` and the E2E worker do not fight
 // over a port; the container sets it so compose can health-check the process.
@@ -26,6 +31,7 @@ async function shutdown(signal: NodeJS.Signals) {
         health.closeAllConnections();
       });
     }
+    queueMetrics?.stop();
     await worker.close();
     await closeRunQueue();
     await closeRedis();

@@ -205,11 +205,12 @@ identity and run the smoke checklist in `docs/DEPLOYMENT.md`.
 
 ### Other missing pieces
 
-- CI/CD, GitHub OIDC deploys, budgets, CloudWatch alarms, an error tracker and
-  edge rate limiting (ticket 16). The staging release path is a script, not a
-  pipeline yet.
 - `deploy.sh` accepts any non-empty provider secret, so a malformed key is only
   caught when a Run fails with a provider `401`.
+- WAF and ALB edge rate limiting are not configured; abuse controls are enforced
+  in the app and Better Auth.
+- The Sentry project and the alarm-owner mailbox are owner-provisioned; the code
+  and stacks are in place.
 - Owner/legal review of the Terms and Privacy copy, and the bracketed placeholders in them. The behaviour they describe is implemented and tested; the wording is not legal advice (`docs/PRIVACY.md`).
 - A scheduled retention/pruning job for expired sessions and verification rows. They are inert today and are removed when the account is deleted, but nothing prunes them on a timer yet.
 
@@ -227,7 +228,7 @@ identity and run the smoke checklist in `docs/DEPLOYMENT.md`.
 8. No `.DS_Store` cleanup; it is ignored but present under `apps/` and `docs/`.
 9. `BETTER_AUTH_SECRET` is required at runtime in production (Better Auth fails fast without it). `next build` uses a build-only placeholder when the secret is absent.
 10. Magic-link mail uses `SMTP_URL`/`EMAIL_FROM`. Without Mailpit, a local link is logged and kept in the development outbox; production surfaces the SMTP error instead of silently dropping mail.
-11. Better Auth's default magic-link rate limit is 5 requests per 60 seconds per IP; broader per-email/per-IP abuse controls remain ticket 16.
+11. Magic-link requests are limited per IP by Better Auth and per email by the app, and verification attempts have a stricter per-IP rule. Write and generation endpoints are limited per user and per IP; both return `429` with `Retry-After`.
 12. Handle changes after onboarding are not implemented (open question 4).
 13. `PROVIDER_CONCURRENCY` is enforced per worker process. Running more than one worker replica multiplies the global provider cap; a cross-process concurrency limiter is not built.
 14. Account deletion publishes a summary-less `account.deleted` SSE event per affected Comparison. Older clients ignore it and repair counts on the next reload; current clients apply it.
@@ -238,11 +239,11 @@ identity and run the smoke checklist in `docs/DEPLOYMENT.md`.
 
 ## 5. Suggested next order
 
-1. Abuse/spend controls and the delivery pipeline (ticket 16), including
-   GitHub OIDC and CloudWatch alarms.
-2. Release the `deepseek-v4-1-flash` registry entry to staging and re-upload the
+1. Release the `deepseek-v4-1-flash` registry entry to staging and re-upload the
    DeepSeek V4.1 Flash base response, which is currently attributed to DeepSeek
    V3 (`pnpm deploy:staging`).
+2. Run the live ticket 16 checklist: confirm the alarm email subscription, trip
+   one alarm, confirm a Sentry event, and exercise the GitHub OIDC deploy.
 
 ---
 

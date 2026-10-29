@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Typecheck, test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: openweightmodels
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/openweightmodels
+      REDIS_URL: redis://localhost:6379
+      APP_URL: http://localhost:3000
+      BETTER_AUTH_SECRET: ci-only-secret-not-used-in-production
+      EMAIL_FROM: OpenWeightModels <hello@example.test>
+      SMTP_URL: smtp://localhost:1025
+      PROVIDER: mock
+      ALLOW_DEV_USER_SWITCH: "true"
+      # Keep the abuse controls out of the way of tests; their own suites set
+      # explicit small limits.
+      MAGIC_LINK_EMAIL_MAX: "1000"
+      WRITE_RATE_LIMIT_PER_USER: "100000"
+      WRITE_RATE_LIMIT_PER_IP: "100000"
+      RUN_RATE_LIMIT_PER_USER: "100000"
+      RUN_RATE_LIMIT_PER_IP: "100000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Migrations + the production Model registry. CI must run the same schema
+      # a deploy would, not a hand-made test database.
+      - run: pnpm db:bootstrap
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  deploy:
+    name: Deploy staging (OIDC)
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+      IMAGE_TAG: ${{ github.sha }}
+      OWM_DOMAIN_NAME: ${{ vars.OWM_DOMAIN_NAME }}
+      OWM_HOSTED_ZONE_ID: ${{ vars.OWM_HOSTED_ZONE_ID }}
+      OWM_HOSTED_ZONE_NAME: ${{ vars.OWM_HOSTED_ZONE_NAME }}
+      OWM_SES_IDENTITY: ${{ vars.OWM_SES_IDENTITY }}
+      OWM_EMAIL_FROM: ${{ vars.OWM_EMAIL_FROM }}
+      OWM_ALARM_EMAIL: ${{ vars.OWM_ALARM_EMAIL }}
+      OWM_MONTHLY_BUDGET_USD: ${{ vars.OWM_MONTHLY_BUDGET_USD }}
+      OWM_MONTHLY_SPEND_CAP_USD: ${{ vars.OWM_MONTHLY_SPEND_CAP_USD }}
+      OWM_SIGNIN_ALLOWED_EMAILS: ${{ vars.OWM_SIGNIN_ALLOWED_EMAILS }}
+      OWM_SENTRY_DSN: ${{ secrets.OWM_SENTRY_DSN }}
+      OWM_STACK_PREFIX: ${{ vars.OWM_STACK_PREFIX }}
+      OWM_NAME_PREFIX: ${{ vars.OWM_NAME_PREFIX }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require the OIDC deploy role
+        run: |
+          if [ -z "$AWS_DEPLOY_ROLE_ARN" ] || [ -z "$OWM_DOMAIN_NAME" ]; then
+            echo "Set AWS_DEPLOY_ROLE_ARN and OWM_DOMAIN_NAME in the staging environment." >&2
+            exit 1
+          fi
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: owm-staging-${{ github.run_id }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      # The images are linux/arm64 (Fargate Graviton); an amd64 runner needs
+      # QEMU and Buildx to build them.
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - run: pnpm install --frozen-lockfile
+      # deploy.sh runs the migration task before rolling either service; see
+      # docs/DEPLOYMENT.md §7 for the rollback path.
+      - run: pnpm deploy:staging

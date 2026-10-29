@@ -66,4 +66,48 @@ describe('staging release script', () => {
     expect(script).toContain('--target worker');
     expect(script).toContain('IMAGE_TAG');
   });
+
+  it('requires a named alarm owner and a positive spend cap', () => {
+    expect(script).toContain('OWM_ALARM_EMAIL');
+    expect(script).toContain('it is required');
+    expect(script).toContain('OWM_MONTHLY_SPEND_CAP_USD');
+    expect(script).toContain('must be a positive number');
+  });
+
+  it('deploys the alerts and budget stack after the app stack', () => {
+    expect(script).toContain('OPS="${STACK_PREFIX}Ops"');
+    expect(script).toContain('Creating the Ops stack');
+    expect(script.indexOf('deploy "$OPS"')).toBeGreaterThan(
+      script.indexOf('deploy "$APP"'),
+    );
+  });
+});
+
+describe('CI delivery', () => {
+  const workflow = read('.github/workflows/ci.yml');
+  const setup = read('infra/scripts/setup-ci.sh');
+
+  it('runs typecheck, tests and a build before deploying', () => {
+    expect(workflow).toContain('pnpm typecheck');
+    expect(workflow).toContain('pnpm test');
+    expect(workflow).toContain('pnpm build');
+    expect(workflow).toContain('pnpm db:bootstrap');
+    expect(workflow).toContain('needs: verify');
+  });
+
+  it('deploys with a GitHub OIDC token, not stored AWS keys', () => {
+    expect(workflow).toContain('id-token: write');
+    expect(workflow).toContain('aws-actions/configure-aws-credentials@v4');
+    expect(workflow).toContain('role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}');
+    expect(workflow).not.toContain('aws-access-key-id');
+    expect(workflow).not.toContain('AWS_SECRET_ACCESS_KEY');
+    expect(workflow).toContain('pnpm deploy:staging');
+  });
+
+  it('creates the deploy role from a one-time OIDC bootstrap', () => {
+    expect(setup).toContain('cdk deploy "$CI_STACK"');
+    expect(setup).toContain('OWM_GITHUB_REPO');
+    expect(setup).toContain('DeployRoleArn');
+    expect(setup).not.toContain('create-access-key');
+  });
 });

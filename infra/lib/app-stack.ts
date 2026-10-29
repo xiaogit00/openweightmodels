@@ -33,6 +33,11 @@ export type StagingAppProps = StackProps & {
  * revision (see infra/scripts/deploy.sh).
  */
 export class StagingAppStack extends Stack {
+  readonly alb: elbv2.ApplicationLoadBalancer;
+  readonly targetGroup: elbv2.ApplicationTargetGroup;
+  readonly webServiceName: string;
+  readonly workerServiceName: string;
+
   constructor(scope: Construct, id: string, props: StagingAppProps) {
     super(scope, id, props);
     const { config } = props;
@@ -108,6 +113,10 @@ export class StagingAppStack extends Stack {
 
     const webServiceName = `${name}-web`;
     const workerServiceName = `${name}-worker`;
+    this.alb = alb;
+    this.targetGroup = targetGroup;
+    this.webServiceName = webServiceName;
+    this.workerServiceName = workerServiceName;
 
     const webService = new ecs.CfnService(this, 'WebService', {
       cluster: clusterName,

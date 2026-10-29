@@ -26,6 +26,7 @@ import { enqueueRun, removeAutoSkip } from '../queue';
 import { conflict, forbidden, notFound, tooMany } from './errors';
 import { assertCanWrite } from './identity';
 import { finalizeJob, recordRunStatus, stopReplayAt } from './jobs';
+import { assertWithinSpendCap } from '../spend';
 
 function clampEffort(value: number) {
   if (!Number.isInteger(value) || value < 1 || value > 3) {
@@ -58,7 +59,10 @@ async function assertQuota(userId: string) {
     .where(and(eq(comparisons.authorId, userId), gte(jobs.createdAt, hourAgo)));
 
   if (Number(jobsRow?.total ?? 0) >= jobsPerHour) {
-    throw tooMany(`You can schedule ${jobsPerHour} comparisons per hour. Try again later.`);
+    throw tooMany(
+      `You can schedule ${jobsPerHour} comparisons per hour.`,
+      60 * 60,
+    );
   }
 
   const [runsRow] = await db
@@ -74,7 +78,11 @@ async function assertQuota(userId: string) {
     );
 
   if (Number(runsRow?.total ?? 0) >= runsPerDay) {
-    throw tooMany(`You have reached today's limit of ${runsPerDay} generations.`);
+    const nextDay = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    throw tooMany(
+      `You have reached today's limit of ${runsPerDay} Runs.`,
+      Math.max(1, Math.ceil((nextDay.getTime() - Date.now()) / 1000)),
+    );
   }
 }
 
@@ -168,6 +176,7 @@ export async function createComparison(
   await assertCanWrite(input.authorId);
   const db = getDb();
   await assertQuota(input.authorId);
+  await assertWithinSpendCap();
 
   const conversation = resolveConversation(input);
   const conversationTurns = validateTurnScript(
@@ -419,6 +428,7 @@ export async function addModelToComparison(
 ): Promise<AddModelResult> {
   await assertCanWrite(userId);
   const db = getDb();
+  await assertWithinSpendCap();
   const row = await requireOwnedComparison(comparisonId, userId);
   if (row.status !== 'ready' && row.status !== 'published') {
     throw conflict('not_ready', 'Wait for the current job before adding a model.');
@@ -513,6 +523,7 @@ export async function addModelToComparison(
 
 export async function retryRun(responseId: string, userId: string) {
   await assertCanWrite(userId);
+  await assertWithinSpendCap();
   const db = getDb();
   const [response] = await db
     .select()

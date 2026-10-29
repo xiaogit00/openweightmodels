@@ -27,6 +27,20 @@ export type StagingConfig = {
   minWorkerTasks: number;
   maxWorkerTasks: number;
   cacheNodeType: string;
+  /** The person who receives CloudWatch and budget alarms. Required. */
+  alarmEmail: string;
+  /** AWS infrastructure budget in USD; model spend is capped separately. */
+  monthlyBudgetUsd: number;
+  /** Runtime ceiling on provider-reported model spend in USD. `0` disables. */
+  monthlySpendCapUsd: number;
+  /** Sentry DSN for application errors. Unset logs structured errors only. */
+  sentryDsn?: string;
+  /** `owner/repo` for the GitHub OIDC deploy role; unset skips the CI stack. */
+  githubRepo?: string;
+  /** Branch allowed to assume the deploy role. */
+  githubBranch: string;
+  /** Existing GitHub OIDC provider ARN, when the account already has one. */
+  githubOidcProviderArn?: string;
   account?: string;
   region?: string;
 };
@@ -50,6 +64,16 @@ function intContext(context: Context, key: string, fallback: number): number {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 0) {
     throw new Error(`CDK context "${key}" must be a non-negative integer`);
+  }
+  return parsed;
+}
+
+function positiveNumberContext(context: Context, key: string, fallback: number): number {
+  const value = stringContext(context, key);
+  if (value === undefined) return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`CDK context "${key}" must be a positive number`);
   }
   return parsed;
 }
@@ -109,6 +133,18 @@ export function loadStagingConfig(app: App): StagingConfig {
     ? sesIdentity
     : `OpenWeightModels <no-reply@${domainName}>`;
 
+  const alarmEmail = stringContext(context, 'alarmEmail') ?? process.env.OWM_ALARM_EMAIL;
+  if (!alarmEmail || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(alarmEmail)) {
+    throw new Error(
+      'Set -c alarmEmail=ops@example.com (or OWM_ALARM_EMAIL); alarms need a named owner',
+    );
+  }
+
+  const githubRepo = stringContext(context, 'githubRepo') ?? process.env.OWM_GITHUB_REPO;
+  if (githubRepo && !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(githubRepo)) {
+    throw new Error('CDK context "githubRepo" must look like owner/repository');
+  }
+
   const webDesiredCount = intContext(context, 'webDesiredCount', 2);
   const minWebTasks = intContext(context, 'minWebTasks', 2);
   const maxWebTasks = intContext(context, 'maxWebTasks', 4);
@@ -146,6 +182,15 @@ export function loadStagingConfig(app: App): StagingConfig {
     minWorkerTasks,
     maxWorkerTasks,
     cacheNodeType: stringContext(context, 'cacheNodeType') ?? 'cache.t4g.micro',
+    alarmEmail,
+    monthlyBudgetUsd: positiveNumberContext(context, 'monthlyBudgetUsd', 200),
+    monthlySpendCapUsd: positiveNumberContext(context, 'monthlySpendCapUsd', 100),
+    sentryDsn: stringContext(context, 'sentryDsn') ?? process.env.OWM_SENTRY_DSN,
+    githubRepo,
+    githubBranch: stringContext(context, 'githubBranch') ?? 'main',
+    githubOidcProviderArn:
+      stringContext(context, 'githubOidcProviderArn') ??
+      process.env.OWM_GITHUB_OIDC_PROVIDER_ARN,
     account: stringContext(context, 'account') ?? process.env.CDK_DEFAULT_ACCOUNT,
     region: stringContext(context, 'region') ?? process.env.CDK_DEFAULT_REGION,
   };

@@ -144,6 +144,7 @@ export AWS_REGION=eu-west-1
 export OWM_DOMAIN_NAME=staging.openweightmodels.com
 export OWM_HOSTED_ZONE_ID=Z0123456789   # or OWM_CERTIFICATE_ARN
 export OWM_HOSTED_ZONE_NAME=openweightmodels.com
+export OWM_ALARM_EMAIL=ops@openweightmodels.net
 pnpm deploy:staging
 ```
 
@@ -153,8 +154,12 @@ registry, never development content), then creates/rolls the ECS services. The
 OpenRouter key is written once to Secrets Manager after the first deploy — it is
 never a commit, a `.env` value or a task environment. Staging uses SES for magic
 links through the web task role; in the SES sandbox only verified addresses
-receive mail. CloudWatch alarms, budgets, CI/CD and edge rate limits are ticket
-16.
+receive mail. CloudWatch alarms, a monthly AWS budget, the provider spend cap and
+a Sentry DSN are documented in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
+Once `pnpm deploy:ci` has created the GitHub OIDC role, `.github/workflows/ci.yml`
+runs typecheck, tests and a build, then deploys `main` to staging without a stored
+AWS access key.
 
 ### Checks
 

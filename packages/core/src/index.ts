@@ -20,6 +20,9 @@ export * from './events';
 export * from './redis';
 export * from './queue';
 export * from './providers';
+export * from './rate-limit';
+export * from './spend';
+export * from './error-reporting';
 
 export * from './services/errors';
 export * from './services/comparisons';

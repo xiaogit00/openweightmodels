@@ -17,6 +17,10 @@
 #   OWM_EMAIL_FROM    (defaults to "OpenWeightModels <no-reply@DOMAIN>")
 #   OWM_PROVIDER      (defaults to openrouter)
 #   OWM_SIGNIN_ALLOWED_EMAILS  comma-separated allowlist; unset allows anyone
+#   OWM_ALARM_EMAIL   required; the named owner of CloudWatch and budget alarms
+#   OWM_MONTHLY_BUDGET_USD     AWS infrastructure budget (defaults to 200)
+#   OWM_MONTHLY_SPEND_CAP_USD  provider-spend ceiling (defaults to 100)
+#   OWM_SENTRY_DSN    error tracker DSN; unset logs structured errors only
 #   OWM_ALLOW_SEARCH_INDEXING  true to allow crawlers in a public build (default false)
 #   OWM_STACK_PREFIX  (defaults to OwmStaging)
 #   OWM_NAME_PREFIX   (defaults to owm-staging)
@@ -41,11 +45,16 @@ PROVIDER="${OWM_PROVIDER:-openrouter}"
 STACK_PREFIX="${OWM_STACK_PREFIX:-OwmStaging}"
 NAME_PREFIX="${OWM_NAME_PREFIX:-owm-staging}"
 SIGNIN_ALLOWED_EMAILS="${OWM_SIGNIN_ALLOWED_EMAILS:-}"
+ALARM_EMAIL="${OWM_ALARM_EMAIL:-}"
+MONTHLY_BUDGET_USD="${OWM_MONTHLY_BUDGET_USD:-200}"
+MONTHLY_SPEND_CAP_USD="${OWM_MONTHLY_SPEND_CAP_USD:-100}"
+SENTRY_DSN="${OWM_SENTRY_DSN:-}"
 TAG="${IMAGE_TAG:-$(git rev-parse --short=12 HEAD)}"
 PLATFORM="${PLATFORM:-linux/arm64}"
 
 FOUNDATION="${STACK_PREFIX}Foundation"
 APP="${STACK_PREFIX}App"
+OPS="${STACK_PREFIX}Ops"
 
 if [[ -z "$AWS_REGION" ]]; then
   echo "Set AWS_REGION (or AWS_DEFAULT_REGION)." >&2
@@ -58,6 +67,18 @@ fi
 if [[ -z "$HOSTED_ZONE_ID" && -z "$CERTIFICATE_ARN" ]]; then
   echo "Set OWM_HOSTED_ZONE_ID (CDK creates the certificate) or OWM_CERTIFICATE_ARN." >&2
   exit 1
+fi
+if [[ ! "$ALARM_EMAIL" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]]; then
+  echo "Set OWM_ALARM_EMAIL to the person who owns alarms; it is required." >&2
+  exit 1
+fi
+if [[ ! "$MONTHLY_SPEND_CAP_USD" =~ ^[0-9]+([.][0-9]+)?$ ]] || \
+   [[ "$MONTHLY_SPEND_CAP_USD" == "0" ]]; then
+  echo "OWM_MONTHLY_SPEND_CAP_USD must be a positive number." >&2
+  exit 1
+fi
+if [[ -z "$SENTRY_DSN" ]]; then
+  echo "Warning: OWM_SENTRY_DSN is unset; application errors go to structured logs only." >&2
 fi
 for tool in aws docker pnpm curl; do
   command -v "$tool" >/dev/null || {
@@ -98,7 +119,13 @@ CONTEXT=(
   -c "imageTag=$TAG"
   -c "sesIdentity=$SES_IDENTITY"
   -c "emailFrom=$EMAIL_FROM"
+  -c "alarmEmail=$ALARM_EMAIL"
+  -c "monthlyBudgetUsd=$MONTHLY_BUDGET_USD"
+  -c "monthlySpendCapUsd=$MONTHLY_SPEND_CAP_USD"
 )
+if [[ -n "$SENTRY_DSN" ]]; then
+  CONTEXT+=(-c "sentryDsn=$SENTRY_DSN")
+fi
 if [[ -n "$HOSTED_ZONE_ID" ]]; then
   CONTEXT+=(-c "hostedZoneId=$HOSTED_ZONE_ID")
   if [[ -n "$HOSTED_ZONE_NAME" ]]; then
@@ -193,6 +220,9 @@ fi
 echo "Creating the App stack (ALB, HTTPS, services)"
 deploy "$APP"
 
+echo "Creating the Ops stack (alarms, budget and owner $ALARM_EMAIL)"
+deploy "$OPS"
+
 WEB_SERVICE="$(output "$APP" WebServiceName)"
 WORKER_SERVICE="$(output "$APP" WorkerServiceName)"
 
@@ -220,6 +250,7 @@ echo
 echo "Staging is deployed: $APP_URL"
 echo "  web logs:    aws logs tail $(output "$FOUNDATION" WebLogGroupName) --follow"
 echo "  worker logs: aws logs tail $(output "$FOUNDATION" WorkerLogGroupName) --follow"
+echo "  alarms:      aws cloudwatch describe-alarms --alarm-name-prefix ${NAME_PREFIX}"
 
 if [[ "${SKIP_SMOKE:-0}" != "1" ]]; then
   echo "Checking $APP_URL/api/health"

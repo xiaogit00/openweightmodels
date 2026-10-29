@@ -6,6 +6,7 @@ import {
 import { apiError, json, readJson } from '@/lib/api';
 import { requireSession, requireUser } from '@/lib/auth';
 import { toComparisonResponseViews } from '@/lib/comparison-responses';
+import { enforceRunLimit } from '@/lib/rate-limit';
 import { responseCreateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
@@ -37,6 +38,7 @@ export async function POST(
 ) {
   try {
     const user = await requireUser();
+    await enforceRunLimit(user.id);
     const { id } = await params;
     const body = responseCreateSchema.parse(await readJson(request));
     const result = await addModelToComparison(id, body.modelId, user.id);

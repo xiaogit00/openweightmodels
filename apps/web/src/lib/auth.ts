@@ -2,6 +2,7 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
 import { magicLink } from 'better-auth/plugins';
 import { nextCookies } from 'better-auth/next-js';
+import { APIError } from 'better-auth/api';
 import { cookies, headers } from 'next/headers';
 import { uuidv7 } from 'uuidv7';
 import {
@@ -10,6 +11,7 @@ import {
   authSessions,
   authVerifications,
   configuredAppUrl,
+  createBetterAuthRateLimitStorage,
   getDb,
   getUserByHandle,
   getUserById,
@@ -21,6 +23,7 @@ import {
 import { MAGIC_LINK_TTL_SECONDS } from './auth-constants';
 import { isDevelopmentIdentityAllowed } from './identity-policy';
 import { deliverMagicLink } from './magic-link';
+import { enforceMagicLinkEmailLimit, enforceWriteLimit } from './rate-limit';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -70,10 +73,29 @@ export const auth = betterAuth({
       verification: authVerifications,
     },
   }),
+  // Better Auth's built-in buckets are per IP. A Redis-backed custom storage
+  // shares them across both web tasks; the magic-link callback adds the
+  // per-email bucket the plugin cannot express.
+  rateLimit: {
+    enabled: isProduction,
+    customStorage: createBetterAuthRateLimitStorage(),
+    customRules: {
+      // Verification is a guessable-token endpoint; allow fewer attempts than
+      // a normal sign-in request, and for longer, per IP.
+      '/magic-link/verify': { window: 300, max: 10 },
+    },
+  },
   advanced: {
     database: {
       // Content tables use UUIDv7 keys; auth rows must be UUIDs too.
       generateId: () => uuidv7(),
+    },
+    ipAddress: {
+      // The ALB is the only hop between the internet and the app, and its
+      // nodes live in the VPC's private ranges. Treating private peers as
+      // trusted proxies makes Better Auth resolve the right-most public
+      // `x-forwarded-for` entry instead of a client-supplied spoof.
+      trustedProxies: ['10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'],
     },
   },
   user: {
@@ -87,8 +109,9 @@ export const auth = betterAuth({
   plugins: [
     magicLink({
       expiresIn: MAGIC_LINK_TTL_SECONDS,
-      // Better Auth's default is 5 requests per 60 seconds per IP. Ticket 16
-      // owns production abuse controls; the knob also keeps browser tests fast.
+      // Per-IP bucket from Better Auth (5 requests per 60 seconds). Ticket 16
+      // adds the per-email bucket in `sendMagicLink` below; `/magic-link/verify`
+      // has its own stricter rule in `rateLimit.customRules`.
       rateLimit: {
         window: 60,
         max: magicLinkRateLimitMax(),
@@ -96,6 +119,21 @@ export const auth = betterAuth({
       // Store only a hash of the token; the emailed URL keeps the raw token.
       storeToken: 'hashed',
       sendMagicLink: async ({ email, url }) => {
+        try {
+          await enforceMagicLinkEmailLimit(email);
+        } catch (error) {
+          if (error instanceof DomainError && error.status === 429) {
+            throw new APIError(
+              'TOO_MANY_REQUESTS',
+              { message: error.message },
+              {
+                'Retry-After': String(error.retryAfterSeconds ?? 60),
+                'X-Retry-After': String(error.retryAfterSeconds ?? 60),
+              },
+            );
+          }
+          throw error;
+        }
         await deliverMagicLink({ email, url });
       },
     }),
@@ -163,6 +201,9 @@ export async function requireUser() {
       403,
     );
   }
+  // Every authenticated write funnels through here, so one call covers the
+  // per-user and per-IP write limit without each route remembering it.
+  await enforceWriteLimit(user.id);
   return user;
 }
 

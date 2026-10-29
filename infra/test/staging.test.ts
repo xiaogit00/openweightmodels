@@ -2,8 +2,10 @@ import { App } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { describe, expect, it } from 'vitest';
 import { StagingAppStack } from '../lib/app-stack';
+import { StagingCiStack } from '../lib/ci-stack';
 import { loadStagingConfig, type StagingConfig } from '../lib/config';
 import { StagingFoundationStack } from '../lib/foundation-stack';
+import { StagingOpsStack } from '../lib/ops-stack';
 
 const env = { account: '123456789012', region: 'eu-west-1' };
 
@@ -26,6 +28,10 @@ function testConfig(overrides: Partial<StagingConfig> = {}): StagingConfig {
     minWorkerTasks: 1,
     maxWorkerTasks: 2,
     cacheNodeType: 'cache.t4g.micro',
+    alarmEmail: 'owner@example.com',
+    monthlyBudgetUsd: 200,
+    monthlySpendCapUsd: 100,
+    githubBranch: 'main',
     ...overrides,
   };
 }
@@ -42,9 +48,21 @@ function synth(config = testConfig()) {
     webSecurityGroup: foundation.webSecurityGroup,
     workerSecurityGroup: foundation.workerSecurityGroup,
   });
+  const ops = new StagingOpsStack(app, 'Ops', {
+    config,
+    env,
+    alb: appStack.alb,
+    targetGroup: appStack.targetGroup,
+    clusterName: foundation.cluster.clusterName,
+    webServiceName: appStack.webServiceName,
+    workerServiceName: appStack.workerServiceName,
+    workerLogGroup: foundation.workerLogGroup,
+    queueName: 'owm-runs',
+  });
   return {
     foundation: Template.fromStack(foundation),
     app: Template.fromStack(appStack),
+    ops: Template.fromStack(ops),
   };
 }
 
@@ -252,6 +270,48 @@ describe('staging foundation', () => {
     expect(retention).toEqual([30, 30, 30]);
   });
 
+  it('injects abuse-control limits, the spend cap, Sentry and queue metrics', () => {
+    const tasks = foundation.findResources('AWS::ECS::TaskDefinition');
+    const taskList = Object.values(tasks) as Array<Record<string, any>>;
+    const web = taskList.find((task) => task.Properties.Family === 'test-staging-web')!;
+    const worker = taskList.find((task) => task.Properties.Family === 'test-staging-worker')!;
+    const webContainer = container(web.Properties, 'web');
+    const workerContainer = container(worker.Properties, 'worker');
+
+    expect(envValue(webContainer, 'MAGIC_LINK_RATE_LIMIT_MAX')).toBe('5');
+    expect(envValue(webContainer, 'MAGIC_LINK_EMAIL_MAX')).toBe('3');
+    expect(envValue(webContainer, 'WRITE_RATE_LIMIT_PER_USER')).toBe('60');
+    expect(envValue(webContainer, 'RUN_RATE_LIMIT_PER_USER')).toBe('6');
+    expect(envValue(webContainer, 'MONTHLY_SPEND_CAP_USD')).toBe('100');
+
+    expect(envValue(workerContainer, 'MONTHLY_SPEND_CAP_USD')).toBe('100');
+    expect(envValue(workerContainer, 'QUEUE_METRICS')).toBe('true');
+    expect(envValue(workerContainer, 'SENTRY_RELEASE')).toBe('test');
+  });
+
+  it('forwards a Sentry DSN to both runtimes only when configured', () => {
+    const find = (template: ReturnType<typeof synth>['foundation'], family: string, name: string) => {
+      const tasks = Object.values(
+        template.findResources('AWS::ECS::TaskDefinition') as Record<string, any>,
+      );
+      const task = tasks.find((entry) => entry.Properties.Family === family)!;
+      return container(task.Properties, name);
+    };
+
+    const configured = synth(testConfig({ sentryDsn: 'https://key@o1.ingest.sentry.io/2' }));
+    expect(
+      envValue(find(configured.foundation, 'test-staging-web', 'web'), 'SENTRY_DSN'),
+    ).toBe('https://key@o1.ingest.sentry.io/2');
+    expect(
+      envValue(find(configured.foundation, 'test-staging-worker', 'worker'), 'SENTRY_DSN'),
+    ).toBe('https://key@o1.ingest.sentry.io/2');
+
+    expect(envValue(find(foundation, 'test-staging-web', 'web'), 'SENTRY_DSN')).toBeUndefined();
+    expect(
+      envValue(find(foundation, 'test-staging-worker', 'worker'), 'SENTRY_DSN'),
+    ).toBeUndefined();
+  });
+
   it('outputs what the release script needs', () => {
     const outputs = foundation.toJSON().Outputs ?? {};
     for (const key of [
@@ -389,6 +449,128 @@ describe('staging app', () => {
   });
 });
 
+describe('staging operations', () => {
+  const { ops } = synth();
+
+  it('alarms on ALB 5xx, unhealthy tasks and a stopped worker, with a named owner', () => {
+    const alarms = ops.findResources('AWS::CloudWatch::Alarm');
+    const metricNames = (Object.values(alarms) as Array<Record<string, any>>).map(
+      (alarm) => alarm.Properties.MetricName,
+    );
+    expect(metricNames).toEqual(
+      expect.arrayContaining([
+        'HTTPCode_ELB_5XX_Count',
+        'HTTPCode_Target_5XX_Count',
+        'UnHealthyHostCount',
+        'RunningTaskCount',
+      ]),
+    );
+
+    for (const alarm of Object.values(alarms) as Array<Record<string, any>>) {
+      expect(alarm.Properties.AlarmActions).toHaveLength(1);
+      expect(alarm.Properties.AlarmDescription).toContain('owner@example.com');
+    }
+
+    ops.hasResourceProperties('AWS::SNS::Topic', { TopicName: 'test-staging-alarms' });
+    ops.hasResourceProperties('AWS::SNS::Subscription', {
+      Protocol: 'email',
+      Endpoint: 'owner@example.com',
+    });
+  });
+
+  it('derives queue depth and job failure rate from worker logs', () => {
+    const filters = ops.findResources('AWS::Logs::MetricFilter');
+    const byName = Object.fromEntries(
+      Object.values(filters).map((filter) => {
+        const properties = (filter as Record<string, any>).Properties;
+        const transform = properties.MetricTransformations[0];
+        return [transform.MetricName, transform];
+      }),
+    );
+
+    expect(byName.Depth).toMatchObject({
+      MetricNamespace: 'OWM/Queue',
+      MetricValue: '$.depth',
+    });
+    expect(byName.Failed).toMatchObject({
+      MetricNamespace: 'OWM/Jobs',
+      MetricValue: '1',
+    });
+    expect(byName.Finished).toMatchObject({ MetricNamespace: 'OWM/Jobs' });
+
+    const alarms = ops.findResources('AWS::CloudWatch::Alarm');
+    const expressions = (Object.values(alarms) as Array<Record<string, any>>)
+      .map((alarm) => alarm.Properties.Metrics)
+      .filter(Boolean);
+    const failureRate = expressions.find((metrics) =>
+      JSON.stringify(metrics).includes('100 * failed / (failed + finished)'),
+    );
+    expect(failureRate).toBeDefined();
+  });
+
+  it('creates an AWS budget that notifies the same owner', () => {
+    ops.hasResourceProperties('AWS::Budgets::Budget', {
+      Budget: {
+        BudgetName: 'test-staging-monthly',
+        BudgetType: 'COST',
+        TimeUnit: 'MONTHLY',
+        BudgetLimit: { Amount: 200, Unit: 'USD' },
+      },
+    });
+    const budget = Object.values(
+      ops.findResources('AWS::Budgets::Budget') as Record<string, any>,
+    )[0]!;
+    const notifications = (budget.Properties.NotificationsWithSubscribers as Array<
+      Record<string, any>
+    >).map((entry) => entry.Notification);
+    expect(notifications).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ NotificationType: 'ACTUAL', Threshold: 80 }),
+        expect.objectContaining({ NotificationType: 'FORECASTED', Threshold: 100 }),
+      ]),
+    );
+  });
+});
+
+describe('GitHub OIDC deploy role', () => {
+  it('trusts only the configured repository, branch and staging environment', () => {
+    const config = testConfig({ githubRepo: 'owner/repo', githubBranch: 'main' });
+    const app = new App();
+    const stack = new StagingCiStack(app, 'Ci', { config, env });
+    const template = Template.fromStack(stack);
+
+    template.hasResourceProperties('Custom::AWSCDKOpenIdConnectProvider', {
+      Url: 'https://token.actions.githubusercontent.com',
+      ClientIDList: ['sts.amazonaws.com'],
+    });
+
+    const roles = template.findResources('AWS::IAM::Role');
+    const deployRole = Object.values(roles).find(
+      (role) => (role as Record<string, any>).Properties.RoleName === 'test-staging-github-deploy',
+    ) as Record<string, any> | undefined;
+    expect(deployRole).toBeDefined();
+
+    const statement = deployRole!.Properties.AssumeRolePolicyDocument.Statement[0];
+    expect(statement.Action).toBe('sts:AssumeRoleWithWebIdentity');
+    expect(JSON.stringify(statement.Condition)).toContain(
+      'repo:owner/repo:ref:refs/heads/main',
+    );
+    expect(JSON.stringify(statement.Condition)).toContain(
+      'repo:owner/repo:environment:staging',
+    );
+    // No long-lived access key resource exists in this stack.
+    template.resourceCountIs('AWS::IAM::AccessKey', 0);
+    expect(template.toJSON().Outputs).toHaveProperty('DeployRoleArn');
+  });
+
+  it('does not create a CI stack without a repository', () => {
+    const app = new App();
+    expect(
+      () => new StagingCiStack(app, 'Ci', { config: testConfig(), env }),
+    ).toThrow(/OWM_GITHUB_REPO/);
+  });
+});
+
 describe('deployment config', () => {
   function context(values: Record<string, string>) {
     return {
@@ -408,11 +590,29 @@ describe('deployment config', () => {
     ).toThrow(/bare hostname/);
   });
 
+  it('requires a named alarm owner', () => {
+    expect(() =>
+      loadStagingConfig(
+        context({ domainName: 'staging.example.com', hostedZoneId: 'Z0123456789' }),
+      ),
+    ).toThrow(/alarmEmail/);
+    expect(() =>
+      loadStagingConfig(
+        context({
+          domainName: 'staging.example.com',
+          hostedZoneId: 'Z0123456789',
+          alarmEmail: 'not-an-email',
+        }),
+      ),
+    ).toThrow(/alarmEmail/);
+  });
+
   it('derives safe defaults and validates task counts', () => {
     const config = loadStagingConfig(
       context({
         domainName: 'staging.example.com',
         hostedZoneId: 'Z0123456789',
+        alarmEmail: 'owner@example.com',
       }),
     );
     expect(config).toMatchObject({
@@ -424,6 +624,10 @@ describe('deployment config', () => {
       provider: 'openrouter',
       webDesiredCount: 2,
       workerDesiredCount: 1,
+      alarmEmail: 'owner@example.com',
+      monthlyBudgetUsd: 200,
+      monthlySpendCapUsd: 100,
+      githubBranch: 'main',
     });
 
     expect(() =>
@@ -431,6 +635,7 @@ describe('deployment config', () => {
         context({
           domainName: 'staging.example.com',
           hostedZoneId: 'Z0123456789',
+          alarmEmail: 'owner@example.com',
           webDesiredCount: '5',
           maxWebTasks: '4',
         }),
@@ -442,9 +647,21 @@ describe('deployment config', () => {
         context({
           domainName: 'staging.example.com',
           hostedZoneId: 'Z0123456789',
+          alarmEmail: 'owner@example.com',
           hostedZoneName: 'other.example.com',
         }),
       ),
     ).toThrow(/inside hostedZoneName/);
+
+    expect(() =>
+      loadStagingConfig(
+        context({
+          domainName: 'staging.example.com',
+          hostedZoneId: 'Z0123456789',
+          alarmEmail: 'owner@example.com',
+          monthlySpendCapUsd: '0',
+        }),
+      ),
+    ).toThrow(/positive number/);
   });
 });

@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
-import { DomainError } from '@owm/core';
+import { DomainError, reportError } from '@owm/core';
 import { ZodError } from 'zod';
 
 export function json(data: unknown, init?: ResponseInit) {
   return NextResponse.json(data, init);
+}
+
+function retryHeaders(seconds: number | undefined) {
+  return seconds && seconds > 0 ? { 'retry-after': String(seconds) } : undefined;
 }
 
 export function apiError(error: unknown) {
@@ -22,8 +26,14 @@ export function apiError(error: unknown) {
 
   if (error instanceof DomainError) {
     return NextResponse.json(
-      { error: { code: error.code, message: error.message } },
-      { status: error.status },
+      {
+        error: {
+          code: error.code,
+          message: error.message,
+          ...(error.retryAfterSeconds ? { retryAfter: error.retryAfterSeconds } : {}),
+        },
+      },
+      { status: error.status, headers: retryHeaders(error.retryAfterSeconds) },
     );
   }
 
@@ -37,7 +47,9 @@ export function apiError(error: unknown) {
       : 'internal_error';
   const message = error instanceof Error ? error.message : 'Something went wrong.';
 
-  if (status >= 500) console.error(error);
+  if (status >= 500) {
+    void reportError(error, { source: 'web', status, code });
+  }
 
   return NextResponse.json(
     { error: { code, message: status >= 500 ? 'Something went wrong.' : message } },

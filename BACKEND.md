@@ -351,6 +351,8 @@ Base path `/api`. All errors use:
 { "error": { "code": "machine_code", "message": "Human-readable message" } }
 ```
 
+A `429` adds `"retryAfter": <seconds>` to the body and a `Retry-After` header; the message names the wait. `rate_limited` covers per-user, per-IP and quota limits; `spend_cap_reached` covers the monthly provider-spend ceiling.
+
 Status codes: `400`, `401`, `403`, `404`, `409`, `429`, `500`. Authorization failures for draft/deleted Comparisons return `404` to avoid leaking their existence.
 
 ### Auth and identity
@@ -591,11 +593,15 @@ Annotatable runs are leaf text nodes and fenced code blocks for which the raw ma
 - **50 Runs per user per day** (`RUNS_PER_DAY`), counting Challenger Responses.
 - **4 concurrent provider calls** globally (`PROVIDER_CONCURRENCY`), enforced by worker concurrency.
 - **4 challengers per Comparison** (`MAX_CHALLENGERS`).
+- **Writes** are limited per account (`WRITE_RATE_LIMIT_PER_USER`, 60/min) and per client IP (`WRITE_RATE_LIMIT_PER_IP`, 120/min) on every `requireUser()` call.
+- **Runs** are limited separately per account (`RUN_RATE_LIMIT_PER_USER`, 6/min) and per IP (`RUN_RATE_LIMIT_PER_IP`, 12/min) when creating a Comparison, adding a model or retrying a Run.
+- **Magic links** are limited per IP by Better Auth (`MAGIC_LINK_RATE_LIMIT_MAX`, 5/60s), per email by the app (`MAGIC_LINK_EMAIL_MAX`, 3/15min) and verification is stricter per IP (10/5min).
+- Rate-limit buckets are fixed windows in Redis, so both web tasks share them. The client IP is the right-most `X-Forwarded-For` entry, which the ALB appends; left-most entries are spoofable.
+- **Monthly provider spend cap** (`MONTHLY_SPEND_CAP_USD`) sums provider-reported `responses.cost_usd` over the UTC month. Create/Add model/Retry return `429 spend_cap_reached` after the cap, and the worker re-checks before every provider call. `0` disables the cap; staging always sets a positive value.
 - A Model answers a Turn at most once (`UNIQUE (turn_id, model_id)`), and a Comparison holds at most one Replay per Model: the API rejects adding a Model that already appears in any Turn of that Comparison.
 - Generation parameters are identical across Challengers so comparisons are fair.
 - `responses.cost_usd` stores provider-reported cost; not displayed in v1.
-- Exceeding a quota returns `429 rate_limited`.
-- Magic-link request rate limiting and broader per-IP abuse controls are **not fully specified**; Better Auth rate-limits its magic-link endpoints (5 requests per 60 seconds per IP by default) and ticket 16 covers production limits.
+- Exceeding a quota or limit returns `429` with retry guidance.
 
 ---
 
@@ -639,4 +645,4 @@ server logs the link and records it for the development outbox
 still switches to a seeded identity without email; both development affordances
 return `404` in production.
 
-Setup and migration commands are documented in `README.md` and `docs/IMPLEMENTATION-STATUS.md`. Production configuration uses `DB_HOST`/`DB_USER`/`DB_PASSWORD` (Secrets Manager) and `REDIS_HOST`/`REDIS_TLS` instead of URLs, `EMAIL_TRANSPORT=ses`, and `pnpm db:bootstrap` (migrations plus the Model registry, no development content) as the migration task. The release procedure is `docs/DEPLOYMENT.md`.
+Setup and migration commands are documented in `README.md` and `docs/IMPLEMENTATION-STATUS.md`. Production configuration uses `DB_HOST`/`DB_USER`/`DB_PASSWORD` (Secrets Manager) and `REDIS_HOST`/`REDIS_TLS` instead of URLs, `EMAIL_TRANSPORT=ses`, and `pnpm db:bootstrap` (migrations plus the Model registry, no development content) as the migration task. Abuse controls read `WRITE_*`, `RUN_*`, `MAGIC_LINK_*`, `MONTHLY_SPEND_CAP_USD` and the optional `SENTRY_DSN`; `.env.example` lists every knob and its default. The release procedure is `docs/DEPLOYMENT.md`.

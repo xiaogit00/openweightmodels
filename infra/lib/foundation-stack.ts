@@ -52,6 +52,8 @@ export class StagingFoundationStack extends Stack {
   readonly migrateTaskDefinition: ecs.FargateTaskDefinition;
   readonly webRepository: ecr.Repository;
   readonly workerRepository: ecr.Repository;
+  readonly webLogGroup: logs.LogGroup;
+  readonly workerLogGroup: logs.LogGroup;
 
   constructor(scope: Construct, id: string, props: StagingFoundationProps) {
     super(scope, id, props);
@@ -254,6 +256,8 @@ export class StagingFoundationStack extends Stack {
     const webLogs = logGroup('WebLogs', 'web');
     const workerLogs = logGroup('WorkerLogs', 'worker');
     const migrateLogs = logGroup('MigrateLogs', 'migrate');
+    this.webLogGroup = webLogs;
+    this.workerLogGroup = workerLogs;
 
     const executionRole = new iam.Role(this, 'TaskExecutionRole', {
       assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
@@ -334,6 +338,25 @@ export class StagingFoundationStack extends Stack {
         AWS_REGION: this.region,
         EMAIL_TRANSPORT: 'ses',
         EMAIL_FROM: config.emailFrom,
+        // Abuse controls. Values live here so an operator changes one place;
+        // the code defaults are for local development.
+        MAGIC_LINK_RATE_LIMIT_MAX: '5',
+        MAGIC_LINK_EMAIL_MAX: '3',
+        MAGIC_LINK_EMAIL_WINDOW_SECONDS: '900',
+        WRITE_RATE_LIMIT_PER_USER: '60',
+        WRITE_RATE_LIMIT_PER_IP: '120',
+        RUN_RATE_LIMIT_PER_USER: '6',
+        RUN_RATE_LIMIT_PER_IP: '12',
+        // The API must refuse before queueing; the worker checks again before
+        // every provider call.
+        MONTHLY_SPEND_CAP_USD: String(config.monthlySpendCapUsd),
+        ...(config.sentryDsn
+          ? {
+              SENTRY_DSN: config.sentryDsn,
+              SENTRY_ENVIRONMENT: 'staging',
+              SENTRY_RELEASE: config.imageTag,
+            }
+          : {}),
         // Empty means "no restriction"; only set it for environments that
         // should not accept strangers.
         ...(config.signinAllowedEmails
@@ -368,6 +391,18 @@ export class StagingFoundationStack extends Stack {
         JOBS_PER_HOUR: '10',
         RUNS_PER_DAY: '50',
         PROVIDER_CONCURRENCY: '4',
+        // Absolute monthly ceiling over provider-reported cost. The API checks
+        // it before scheduling and processRun checks again before each call.
+        MONTHLY_SPEND_CAP_USD: String(config.monthlySpendCapUsd),
+        // One JSON line per minute; the Ops stack turns it into a metric.
+        QUEUE_METRICS: 'true',
+        SENTRY_RELEASE: config.imageTag,
+        ...(config.sentryDsn
+          ? {
+              SENTRY_DSN: config.sentryDsn,
+              SENTRY_ENVIRONMENT: 'staging',
+            }
+          : {}),
         ...databaseEnvironment,
         ...redisEnvironment,
       },
