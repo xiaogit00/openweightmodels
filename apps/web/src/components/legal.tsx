@@ -10,7 +10,7 @@ export function LegalNotice() {
   return (
     <div
       role="note"
-      className="mt-5 rounded-[2px] border border-danger/60 bg-surface p-3 text-[11px] leading-[1.55] text-neutral-300"
+      className="mt-5 rounded-lg border border-danger/60 bg-surface p-3 text-[13px] leading-[1.55] text-neutral-300"
     >
       <strong className="font-medium text-danger">
         Draft for owner and legal review.
@@ -41,13 +41,13 @@ export function LegalShell({
       <main className="mx-auto w-full max-w-[680px] px-5 py-12">
         <div className="flex flex-col gap-1.5">
           <span className="micro-label uppercase">Legal</span>
-          <h1 className="m-0 font-heading text-[20px] font-medium leading-[1.2]">
+          <h1 className="m-0 font-heading text-[30px] font-medium leading-[1.15] tracking-[-0.02em]">
             {title}
           </h1>
-          <p className="m-0 text-[11px] text-neutral-500">Last updated {updated}</p>
+          <p className="m-0 text-[12.5px] text-neutral-500">Last updated {updated}</p>
         </div>
         <LegalNotice />
-        <div className="legal-prose mt-6 flex flex-col gap-6 text-[12.5px] leading-[1.65] text-neutral-300">
+        <div className="legal-prose mt-6 flex flex-col gap-6 text-[14.5px] leading-[1.65] text-neutral-300">
           {children}
         </div>
       </main>

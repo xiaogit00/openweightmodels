@@ -302,11 +302,11 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
 
       <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-8 px-5 pb-16 pt-6">
         <div className="flex flex-col gap-1.5">
-          <h1 className="m-0 flex items-center gap-2 font-heading text-[20px] font-medium leading-[1.2]">
-            <Eye size={18} />
+          <h1 className="m-0 flex items-center gap-2 font-heading text-[30px] font-medium leading-[1.15] tracking-[-0.02em]">
+            <Eye size={20} aria-hidden />
             Admin
           </h1>
-          <p className="m-0 max-w-[640px] text-[12px] leading-[1.55] text-neutral-400">
+          <p className="m-0 max-w-[640px] text-[13.5px] leading-[1.55] text-neutral-400">
             Review reports, hide or restore reported content, suspend members, and enable or
             disable Models in the registry. Every action is recorded against your handle.
           </p>
@@ -315,19 +315,19 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
         {error && (
           <p
             role="alert"
-            className="m-0 flex items-start gap-2 rounded-[2px] border border-danger px-3 py-2 text-[11px] text-danger"
+            className="m-0 flex items-start gap-2 rounded-lg border border-danger px-3 py-2 text-[13px] text-danger"
           >
-            <WarningCircle size={14} className="mt-px shrink-0" />
+            <WarningCircle size={15} className="mt-px flex-none" aria-hidden />
             {error}
           </p>
         )}
 
         <section className="flex flex-col gap-3" aria-labelledby="admin-reports">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 id="admin-reports" className="m-0 font-heading text-[14px] font-medium">
+            <h2 id="admin-reports" className="m-0 font-heading text-[20px] font-medium leading-[1.25] tracking-[-0.01em]">
               Reports
             </h2>
-            <p className="m-0 max-w-[520px] text-[11px] leading-[1.5] text-neutral-500">
+            <p className="m-0 max-w-[520px] text-[12.5px] leading-[1.5] text-neutral-500">
               Hiding content settles every open report on that target. Suspension stops
               new writes but leaves existing content public until it is hidden here.
             </p>
@@ -349,7 +349,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                 document.getElementById(`report-tab-${next.value}`)?.focus(),
               );
             }}
-            className="flex w-fit gap-[2px] rounded-[2px] bg-surface p-[2px]"
+            className="inline-flex w-fit max-w-full gap-[2px] rounded-lg border border-neutral-800 bg-surface p-[3px]"
           >
             {REPORT_TABS.map((tab) => (
               <button
@@ -363,24 +363,24 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                   setReportTab(tab.value);
                   setReportAction(null);
                 }}
-                className={`flex h-7 items-center gap-1.5 rounded-[2px] px-2.5 text-[11px] font-medium ${
+                className={`flex h-7 items-center gap-1 rounded-sm px-2 text-[12.5px] font-medium ${
                   reportTab === tab.value
-                    ? 'bg-neutral-700 text-text'
+                    ? 'bg-neutral-800 text-text'
                     : 'text-neutral-400 hover:text-text'
                 }`}
               >
-                <Flag size={12} />
+                <Flag size={12} aria-hidden />
                 {tab.label}
-                <span className="min-w-[16px] rounded-[2px] bg-neutral-800 px-1 text-center text-[10.5px] text-neutral-300">
+                <span className="min-w-[14px] rounded-sm bg-neutral-700 px-1 text-center text-[10.5px] text-neutral-200">
                   {reportCounts[tab.value]}
                 </span>
               </button>
             ))}
           </div>
 
-          <ul className="m-0 flex list-none flex-col gap-px overflow-hidden rounded-[2px] border border-neutral-800 bg-neutral-800 p-0">
+          <ul className="m-0 flex list-none flex-col gap-px overflow-hidden rounded-lg border border-neutral-800 bg-neutral-800 p-0">
             {visibleReports.length === 0 && (
-              <li className="bg-surface px-3 py-4 text-[11px] text-neutral-500">
+              <li className="bg-surface px-3 py-4 text-[13px] text-neutral-500">
                 {reportTab === 'open'
                   ? 'No open reports. Readers can report a Comparison, comment or Annotation.'
                   : `No ${reportTab} reports.`}
@@ -399,24 +399,24 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                   className="bg-surface px-3 py-2.5"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-[2px] bg-neutral-800 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-neutral-300">
+                    <span className="micro-label rounded-sm bg-neutral-800 px-1.5 py-0.5 text-neutral-300">
                       {report.targetType}
                     </span>
                     {href ? (
                       <Link
                         href={href}
-                        className="min-w-0 max-w-[420px] truncate text-[12px] font-medium text-neutral-100 hover:text-accent-200"
+                        className="min-w-0 max-w-[420px] truncate text-[13.5px] font-medium text-neutral-100 hover:text-accent-200"
                       >
                         {report.targetLabel || 'Deleted content'}
                       </Link>
                     ) : (
-                      <span className="text-[12px] text-neutral-400">Deleted content</span>
+                      <span className="text-[13.5px] text-neutral-400">Deleted content</span>
                     )}
-                    <span className="text-[11px] text-neutral-500">
+                    <span className="min-w-0 break-words text-[12.5px] text-neutral-500">
                       @{report.targetAuthorHandle} · reported by @
                       {report.reporterHandle ?? 'unknown'} · {formatUtc(report.createdAt)}
                     </span>
-                    <div className="ml-auto flex flex-wrap items-center gap-1.5">
+                    <div className="ml-auto flex min-w-0 flex-wrap items-center gap-1.5">
                       {open && (
                         <>
                           <button
@@ -433,7 +433,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                             aria-controls={`report-panel-${report.id}`}
                             className="btn-secondary h-7"
                           >
-                            <EyeSlash size={12} />
+                            <EyeSlash size={12} aria-hidden />
                             Hide {targetNoun}
                           </button>
                           <button
@@ -443,7 +443,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                             className="btn-ghost h-7"
                           >
                             {busy === `dismiss:${report.id}` ? (
-                              <CircleNotch size={12} className="anim-spin" />
+                              <CircleNotch size={12} className="anim-spin" aria-hidden />
                             ) : null}
                             Dismiss
                           </button>
@@ -461,10 +461,10 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                               }
                               aria-expanded={panel?.mode === 'suspend'}
                               aria-controls={`report-panel-${report.id}`}
-                              className="btn-secondary h-7"
+                              className="btn-secondary h-7 max-w-full"
                             >
-                              <UserMinus size={12} />
-                              Suspend @{report.targetAuthorHandle}
+                              <UserMinus size={12} className="flex-none" aria-hidden />
+                              <span className="min-w-0 truncate">Suspend @{report.targetAuthorHandle}</span>
                             </button>
                           )}
                         </>
@@ -478,9 +478,9 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                           className="btn-secondary h-7"
                         >
                           {busy === `restore-report:${report.id}` ? (
-                            <CircleNotch size={12} className="anim-spin" />
+                            <CircleNotch size={12} className="anim-spin" aria-hidden />
                           ) : (
-                            <ArrowCounterClockwise size={12} />
+                            <ArrowCounterClockwise size={12} aria-hidden />
                           )}
                           Restore {targetNoun}
                         </button>
@@ -488,14 +488,14 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                     </div>
                   </div>
 
-                  <p className="m-0 mt-1 text-[11.5px] leading-[1.5] text-neutral-300">
+                  <p className="m-0 mt-1 text-[13px] leading-[1.5] text-neutral-300">
                     <span className="text-neutral-500">Reason: </span>
                     {report.reasonLabel}
                     {report.detail ? ` — ${report.detail}` : ''}
                   </p>
 
                   {report.status !== 'open' && (
-                    <p className="m-0 mt-0.5 text-[11px] text-neutral-500">
+                    <p className="m-0 mt-0.5 text-[12.5px] text-neutral-500">
                       {report.status === 'resolved' ? 'Resolved' : 'Dismissed'} by @
                       {report.resolvedByHandle ?? 'unknown'} · {formatUtc(report.resolvedAt)}
                       {report.resolution ? ` · ${report.resolution}` : ''}
@@ -518,7 +518,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                     >
                       <label
                         htmlFor={`report-reason-${report.id}`}
-                        className="text-[11px] text-neutral-400"
+                        className="text-[13px] text-neutral-400"
                       >
                         {panel.mode === 'hide'
                           ? 'Why is this content being hidden? This is recorded against your handle.'
@@ -535,7 +535,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                         }
                         maxLength={500}
                         rows={2}
-                        className="w-full rounded-[2px] border border-neutral-700 bg-bg px-2 py-1.5 text-[12px] text-text focus:border-accent"
+                        className="field"
                       />
                       <div className="flex items-center gap-2">
                         <button
@@ -549,11 +549,11 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                         >
                           {busy === `hide:${report.id}` ||
                           busy === `suspend:${report.targetAuthorId}` ? (
-                            <CircleNotch size={12} className="anim-spin" />
+                            <CircleNotch size={12} className="anim-spin" aria-hidden />
                           ) : panel.mode === 'hide' ? (
-                            <EyeSlash size={12} />
+                            <EyeSlash size={12} aria-hidden />
                           ) : (
-                            <UserMinus size={12} />
+                            <UserMinus size={12} aria-hidden />
                           )}
                           {panel.mode === 'hide' ? 'Confirm hide' : 'Confirm suspension'}
                         </button>
@@ -574,12 +574,12 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
         </section>
 
         <section className="flex flex-col gap-3" aria-labelledby="admin-suspended">
-          <h2 id="admin-suspended" className="m-0 font-heading text-[14px] font-medium">
+          <h2 id="admin-suspended" className="m-0 font-heading text-[20px] font-medium leading-[1.25] tracking-[-0.01em]">
             Suspended members
           </h2>
-          <ul className="m-0 flex list-none flex-col gap-px overflow-hidden rounded-[2px] border border-neutral-800 bg-neutral-800 p-0">
+          <ul className="m-0 flex list-none flex-col gap-px overflow-hidden rounded-lg border border-neutral-800 bg-neutral-800 p-0">
             {overview.suspendedUsers.length === 0 && (
-              <li className="bg-surface px-3 py-4 text-[11px] text-neutral-500">
+              <li className="bg-surface px-3 py-4 text-[13px] text-neutral-500">
                 No one is suspended. Suspended members can read but cannot post, annotate,
                 vote or report.
               </li>
@@ -591,10 +591,10 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                 className="bg-surface px-3 py-2.5"
               >
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[12px] font-medium text-neutral-100">
+                  <span className="min-w-0 break-words text-[13.5px] font-medium text-neutral-100">
                     @{user.handle}
                   </span>
-                  <span className="text-[11px] text-neutral-500">
+                  <span className="min-w-0 break-words text-[12.5px] text-neutral-500">
                     suspended {formatUtc(user.suspendedAt)}
                     {user.suspendedByHandle ? ` by @${user.suspendedByHandle}` : ''}
                   </span>
@@ -607,15 +607,15 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                       className="btn-secondary h-7"
                     >
                       {busy === `reinstate:${user.id}` ? (
-                        <CircleNotch size={12} className="anim-spin" />
+                        <CircleNotch size={12} className="anim-spin" aria-hidden />
                       ) : (
-                        <UserCheck size={12} />
+                        <UserCheck size={12} aria-hidden />
                       )}
                       Reinstate
                     </button>
                   </div>
                 </div>
-                <p className="m-0 mt-1 border-l-2 border-danger pl-2 text-[11px] leading-[1.5] text-neutral-400">
+                <p className="m-0 mt-1 border-l-2 border-danger pl-2 text-[13px] leading-[1.5] text-neutral-400">
                   {user.suspensionReason}
                 </p>
               </li>
@@ -625,10 +625,10 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
 
         <section className="flex flex-col gap-3" aria-labelledby="admin-models">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 id="admin-models" className="m-0 font-heading text-[14px] font-medium">
+            <h2 id="admin-models" className="m-0 font-heading text-[20px] font-medium leading-[1.25] tracking-[-0.01em]">
               Model registry
             </h2>
-            <p className="m-0 text-[11px] text-neutral-500">
+            <p className="m-0 text-[12.5px] text-neutral-500">
               Disabled Models leave every picker and cannot answer new turns.
               Existing Responses stay readable.
             </p>
@@ -637,9 +637,9 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
             role="region"
             aria-label="Model registry table"
             tabIndex={0}
-            className="overflow-x-auto rounded-[2px] border border-neutral-800"
+            className="overflow-x-auto rounded-lg border border-neutral-800"
           >
-            <table className="w-full min-w-[720px] border-collapse text-left text-[12px]">
+            <table className="w-full min-w-[720px] border-collapse text-left text-[13.5px]">
               <thead className="bg-surface text-[10.5px] uppercase tracking-[0.08em] text-neutral-500">
                 <tr>
                   <th className="px-3 py-2 font-medium">Model</th>
@@ -654,18 +654,18 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                   <tr key={model.id} className="border-t border-neutral-800">
                     <td className="px-3 py-2">
                       <span className="flex items-center gap-2">
-                        <span className="grid h-5 w-7 place-items-center rounded-[2px] bg-neutral-800 text-[10.5px] font-semibold text-neutral-200">
+                        <span className="grid h-5 w-7 flex-none place-items-center rounded-sm bg-neutral-800 font-mono text-[10.5px] font-semibold text-neutral-200">
                           {model.monogram}
                         </span>
                         <span className="text-neutral-100">{model.displayName}</span>
-                        <span className="text-[10.5px] text-neutral-500">{model.slug}</span>
+                        <span className="text-[12.5px] text-neutral-500">{model.slug}</span>
                       </span>
                     </td>
                     <td className="px-3 py-2 text-neutral-400">{model.provider}</td>
                     <td className="px-3 py-2 text-neutral-400">{model.responseCount}</td>
                     <td className="px-3 py-2">
                       <span
-                        className={`inline-flex items-center gap-1 rounded-[2px] px-1.5 py-0.5 text-[10.5px] font-medium ${
+                        className={`inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] font-medium ${
                           model.enabled
                             ? 'bg-accent-900 text-accent-200'
                             : 'bg-neutral-800 text-neutral-400'
@@ -683,11 +683,11 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                         className="btn-secondary h-7"
                       >
                         {busy === `model:${model.id}` ? (
-                          <CircleNotch size={12} className="anim-spin" />
+                          <CircleNotch size={12} className="anim-spin" aria-hidden />
                         ) : model.enabled ? (
-                          <EyeSlash size={12} />
+                          <EyeSlash size={12} aria-hidden />
                         ) : (
-                          <CheckCircle size={12} />
+                          <CheckCircle size={12} aria-hidden />
                         )}
                         {model.enabled ? 'Disable' : 'Enable'}
                       </button>
@@ -701,24 +701,24 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
 
         <section className="flex flex-col gap-3" aria-labelledby="admin-published">
           <div className="flex flex-wrap items-end justify-between gap-2">
-            <h2 id="admin-published" className="m-0 font-heading text-[14px] font-medium">
+            <h2 id="admin-published" className="m-0 font-heading text-[20px] font-medium leading-[1.25] tracking-[-0.01em]">
               Published Comparisons
             </h2>
-            <label className="flex h-8 w-full max-w-[320px] items-center gap-2 rounded-[2px] border border-neutral-700 bg-surface px-2.5 focus-within:border-accent">
-              <MagnifyingGlass size={13} className="text-neutral-500" />
+            <label className="flex h-9 w-full max-w-[320px] items-center gap-2 rounded-sm border border-neutral-700 bg-bg px-3 focus-within:border-accent focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent">
+              <MagnifyingGlass size={14} className="flex-none text-neutral-400" aria-hidden />
               <span className="sr-only">Find a published comparison</span>
               <input
                 type="search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Find by title or @handle"
-                className="h-full w-full bg-transparent text-[12px] text-text"
+                className="h-full w-full min-w-0 bg-transparent text-[13.5px] text-text focus-visible:outline-none"
               />
             </label>
           </div>
-          <ul className="m-0 flex list-none flex-col gap-px overflow-hidden rounded-[2px] border border-neutral-800 bg-neutral-800 p-0">
+          <ul className="m-0 flex list-none flex-col gap-px overflow-hidden rounded-lg border border-neutral-800 bg-neutral-800 p-0">
             {visiblePublished.length === 0 && (
-              <li className="bg-surface px-3 py-4 text-[11px] text-neutral-500">
+              <li className="bg-surface px-3 py-4 text-[13px] text-neutral-500">
                 No published comparison matches that search.
               </li>
             )}
@@ -729,11 +729,11 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
                       href={`/comparisons/${comparison.id}`}
-                      className="min-w-0 flex-1 truncate text-[12px] font-medium text-neutral-100 hover:text-accent-200"
+                      className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-neutral-100 hover:text-accent-200"
                     >
                       {comparison.title}
                     </Link>
-                    <span className="text-[11px] text-neutral-500">
+                    <span className="min-w-0 break-words text-[12.5px] text-neutral-500">
                       @{comparison.authorHandle} · {formatUtc(comparison.publishedAt)}
                     </span>
                     <Link
@@ -741,7 +741,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                       aria-label={`Open ${comparison.title}`}
                       className="btn-ghost h-7"
                     >
-                      <ArrowSquareOut size={12} />
+                      <ArrowSquareOut size={12} aria-hidden />
                       Open
                     </Link>
                     <button
@@ -757,7 +757,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                       aria-label={`Take down ${comparison.title}`}
                       className="btn-secondary h-7"
                     >
-                      <EyeSlash size={12} />
+                      <EyeSlash size={12} aria-hidden />
                       Take down
                     </button>
                   </div>
@@ -778,7 +778,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                     >
                       <label
                         htmlFor={`takedown-reason-${comparison.id}`}
-                        className="text-[11px] text-neutral-400"
+                        className="text-[13px] text-neutral-400"
                       >
                         Why is this being hidden? This is shown in the admin record.
                       </label>
@@ -789,7 +789,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                         onChange={(event) => setReason(event.target.value)}
                         maxLength={500}
                         rows={2}
-                        className="w-full rounded-[2px] border border-neutral-700 bg-bg px-2 py-1.5 text-[12px] text-text focus:border-accent"
+                        className="field"
                       />
                       <div className="flex items-center gap-2">
                         <button
@@ -799,9 +799,9 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                           className="btn-primary h-7"
                         >
                           {busy === `takedown:${comparison.id}` ? (
-                            <CircleNotch size={12} className="anim-spin" />
+                            <CircleNotch size={12} className="anim-spin" aria-hidden />
                           ) : (
-                            <EyeSlash size={12} />
+                            <EyeSlash size={12} aria-hidden />
                           )}
                           Confirm takedown
                         </button>
@@ -825,12 +825,12 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
         </section>
 
         <section className="flex flex-col gap-3" aria-labelledby="admin-hidden">
-          <h2 id="admin-hidden" className="m-0 font-heading text-[14px] font-medium">
+          <h2 id="admin-hidden" className="m-0 font-heading text-[20px] font-medium leading-[1.25] tracking-[-0.01em]">
             Hidden Comparisons
           </h2>
-          <ul className="m-0 flex list-none flex-col gap-px overflow-hidden rounded-[2px] border border-neutral-800 bg-neutral-800 p-0">
+          <ul className="m-0 flex list-none flex-col gap-px overflow-hidden rounded-lg border border-neutral-800 bg-neutral-800 p-0">
             {overview.hiddenComparisons.length === 0 && (
-              <li className="bg-surface px-3 py-4 text-[11px] text-neutral-500">
+              <li className="bg-surface px-3 py-4 text-[13px] text-neutral-500">
                 Nothing is hidden. Taken-down Comparisons appear here with their reason and
                 actor.
               </li>
@@ -840,11 +840,11 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                 <div className="flex flex-wrap items-center gap-2">
                   <Link
                     href={`/comparisons/${comparison.id}`}
-                    className="min-w-0 flex-1 truncate text-[12px] font-medium text-neutral-100 hover:text-accent-200"
+                    className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-neutral-100 hover:text-accent-200"
                   >
                     {comparison.title}
                   </Link>
-                  <span className="text-[11px] text-neutral-500">
+                  <span className="min-w-0 break-words text-[12.5px] text-neutral-500">
                     @{comparison.authorHandle} · hidden {formatUtc(comparison.takedownAt)}
                     {comparison.takedownByHandle
                       ? ` by @${comparison.takedownByHandle}`
@@ -858,14 +858,14 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                     className="btn-secondary h-7"
                   >
                     {busy === `restore:${comparison.id}` ? (
-                      <CircleNotch size={12} className="anim-spin" />
+                      <CircleNotch size={12} className="anim-spin" aria-hidden />
                     ) : (
-                      <CheckCircle size={12} />
+                      <CheckCircle size={12} aria-hidden />
                     )}
                     Restore
                   </button>
                 </div>
-                <p className="m-0 mt-1 border-l-2 border-danger pl-2 text-[11px] leading-[1.5] text-neutral-400">
+                <p className="m-0 mt-1 border-l-2 border-danger pl-2 text-[13px] leading-[1.5] text-neutral-400">
                   {comparison.takedownReason}
                 </p>
               </li>
@@ -874,16 +874,16 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
         </section>
 
         <section className="flex flex-col gap-3" aria-labelledby="admin-actions">
-          <h2 id="admin-actions" className="m-0 font-heading text-[14px] font-medium">
+          <h2 id="admin-actions" className="m-0 font-heading text-[20px] font-medium leading-[1.25] tracking-[-0.01em]">
             Recent admin actions
           </h2>
           <div
             role="region"
             aria-label="Admin action log"
             tabIndex={0}
-            className="overflow-x-auto rounded-[2px] border border-neutral-800"
+            className="overflow-x-auto rounded-lg border border-neutral-800"
           >
-            <table className="w-full min-w-[720px] border-collapse text-left text-[12px]">
+            <table className="w-full min-w-[720px] border-collapse text-left text-[13.5px]">
               <thead className="bg-surface text-[10.5px] uppercase tracking-[0.08em] text-neutral-500">
                 <tr>
                   <th className="px-3 py-2 font-medium">When</th>
@@ -896,7 +896,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
               <tbody>
                 {overview.recentActions.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-3 py-4 text-[11px] text-neutral-500">
+                    <td colSpan={5} className="px-3 py-4 text-[13px] text-neutral-500">
                       No admin actions yet.
                     </td>
                   </tr>

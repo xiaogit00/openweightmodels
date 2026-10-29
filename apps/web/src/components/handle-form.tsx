@@ -49,8 +49,8 @@ export function HandleForm({ next }: { next: string }) {
       <label htmlFor="handle" className="micro-label uppercase">
         Your handle
       </label>
-      <div className="flex items-center gap-2 rounded-[2px] border border-neutral-700 bg-surface px-2.5 focus-within:border-accent">
-        <At size={14} className="text-neutral-500" />
+      <div className="flex h-10 items-center gap-2 rounded-sm border border-neutral-700 bg-bg px-3 focus-within:border-accent focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent">
+        <At size={15} className="flex-none text-neutral-400" aria-hidden />
         <input
           id="handle"
           name="handle"
@@ -63,18 +63,18 @@ export function HandleForm({ next }: { next: string }) {
           required
           placeholder="mira"
           aria-describedby="handle-rules"
-          className="h-9 min-w-0 flex-1 border-0 bg-transparent px-0 text-[12px] text-text"
+          className="h-full min-w-0 flex-1 border-0 bg-transparent px-0 text-[14.5px] text-text focus-visible:outline-none"
         />
-        <span className="text-[11px] text-neutral-500">{handle.trim().length}/{HANDLE_MAX_LENGTH}</span>
+        <span className="flex-none text-[12.5px] text-neutral-500">{handle.trim().length}/{HANDLE_MAX_LENGTH}</span>
       </div>
-      <p id="handle-rules" className="m-0 text-[11px] leading-[1.55] text-neutral-500">
+      <p id="handle-rules" className="m-0 text-[13px] leading-[1.55] text-neutral-400">
         {HANDLE_MIN_LENGTH}–{HANDLE_MAX_LENGTH} characters: lowercase letters, numbers, hyphens or
         underscores. It starts and ends with a letter or number. This is the only identity
         other people see; your email stays private.
       </p>
-      {error && <p className="m-0 text-[11px] text-danger">{error}</p>}
-      <button type="submit" disabled={pending} className="btn-primary h-9">
-        <Check size={14} />
+      {error && <p role="alert" className="m-0 text-[13px] text-danger">{error}</p>}
+      <button type="submit" disabled={pending} className="btn-primary h-10">
+        <Check size={15} aria-hidden />
         {pending ? 'Saving…' : 'Claim handle and continue'}
       </button>
     </form>

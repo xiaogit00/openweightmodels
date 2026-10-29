@@ -41,25 +41,27 @@ export function AccountSettings({ handle }: { handle: string | null }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <section className="rounded-[2px] border border-neutral-800 bg-surface p-4">
-        <h2 className="m-0 font-heading text-[14px] font-medium">Export your data</h2>
-        <p className="m-0 mt-1.5 text-[12px] leading-[1.55] text-neutral-400">
+      <section className="rounded-lg border border-neutral-800 bg-surface p-4">
+        <h2 className="m-0 font-heading text-[20px] font-medium leading-[1.25] tracking-[-0.01em]">
+          Export your data
+        </h2>
+        <p className="m-0 mt-1.5 text-[13.5px] leading-[1.55] text-neutral-400">
           Download a JSON file with your account details, Comparisons, comments,
           Annotations, votes and notifications. Emails and content written by other
           people are never included.
         </p>
         <a href="/api/account/export" download className="btn-secondary mt-3">
-          <Download size={13} />
+          <Download size={14} aria-hidden />
           Download data
         </a>
       </section>
 
-      <section className="rounded-[2px] border border-danger/60 bg-surface p-4">
-        <h2 className="m-0 flex items-center gap-1.5 font-heading text-[14px] font-medium text-danger">
-          <Warning size={15} />
+      <section className="rounded-lg border border-danger/60 bg-surface p-4">
+        <h2 className="m-0 flex items-center gap-1.5 font-heading text-[20px] font-medium leading-[1.25] tracking-[-0.01em] text-danger">
+          <Warning size={18} aria-hidden />
           Delete account
         </h2>
-        <p className="m-0 mt-1.5 text-[12px] leading-[1.55] text-neutral-300">
+        <p className="m-0 mt-1.5 text-[13.5px] leading-[1.55] text-neutral-300">
           This is permanent. Your email, {handle ? 'handle' : 'identity'} and sign-in
           sessions are erased. Published Comparisons stay on the Board attributed to{' '}
           <span className="text-neutral-100">[deleted]</span>. Your Discussion comments
@@ -69,7 +71,7 @@ export function AccountSettings({ handle }: { handle: string | null }) {
         </p>
         <label
           htmlFor="delete-confirmation"
-          className="mt-3 block text-[11px] font-medium text-neutral-300"
+          className="mt-3 block text-[13px] font-medium text-neutral-300"
         >
           Type DELETE to confirm
         </label>
@@ -79,10 +81,10 @@ export function AccountSettings({ handle }: { handle: string | null }) {
           onChange={(event) => setConfirmation(event.target.value)}
           autoComplete="off"
           spellCheck={false}
-          className="mt-1 h-8 w-full max-w-[240px] rounded-[2px] border border-neutral-700 bg-bg px-2 text-[12px] text-text focus-visible:border-accent"
+          className="field mt-1 h-10 max-w-[240px]"
         />
         {error && (
-          <p role="alert" className="m-0 mt-2 text-[11px] text-danger">
+          <p role="alert" className="m-0 mt-2 text-[13px] text-danger">
             {error}
           </p>
         )}
@@ -91,7 +93,7 @@ export function AccountSettings({ handle }: { handle: string | null }) {
             type="button"
             onClick={() => void remove()}
             disabled={!confirmed || deleting}
-            className="btn-secondary border-danger/60 text-danger hover:bg-danger/10 disabled:cursor-not-allowed disabled:opacity-50"
+            className="btn-secondary border-danger/60 text-danger hover:border-danger/60 hover:bg-danger/10 hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
           >
             {deleting ? 'Deleting…' : 'Delete my account'}
           </button>

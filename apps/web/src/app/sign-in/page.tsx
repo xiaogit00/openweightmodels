@@ -35,15 +35,15 @@ export default async function SignInPage({
       <SiteHeader handle={null} variant="page" showNew={false} signInHref={signInPath(next)} />
       <main className="mx-auto flex w-full max-w-[420px] flex-col gap-5 px-5 py-12">
         <div className="flex flex-col gap-1.5">
-          <h1 className="m-0 font-heading text-[20px] font-medium leading-[1.2]">
+          <h1 className="m-0 font-heading text-[30px] font-medium leading-[1.15] tracking-[-0.02em]">
             Sign in
           </h1>
-          <p className="m-0 text-[12px] leading-[1.55] text-neutral-400">
+          <p className="m-0 text-[13.5px] leading-[1.55] text-neutral-400">
             Enter your email and we will send you a link. It signs you in once and expires
             after {MAGIC_LINK_TTL_MINUTES} minutes.
           </p>
         </div>
-        <div className="rounded-[2px] border border-neutral-800 bg-surface p-4">
+        <div className="rounded-lg border border-neutral-800 bg-surface p-5">
           <SignInForm
             next={next}
             initialError={errorParam ? (ERROR_MESSAGES[errorParam] ?? 'The sign-in link could not be used. Request a new one.') : null}
