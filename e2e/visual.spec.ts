@@ -53,9 +53,8 @@ test('Board at 1440px', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('main a.card').first()).toBeVisible();
 
-  // v2 handoff: 52px header row, 30px ticker, 216px sidebar, 20px gutters,
-  // 8px card gap. Ticket 02 raises the shared header to 53px; the remaining
-  // Board metrics belong to ticket 03.
+  // Redesign: 53px header row, 38px ticker, 248px sidebar, 32px main gutter,
+  // 16px card gap, in a 1440px-wide centred shell.
   const metrics = await page.evaluate(() => {
     const header = document.querySelector('header')!;
     const ticker = document.querySelector('[data-ticker]')!.parentElement!.parentElement!;
@@ -63,19 +62,22 @@ test('Board at 1440px', async ({ page }) => {
     const main = document.querySelector('main')!;
     const grid = main.querySelector('div.grid') as HTMLElement;
     const styles = getComputedStyle(main);
+    const shell = getComputedStyle(main.parentElement!);
     return {
       header: header.getBoundingClientRect().height,
       ticker: ticker.getBoundingClientRect().height,
       sidebar: aside.getBoundingClientRect().width,
       paddingLeft: styles.paddingLeft,
       gap: getComputedStyle(grid).gap,
+      maxWidth: shell.maxWidth,
     };
   });
   expect(Math.abs(metrics.header - 53)).toBeLessThanOrEqual(1);
-  expect(Math.abs(metrics.ticker - 30)).toBeLessThanOrEqual(1);
-  expect(Math.abs(metrics.sidebar - 216)).toBeLessThanOrEqual(1);
-  expect(metrics.paddingLeft).toBe('20px');
-  expect(metrics.gap).toBe('8px');
+  expect(Math.abs(metrics.ticker - 38)).toBeLessThanOrEqual(1);
+  expect(Math.abs(metrics.sidebar - 248)).toBeLessThanOrEqual(1);
+  expect(metrics.paddingLeft).toBe('32px');
+  expect(metrics.gap).toBe('16px');
+  expect(metrics.maxWidth).toBe('1440px');
 
   await screenshot(page, 'board-1440.png');
 });

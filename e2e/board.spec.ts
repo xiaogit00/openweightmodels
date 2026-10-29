@@ -74,6 +74,32 @@ test('sidebar counts cover the whole Board, not the loaded page', async ({ page 
   ).toContainText(String(facets.models['llama-3-3-70b']));
 });
 
+test('the model list hides models with no comparisons behind Show all', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator(CARD).first()).toBeVisible();
+
+  const toggle = page.locator('aside [data-model-toggle]');
+  if (!(await toggle.isVisible())) {
+    test.skip(true, 'every model has a comparison in this dataset');
+  }
+
+  const label = await toggle.innerText();
+  const total = Number(label.match(/(\d+)/)?.[1]);
+  expect(total).toBeGreaterThan(0);
+
+  const options = page.locator('aside [data-model-option]');
+  const visible = await options.count();
+  expect(visible).toBeLessThan(total);
+
+  await toggle.click();
+  await expect(options).toHaveCount(total);
+
+  const fewer = page.getByRole('button', { name: 'Show fewer' });
+  await expect(fewer).toBeVisible();
+  await fewer.click();
+  await expect(options).toHaveCount(visible);
+});
+
 test('filters live in the URL, survive reload and back/forward, and keep one SSE', async ({
   page,
 }) => {

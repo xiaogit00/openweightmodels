@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ArrowUp,
+  CaretDown,
+  CaretUp,
   ChatCircle,
+  Check,
   CheckCircle,
   CircleNotch,
   Clock,
@@ -18,7 +21,6 @@ import type { BoardFacets, BoardPage, ComparisonCard } from '@owm/core/client';
 import {
   CATEGORIES,
   EFFORT_LEVELS,
-  SORTS,
   addCardToFacets,
   appendUniqueCards,
   arrivalPlacement,
@@ -81,6 +83,12 @@ const EVENT_ICONS: Record<string, typeof GitDiff> = {
   'run.finished': CheckCircle,
 };
 
+const SORT_OPTIONS = [
+  { value: 'live', label: 'Live', Icon: Lightning },
+  { value: 'top', label: 'Top', Icon: Flame },
+  { value: 'new', label: 'New', Icon: Clock },
+] as const;
+
 async function requestPage(
   filters: BoardFilters,
   cursor: string | null,
@@ -138,6 +146,9 @@ export function BoardClient({
   const [newId, setNewId] = useState<string | null>(null);
   const [flip, setFlip] = useState(false);
   const [live, setLive] = useState(true);
+  // The sidebar hides models with no comparisons by default. A selected model
+  // always stays visible, even when its count drops to zero.
+  const [showAllModels, setShowAllModels] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [reducedMotion, setReducedMotion] = useState(false);
 
@@ -565,13 +576,26 @@ export function BoardClient({
     return () => source.close();
   }, [initialEvents, refreshFacets]);
 
-  const chips: Array<{ label: string; remove: () => void }> = [];
+  const chips: Array<{ key: string; label: string; remove: () => void }> = [];
+  const query = filters.q.trim();
+  if (query) {
+    chips.push({
+      key: 'q',
+      label: `“${query}”`,
+      remove: () => patchFilters({ q: '' }),
+    });
+  }
   if (filters.cat !== 'All') {
-    chips.push({ label: filters.cat, remove: () => patchFilters({ cat: 'All' }) });
+    chips.push({
+      key: `cat:${filters.cat}`,
+      label: filters.cat,
+      remove: () => patchFilters({ cat: 'All' }),
+    });
   }
   for (const model of filters.models) {
     const name = models.find((item) => item.slug === model)?.displayName ?? model;
     chips.push({
+      key: `model:${model}`,
       label: name,
       remove: () =>
         setFilters((current) => ({
@@ -582,6 +606,7 @@ export function BoardClient({
   }
   if (filters.effort !== null) {
     chips.push({
+      key: `effort:${filters.effort}`,
       label: `${EFFORT_LEVELS[filters.effort - 1]?.label ?? ''} effort`,
       remove: () => patchFilters({ effort: null }),
     });
@@ -639,6 +664,9 @@ export function BoardClient({
     return () => observer.disconnect();
   }, [error, loadMore, nextCursor, phase]);
 
+  const loadingFirst = phase === 'first';
+  const loadingMore = phase === 'more';
+
   const tickerEvents = events.filter((event) => event.summary);
   // The ticker needs a duplicated list to loop seamlessly. Reduced motion
   // renders one static pass so the reader does not get a repeated sentence.
@@ -647,8 +675,23 @@ export function BoardClient({
       ? tickerEvents
       : [...tickerEvents, ...tickerEvents]
     : [];
-  const loadingFirst = phase === 'first';
-  const loadingMore = phase === 'more';
+
+  const filtered =
+    filters.cat !== 'All' ||
+    filters.models.length > 0 ||
+    filters.effort !== null ||
+    query.length > 0;
+  const countLabel = filtered
+    ? `${total} of ${facets.total} comparisons`
+    : `${total} comparison${total === 1 ? '' : 's'}`;
+
+  // The model list defaults to models that appear on at least one Comparison.
+  // A selected model stays visible even if its count falls to zero.
+  const modelsWithComparisons = models.filter(
+    (model) => (facets.models[model.slug] ?? 0) > 0 || filters.models.includes(model.slug),
+  );
+  const visibleModels = showAllModels ? models : modelsWithComparisons;
+  const canToggleModels = showAllModels || modelsWithComparisons.length < models.length;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -656,7 +699,7 @@ export function BoardClient({
         handle={handle}
         signedIn={signedIn}
         search={
-          <label className="flex h-8 min-w-[120px] max-w-[440px] flex-[1_1_120px] items-center gap-2 rounded-[var(--r)] border border-neutral-800 bg-surface px-3 focus-within:border-neutral-700">
+          <label className="flex h-8 min-w-[120px] max-w-[440px] flex-[1_1_120px] items-center gap-[10px] rounded-[var(--r)] border border-neutral-800 bg-surface pl-3 pr-[10px] focus-within:border-neutral-700">
             <MagnifyingGlass size={15} className="flex-none text-neutral-400" aria-hidden />
             <input
               ref={searchRef}
@@ -666,41 +709,49 @@ export function BoardClient({
               aria-label="Search comparisons"
               className="min-w-0 flex-1 border-0 bg-transparent text-[13px] text-text"
             />
-            <span className="hidden flex-none rounded-[var(--r)] border border-neutral-700 px-[5px] py-[2px] font-mono text-[11px] font-medium text-neutral-400 sm:block">
+            <span className="hidden flex-none rounded-[var(--r)] border border-neutral-700 px-[6px] font-mono text-[11px] leading-[18px] text-neutral-300 sm:block">
               /
             </span>
           </label>
         }
       />
 
-      <div
-        className="flex items-center gap-[14px] overflow-hidden whitespace-nowrap border-b border-neutral-800 px-5"
-        style={{ height: 30 }}
-      >
-        <span className="flex flex-none items-center gap-[6px] text-[11px] font-medium text-accent-200">
+      <div className="flex h-[38px] flex-none items-center gap-4 overflow-hidden whitespace-nowrap border-b border-neutral-800 px-6 text-[12px] text-neutral-300">
+        <span className="flex flex-none items-center gap-2 text-[11px] font-medium uppercase tracking-[0.08em] text-accent-300">
           <span
             className={cn(
-              'h-[6px] w-[6px] rounded-[2px]',
+              'h-[6px] w-[6px] rounded-full',
               live ? 'bg-accent' : 'bg-neutral-500',
               live && !reducedMotion && 'anim-pulse',
             )}
+            aria-hidden
           />
           {live ? 'LIVE' : 'RECONNECTING'}
         </span>
-        <div className="flex min-w-0 flex-1 overflow-hidden">
+        <div
+          className="min-w-0 flex-1 overflow-hidden"
+          style={{
+            maskImage:
+              'linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 48px), transparent)',
+            WebkitMaskImage:
+              'linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 48px), transparent)',
+          }}
+        >
           <div
-            className={cn('flex flex-none gap-7', !reducedMotion && 'anim-tick')}
+            className={cn('flex w-max gap-9', !reducedMotion && 'anim-tick')}
             data-ticker
           >
             {ticker.map((event, index) => {
               const Icon = EVENT_ICONS[event.kind] ?? ChatCircle;
+              const duplicate = !reducedMotion && index >= tickerEvents.length;
               return (
                 <span
                   key={`${event.id}-${index}`}
-                  className="flex flex-none items-center gap-[6px] text-[11px] font-normal text-neutral-400"
+                  aria-hidden={duplicate ? true : undefined}
+                  className="flex flex-none items-center gap-2 text-[12px] text-neutral-300"
                 >
-                  <Icon size={12} />
-                  <span className="text-neutral-200">{event.summary}</span>
+                  <Icon size={13} className="flex-none text-neutral-400" aria-hidden />
+                  {event.summary}
                 </span>
               );
             })}
@@ -708,16 +759,19 @@ export function BoardClient({
         </div>
       </div>
 
-      <div className="grid flex-1 grid-cols-1 lg:grid-cols-[216px_minmax(0,1fr)]">
+      <div className="mx-auto grid w-full max-w-[1440px] flex-1 grid-cols-1 lg:grid-cols-[clamp(200px,22vw,248px)_minmax(0,1fr)]">
         <aside
           aria-label="Board filters"
-          className="flex flex-col gap-[18px] overflow-auto border-b border-neutral-800 px-5 py-4 lg:sticky lg:top-[83px] lg:h-[calc(100vh-83px)] lg:self-start lg:border-b-0 lg:border-r lg:px-3 lg:py-4 lg:pl-5">
-          <div className="grid grid-cols-2 gap-px lg:flex lg:flex-col">
-            <MicroLabel className="col-span-2 px-2 pb-[6px] lg:col-span-1">
+          className="flex flex-col gap-4 border-b border-neutral-800 px-5 py-4 [scrollbar-color:var(--color-neutral-700)_transparent] [scrollbar-width:thin] lg:sticky lg:top-[91px] lg:max-h-[calc(100vh-91px)] lg:gap-8 lg:self-start lg:overflow-y-auto lg:border-b-0 lg:px-4 lg:pb-10 lg:pl-6 lg:pt-9"
+        >
+          <div className="grid grid-cols-2 gap-x-3 gap-y-[2px] lg:flex lg:flex-col">
+            <MicroLabel className="col-span-2 px-[10px] pb-2 lg:col-span-1">
               CATEGORIES
             </MicroLabel>
             {['All', ...CATEGORIES].map((category) => {
               const active = filters.cat === category;
+              const count =
+                category === 'All' ? facets.total : (facets.categories[category] ?? 0);
               return (
                 <button
                   key={category}
@@ -725,40 +779,47 @@ export function BoardClient({
                   aria-pressed={active}
                   onClick={() => patchFilters({ cat: category })}
                   className={cn(
-                    'flex h-7 min-w-0 items-center justify-between rounded-[2px] px-2 text-left text-[12px] font-medium transition-colors hover:bg-surface',
-                    active ? 'bg-surface text-text' : 'text-neutral-300',
+                    'flex h-[34px] min-w-0 items-center justify-between gap-2 rounded-[var(--r)] px-[10px] text-left text-[13.5px] transition-colors',
+                    active
+                      ? 'bg-neutral-800 text-text'
+                      : 'text-neutral-300 hover:bg-surface hover:text-text',
                   )}
                 >
-                  <span>{category}</span>
-                  <span className="text-[11px] font-normal text-neutral-500">
-                    {category === 'All'
-                      ? facets.total
-                      : (facets.categories[category] ?? 0)}
+                  <span className="min-w-0 truncate">{category}</span>
+                  <span
+                    className={cn(
+                      'flex-none text-[12px]',
+                      active ? 'text-accent-300' : 'text-neutral-400',
+                    )}
+                  >
+                    {count}
                   </span>
                 </button>
               );
             })}
           </div>
 
-          <div className="grid grid-cols-2 gap-px lg:flex lg:flex-col">
-            <div className="col-span-2 flex items-baseline justify-between px-2 pb-[6px] lg:col-span-1">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-[2px] lg:flex lg:flex-col">
+            <div className="col-span-2 flex items-center justify-between px-[10px] pb-2 lg:col-span-1">
               <MicroLabel>MODELS</MicroLabel>
               {filters.models.length > 0 && (
                 <button
                   type="button"
                   onClick={() => patchFilters({ models: [] })}
-                  className="text-[11px] font-medium text-accent-300"
+                  className="text-[12px] text-neutral-300 transition-colors hover:text-text"
                 >
                   Clear
                 </button>
               )}
             </div>
-            {models.map((model) => {
+            {visibleModels.map((model) => {
               const checked = filters.models.includes(model.slug);
+              const count = facets.models[model.slug] ?? 0;
               return (
                 <button
                   key={model.slug}
                   type="button"
+                  data-model-option
                   aria-pressed={checked}
                   onClick={() =>
                     setFilters((current) => ({
@@ -768,127 +829,164 @@ export function BoardClient({
                         : [...current.models, model.slug],
                     }))
                   }
-                  className="flex h-7 min-w-0 items-center gap-2 rounded-[2px] px-2 text-left text-[12px] font-medium text-neutral-200 transition-colors hover:bg-surface"
+                  className={cn(
+                    'flex min-h-8 min-w-0 items-center gap-[10px] rounded-[var(--r)] px-[10px] py-1 text-left text-[13.5px] transition-colors hover:bg-surface hover:text-text',
+                    checked
+                      ? 'text-text'
+                      : count > 0
+                        ? 'text-neutral-300'
+                        : 'text-neutral-500',
+                  )}
                 >
                   <span
                     className={cn(
-                      'grid h-[14px] w-[14px] flex-none place-items-center rounded-[2px] border',
-                      checked ? 'border-accent bg-accent' : 'border-neutral-600 bg-transparent',
+                      'grid h-[15px] w-[15px] flex-none place-items-center rounded-[var(--r)] border',
+                      checked
+                        ? 'border-accent bg-accent text-on-accent'
+                        : 'border-neutral-600 bg-transparent',
                     )}
                   >
-                    {checked && <CheckCircle size={10} weight="fill" className="text-bg" />}
+                    {checked && <Check size={11} weight="bold" aria-hidden />}
                   </span>
-                  <span className="flex-1 truncate">{model.displayName}</span>
-                  <span className="text-[11px] font-normal text-neutral-500">
-                    {facets.models[model.slug] ?? 0}
-                  </span>
+                  <span className="min-w-0 flex-1 truncate">{model.displayName}</span>
+                  <span className="flex-none text-[12px] text-neutral-400">{count}</span>
                 </button>
               );
             })}
+            {canToggleModels && (
+              <button
+                type="button"
+                data-model-toggle
+                onClick={() => setShowAllModels((value) => !value)}
+                className="col-span-2 mt-1 flex h-8 items-center gap-2 rounded-[var(--r)] px-[10px] text-[13px] text-neutral-300 transition-colors hover:bg-surface hover:text-text lg:col-span-1"
+              >
+                {showAllModels ? (
+                  <CaretUp size={13} aria-hidden />
+                ) : (
+                  <CaretDown size={13} aria-hidden />
+                )}
+                {showAllModels ? 'Show fewer' : `Show all ${models.length} models`}
+              </button>
+            )}
           </div>
 
-          <div className="flex flex-col gap-[6px] px-2">
-            <MicroLabel>EFFORT</MicroLabel>
-            <SegmentedControl
-              label="Effort filter"
-              className="grid grid-cols-3"
-              stretch
-              value={filters.effort}
-              options={EFFORT_LEVELS.map((level) => ({
-                value: level.value,
-                label: level.label,
-              }))}
-              onChange={(value) =>
-                patchFilters({ effort: filters.effort === value ? null : value })
-              }
-            />
-          </div>
-        </aside>
-
-        <main
-          className="flex min-w-0 flex-col gap-3 px-5 pb-8 pt-[14px]"
-          aria-busy={loadingFirst}
-        >
-          <h1 className="sr-only">Board</h1>
-          <div className="flex flex-wrap items-center gap-[10px]">
-            <div className="flex gap-[2px]">
-              {SORTS.map((value) => {
-                const meta = {
-                  live: { label: 'Live', Icon: Lightning },
-                  top: { label: 'Top', Icon: Flame },
-                  new: { label: 'New', Icon: Clock },
-                }[value];
-                const active = filters.sort === value;
+          <div className="flex flex-col gap-[10px]">
+            <MicroLabel className="px-[10px]">EFFORT</MicroLabel>
+            <div className="grid grid-cols-3 gap-[6px] px-[10px]">
+              {EFFORT_LEVELS.map((level) => {
+                const active = filters.effort === level.value;
                 return (
                   <button
-                    key={value}
+                    key={level.value}
                     type="button"
                     aria-pressed={active}
-                    onClick={() => {
-                      if (value !== filters.sort) {
-                        patchFilters({ sort: value as Sort });
-                      } else if (pending.length > 0) {
-                        flush();
-                      } else {
-                        // Re-clicking the active sort refetches page one, which
-                        // is how a Top view applies the counts updated in place.
-                        void loadFirstPage(filters);
-                      }
-                    }}
+                    onClick={() =>
+                      patchFilters({ effort: active ? null : level.value })
+                    }
                     className={cn(
-                      'flex h-7 items-center gap-[5px] rounded-[2px] px-2.5 text-[12px] font-medium transition-colors hover:text-text',
-                      active ? 'bg-surface text-text' : 'text-neutral-400',
+                      'flex h-8 items-center justify-center rounded-[var(--r)] border text-[13px] transition-colors hover:border-accent-700',
+                      active
+                        ? 'border-accent-600 bg-accent-900 text-accent-200'
+                        : 'border-neutral-700 text-neutral-300',
                     )}
                   >
-                    <meta.Icon size={13} />
-                    {meta.label}
+                    {level.label}
                   </button>
                 );
               })}
             </div>
-            <span className="text-[12px] text-neutral-500" aria-live="polite">
-              {total} comparison{total === 1 ? '' : 's'}
-            </span>
-            {loadingFirst && (
-              <span className="flex items-center gap-[5px] text-[11px] text-neutral-400">
-                <CircleNotch size={11} className="anim-spin" />
-                Loading…
-              </span>
-            )}
-            {chips.map((chip) => (
-              <button
-                key={chip.label}
-                type="button"
-                onClick={chip.remove}
-                className="flex h-[22px] items-center gap-1 rounded-[2px] border border-neutral-700 px-1.5 text-[11px] font-medium text-neutral-200 transition-colors hover:border-accent"
-              >
-                {chip.label}
-                <X size={10} />
-              </button>
-            ))}
-            <div className="flex-1" />
-            {pending.length > 0 && (
-              <button
-                type="button"
-                onClick={flush}
-                className="flex h-[26px] items-center gap-[5px] rounded-[2px] border border-accent bg-accent-900 px-2.5 text-[11px] font-medium text-accent-200"
-              >
-                <ArrowUp size={11} />
-                {pending.length} new comparison{pending.length > 1 ? 's' : ''}
-              </button>
-            )}
           </div>
+        </aside>
+
+        <main
+          className="flex min-w-0 flex-col gap-4 px-5 pb-12 pt-5 lg:gap-6 lg:px-8 lg:pb-[72px] lg:pt-9"
+          aria-busy={loadingFirst}
+        >
+          <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+            <div className="flex flex-col gap-[6px]">
+              <h1 className="font-heading text-[30px] font-medium leading-[1.15] tracking-[-0.02em]">
+                Board
+              </h1>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span aria-live="polite" className="text-[13px] text-neutral-300">
+                  {countLabel}
+                </span>
+                {loadingFirst && (
+                  <span className="flex items-center gap-[5px] text-[12px] text-neutral-400">
+                    <CircleNotch size={11} className="anim-spin" aria-hidden />
+                    Loading…
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              {pending.length > 0 && (
+                <button
+                  type="button"
+                  onClick={flush}
+                  className="flex h-[26px] items-center gap-[5px] rounded-[var(--r)] border border-accent-700 bg-accent-900 px-2.5 text-[12px] font-medium text-accent-200"
+                >
+                  <ArrowUp size={11} aria-hidden />
+                  {pending.length} new comparison{pending.length > 1 ? 's' : ''}
+                </button>
+              )}
+              <SegmentedControl<Sort>
+                label="Sort"
+                value={filters.sort}
+                options={SORT_OPTIONS.map((meta) => ({
+                  value: meta.value,
+                  label: meta.label,
+                  icon: <meta.Icon size={14} aria-hidden />,
+                }))}
+                itemClassName="h-[30px] gap-[7px] px-[14px] text-[13px]"
+                onChange={(value) => {
+                  if (value !== filters.sort) {
+                    patchFilters({ sort: value });
+                  } else if (pending.length > 0) {
+                    flush();
+                  } else {
+                    // Re-clicking the active sort refetches page one, which is
+                    // how a Top view applies the counts updated in place.
+                    void loadFirstPage(filters);
+                  }
+                }}
+              />
+            </div>
+          </div>
+
+          {chips.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              {chips.map((chip) => (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={chip.remove}
+                  className="flex h-[26px] items-center gap-[6px] rounded-[var(--r)] border border-neutral-700 pl-[10px] pr-2 text-[12.5px] text-neutral-200 transition-colors hover:border-accent-700 hover:bg-accent-900"
+                >
+                  {chip.label}
+                  <X size={11} className="text-neutral-400" aria-hidden />
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="h-[26px] px-[6px] text-[12.5px] text-neutral-300 transition-colors hover:text-text"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
 
           {error && (
             <div
               role="alert"
-              className="flex items-center gap-3 rounded-[2px] border border-neutral-700 bg-surface px-3 py-2 text-[12px] text-neutral-200"
+              className="flex flex-wrap items-center gap-3 rounded-[var(--r-lg)] border border-neutral-700 bg-surface px-4 py-3 text-[13px] text-neutral-200"
             >
               <span>{error.message}</span>
               <button
                 type="button"
                 onClick={retry}
-                className="text-[12px] font-medium text-accent-300"
+                className="font-medium text-accent-300 transition-colors hover:text-accent-200"
               >
                 Retry
               </button>
@@ -898,10 +996,12 @@ export function BoardClient({
           {items.length > 0 ? (
             <div
               className={cn(
-                'grid gap-2 transition-opacity',
+                'grid items-stretch gap-4 transition-opacity',
                 loadingFirst && 'opacity-50',
               )}
-              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))' }}
+              style={{
+                gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))',
+              }}
             >
               {items.map((card) => (
                 <ComparisonCardView
@@ -918,18 +1018,23 @@ export function BoardClient({
           ) : loadingFirst ? (
             <div
               role="status"
-              className="flex items-center gap-2 py-12 text-[12px] text-neutral-400"
+              className="flex items-center gap-2 py-12 text-[13px] text-neutral-400"
             >
-              <CircleNotch size={13} className="anim-spin" />
+              <CircleNotch size={13} className="anim-spin" aria-hidden />
               Loading comparisons…
             </div>
           ) : error ? null : (
-            <div className="flex flex-col items-start gap-2 py-12">
-              <span className="font-heading text-[14px] font-medium">No comparisons match</span>
+            <div className="flex flex-col items-center gap-3 rounded-[var(--r-lg)] border border-dashed border-neutral-700 px-6 py-[72px] text-center">
+              <span className="font-heading text-[20px] font-medium">
+                No comparisons match
+              </span>
+              <span className="text-[13.5px] text-neutral-300">
+                Try a different search or loosen the filters.
+              </span>
               <button
                 type="button"
                 onClick={clearFilters}
-                className="text-[12px] font-medium text-accent-300"
+                className="btn-secondary mt-1"
               >
                 Clear filters
               </button>
@@ -950,9 +1055,7 @@ export function BoardClient({
                 disabled={phase !== 'idle'}
                 className="btn-secondary"
               >
-                {loadingMore && (
-                  <CircleNotch size={12} className="anim-spin" />
-                )}
+                {loadingMore && <CircleNotch size={12} className="anim-spin" aria-hidden />}
                 {loadingMore ? 'Loading more…' : 'Load more'}
               </button>
             </div>
