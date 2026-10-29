@@ -1,6 +1,12 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { annotatedComparison, createComparison, signInAs } from './support';
+import {
+  annotatedComparison,
+  createComparison,
+  createConversation,
+  publishConversation,
+  signInAs,
+} from './support';
 
 /**
  * Ticket 17: the four main screens must have no critical or serious automated
@@ -48,6 +54,14 @@ test.describe('automated accessibility scan', () => {
     await page.locator('[data-annotation-span]').first().click();
     await expect(page.locator('[data-annotation-popover]')).toBeVisible();
     await expectNoSeriousViolations(page, 'Comparison annotation thread');
+  });
+
+  test('Multi-turn Comparison', async ({ page }) => {
+    await signInAs(page, 'ana');
+    const comparisonId = await createConversation(page, 'Accessibility conversation fixture');
+    await publishConversation(page, comparisonId);
+    await expect(page.getByLabel('Jump to turn')).toBeVisible();
+    await expectNoSeriousViolations(page, 'Multi-turn Comparison');
   });
 
   test('New Comparison', async ({ page }) => {

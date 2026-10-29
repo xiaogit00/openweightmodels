@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
-import { annotatedComparison, createComparison, signInAs } from './support';
+import {
+  annotatedComparison,
+  createComparison,
+  createConversation,
+  publishConversation,
+  signInAs,
+} from './support';
 
 /** Ticket 17: narrow screens stack on purpose and never scroll sideways. */
 
@@ -29,6 +35,11 @@ async function screens(page: Page) {
     page,
     `Responsive fixture ${test.info().project.name}-${test.info().title}`,
   );
+  const conversationId = await createConversation(
+    page,
+    `Responsive conversation ${test.info().project.name}-${test.info().title}`,
+  );
+  await publishConversation(page, conversationId);
 
   return [
     {
@@ -45,6 +56,15 @@ async function screens(page: Page) {
       assert: async () => {
         await expect(page.getByRole('button', { name: /Annotations/ })).toBeVisible();
         await expect(page.getByRole('heading', { name: 'Discussion' })).toBeVisible();
+      },
+    },
+    {
+      name: 'Multi-turn Comparison',
+      path: `/comparisons/${conversationId}`,
+      assert: async () => {
+        await expect(page.locator('[data-turn-rail]')).toBeVisible();
+        await expect(page.locator('[data-turn-section]')).toHaveCount(3);
+        await expect(page.getByLabel('Jump to turn')).toBeVisible();
       },
     },
     {

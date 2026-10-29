@@ -65,22 +65,26 @@ test.describe('keyboard operation', () => {
     await page.goto(`/comparisons/${comparison.id}?annotations=1`);
 
     // Select the opening words of a challenger response with a Shift+Arrow
-    // selection, then release Shift. Caret browsing does this for real.
+    // selection, then release Shift. Caret browsing does this for real. Retry
+    // until hydration has attached the selection handler; a cold Next compile
+    // can finish after `load`.
     const run = page.locator('[data-run][data-annotatable="1"]').last();
-    await run.evaluate((node) => {
-      const textNode = document.createTreeWalker(node, NodeFilter.SHOW_TEXT).nextNode();
-      if (!textNode) throw new Error('annotatable run has no text node');
-      const range = document.createRange();
-      range.setStart(textNode, 0);
-      range.setEnd(textNode, 12);
-      const selection = window.getSelection();
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-    });
-    await run.dispatchEvent('keyup', { key: 'Shift', shiftKey: false });
-
     const annotate = page.getByRole('button', { name: 'Annotate selection' }).first();
-    await expect(annotate).toBeVisible();
+    await expect(async () => {
+      await run.evaluate((node) => {
+        const textNode = document.createTreeWalker(node, NodeFilter.SHOW_TEXT).nextNode();
+        if (!textNode) throw new Error('annotatable run has no text node');
+        const range = document.createRange();
+        range.setStart(textNode, 0);
+        range.setEnd(textNode, 12);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      });
+      await run.dispatchEvent('keyup', { key: 'Shift', shiftKey: false });
+      await expect(annotate).toBeVisible({ timeout: 1000 });
+    }).toPass({ timeout: 10_000 });
+
     await annotate.focus();
     await page.keyboard.press('Enter');
 

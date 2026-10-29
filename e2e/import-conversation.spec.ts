@@ -89,8 +89,8 @@ test('import an AI Exporter conversation, confirm it, then replay every Turn', a
 
   await page.getByRole('button', { name: 'Publish to board' }).click();
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
-  await expect(page.getByText('Turn 1 of 2')).toBeVisible();
-  await expect(page.getByText('Turn 2 of 2')).toBeVisible();
+  await expect(page.locator('[data-turn-section]')).toHaveCount(2);
+  await expect(page.locator('[data-turn-indicator]')).toHaveText('Turn 1 of 2');
   await expect(page.getByText('BASE ONE: a queue bounds memory.').first()).toBeVisible();
   await expect(page.getByText('BASE TWO: reject early.').first()).toBeVisible();
 

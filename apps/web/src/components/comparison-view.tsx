@@ -8,6 +8,7 @@ import {
   ArrowFatUp,
   Bug,
   CaretDown,
+  CaretLeft,
   CaretRight,
   Check,
   CircleNotch,
@@ -31,7 +32,6 @@ import type {
   AnnotationView,
   CommentView,
   PublicUser,
-  ResponseStatus,
 } from '@owm/core/client';
 import {
   ANNOTATION_KIND_META,
@@ -150,6 +150,119 @@ function ErrorLine({ message }: { message: string }) {
     <span className="flex items-center gap-1 text-[11px] text-danger">
       <X size={11} />
       {message}
+    </span>
+  );
+}
+
+/**
+ * A Turn's reply can be missing for five different reasons. Each one reads in
+ * place, beside the other model, so a reader never has to guess why a reply is
+ * absent. A stopped Replay is named at the Turn where it stopped and on every
+ * Turn it never reached.
+ */
+function TurnStateLine({
+  response,
+  stoppedAtTurn = null,
+  turnNumber = null,
+  turnCount = null,
+  className,
+}: {
+  response: ComparisonResponseView | null | undefined;
+  stoppedAtTurn?: number | null;
+  turnNumber?: number | null;
+  turnCount?: number | null;
+  className?: string;
+}) {
+  const status = response?.status;
+  const tokens = response?.tokens ?? 0;
+  const error = response?.error ?? null;
+
+  if (status === 'failed') {
+    return (
+      <span
+        className={cn('flex items-center gap-2 text-[12px] font-medium text-danger', className)}
+      >
+        <WarningCircle size={14} />
+        {error ?? 'API timeout'}
+      </span>
+    );
+  }
+  if (status === 'skipped') {
+    if (stoppedAtTurn !== null) {
+      return (
+        <span
+          className={cn(
+            'flex items-start gap-2 text-[12px] leading-[1.5] text-neutral-500',
+            className,
+          )}
+        >
+          <MinusCircle size={14} className="mt-px shrink-0" />
+          {turnNumber === stoppedAtTurn
+            ? `Stopped at turn ${stoppedAtTurn}${turnCount ? ` of ${turnCount}` : ''} — this comparison ends here.`
+            : `Skipped — this Replay stopped at turn ${stoppedAtTurn}.`}
+        </span>
+      );
+    }
+    return (
+      <span
+        className={cn(
+          'flex items-start gap-2 text-[12px] leading-[1.5] text-neutral-500',
+          className,
+        )}
+      >
+        <MinusCircle size={14} className="mt-px shrink-0" />
+        Skipped — this turn has no reply.
+      </span>
+    );
+  }
+  if (status === 'queued') {
+    return (
+      <span
+        className={cn(
+          'flex items-center gap-2 text-[12px] font-medium text-accent-200',
+          className,
+        )}
+      >
+        <CircleNotch size={14} className="anim-spin" />
+        <span aria-live="polite">Queued for this turn.</span>
+      </span>
+    );
+  }
+  if (status === 'calling' || status === 'streaming') {
+    return (
+      <span
+        className={cn(
+          'flex flex-wrap items-center gap-2 text-[12px] font-medium text-accent-200',
+          className,
+        )}
+      >
+        <CircleNotch size={14} className="anim-spin" />
+        <span aria-live="polite">
+          {status === 'streaming' ? 'Generating this turn…' : 'Calling the hosted API…'}
+        </span>
+        {status === 'streaming' && (
+          <span className="text-[11px] font-normal text-neutral-500">
+            {tokens.toLocaleString()} tok so far
+          </span>
+        )}
+      </span>
+    );
+  }
+  return (
+    <span className={cn('text-[12px] text-neutral-500', className)}>
+      No response for this turn.
+    </span>
+  );
+}
+
+/** The Turn an Annotation belongs to, shown beside the annotation's kind. */
+function TurnBadge({ turn }: { turn: { number: number; total: number } }) {
+  return (
+    <span
+      data-annotation-turn
+      className="whitespace-nowrap rounded-[2px] border border-neutral-700 px-1.5 text-[10px] font-medium leading-[18px] text-neutral-300"
+    >
+      Turn {turn.number} of {turn.total}
     </span>
   );
 }
@@ -570,6 +683,7 @@ export function ComparisonView(props: ComparisonPageData) {
   };
 
   const [responseList, setResponseList] = useState(responses);
+  const [activeTurnPosition, setActiveTurnPosition] = useState<number | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [addingModelId, setAddingModelId] = useState<string | null>(null);
@@ -654,6 +768,9 @@ export function ComparisonView(props: ComparisonPageData) {
     error: string | null;
   } | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const transcriptRef = useRef<HTMLDivElement>(null);
+  const stickyRef = useRef<HTMLDivElement>(null);
+  const navLockRef = useRef(0);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
@@ -679,8 +796,108 @@ export function ComparisonView(props: ComparisonPageData) {
         )
         .sort((left, right) => left.turn.position - right.turn.position)[0]?.turn.position ?? null)
     : null;
+  const currentTurnIndex = Math.max(
+    0,
+    turns.findIndex((turn) => turn.position === activeTurnPosition),
+  );
+  const currentTurn = turns[currentTurnIndex] ?? null;
+  const atFirstTurn = currentTurnIndex <= 0;
+  const atLastTurn = currentTurnIndex >= turns.length - 1;
+
+  // The first Turn where each Replay stopped, so a tab can say why it ends
+  // early even before the reader opens that Turn.
+  const stoppedAtBySlug = useMemo(() => {
+    const stopped = new Map<string, number>();
+    for (const response of responseList) {
+      if (response.isBase || response.status !== 'skipped') continue;
+      const earlier = stopped.get(response.model.slug);
+      if (earlier === undefined || response.turn.position < earlier) {
+        stopped.set(response.model.slug, response.turn.position);
+      }
+    }
+    return stopped;
+  }, [responseList]);
+  const goToTurn = useCallback((position: number) => {
+    setActiveTurnPosition(position);
+    const section = transcriptRef.current?.querySelector<HTMLElement>(
+      `[data-turn-section="${position}"]`,
+    );
+    if (!section) return;
+    // Clear the sticky header and the Turn rail rather than hiding the Turn
+    // heading under them.
+    const stickyBottom = stickyRef.current?.getBoundingClientRect().bottom ?? 0;
+    const top = section.getBoundingClientRect().top + window.scrollY - stickyBottom - 12;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    // The scroll below fires the observer; do not let it argue with the Turn
+    // the reader just asked for while the page is still moving.
+    navLockRef.current = Date.now() + 1500;
+    window.scrollTo({ top: Math.max(0, top), behavior: reduce ? 'auto' : 'smooth' });
+  }, []);
+
+  // Keep the rail's "Turn n of m" honest while the reader scrolls the
+  // transcript themselves. The last section above the sticky stack wins.
+  const turnKey = turns.map((turn) => turn.position).join(',');
+  useEffect(() => {
+    if (!multiTurn) return;
+    const pickCurrentTurn = () => {
+      const root = transcriptRef.current;
+      if (!root || turns.length === 0) return;
+      const threshold = (stickyRef.current?.getBoundingClientRect().bottom ?? 0) + 24;
+      let next = turns[0]!.position;
+      for (const turn of turns) {
+        const section = root.querySelector<HTMLElement>(
+          `[data-turn-section="${turn.position}"]`,
+        );
+        if (section && section.getBoundingClientRect().top <= threshold) {
+          next = turn.position;
+        }
+      }
+      setActiveTurnPosition((current) => (current === next ? current : next));
+    };
+
+    let frame = 0;
+    const onScroll = () => {
+      if (Date.now() < navLockRef.current) return;
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        pickCurrentTurn();
+      });
+    };
+    // A finished programmatic scroll releases the observer at once instead of
+    // waiting out the fallback lock.
+    const onScrollEnd = () => {
+      navLockRef.current = 0;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('scrollend', onScrollEnd);
+    window.addEventListener('resize', onScroll);
+    pickCurrentTurn();
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('scrollend', onScrollEnd);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [multiTurn, turnKey]);
+
+  const turnForResponse = useCallback(
+    (responseId: string) => {
+      const response = responseList.find((item) => item.id === responseId);
+      if (!response) return null;
+      const index = turns.findIndex((turn) => turn.position === response.turn.position);
+      return index < 0 ? null : { number: index + 1, total: turns.length };
+    },
+    [responseList, turns],
+  );
   const activeAnnotation = popover?.mode === 'thread'
     ? annotations.find((annotation) => annotation.id === popover.id) ?? null
+    : null;
+  const activeAnnotationTurn = activeAnnotation
+    ? turnForResponse(activeAnnotation.responseId)
+    : null;
+  const newAnnotationTurn = popover?.mode === 'new'
+    ? turnForResponse(popover.responseId)
     : null;
   const annotationPeople = activeAnnotation
     ? new Set(
@@ -1529,7 +1746,10 @@ export function ComparisonView(props: ComparisonPageData) {
           )}
         </div>
 
-        <div className="sticky top-[52px] z-10 flex flex-wrap items-center gap-2 border-b border-neutral-800 bg-bg py-2">
+        <div
+          ref={stickyRef}
+          className="sticky top-[52px] z-10 flex flex-wrap items-center gap-2 border-b border-neutral-800 bg-bg py-2"
+        >
           <button
             type="button"
             aria-pressed={annOn}
@@ -1620,20 +1840,124 @@ export function ComparisonView(props: ComparisonPageData) {
             {copied ? <Check size={14} /> : <LinkSimple size={14} />}
             {copied ? 'Copied' : 'Copy link'}
           </button>
+
+          {multiTurn && (
+            <div
+              data-turn-rail
+              role="group"
+              aria-label="Turn navigation"
+              className="flex w-full flex-wrap items-center gap-2 border-t border-neutral-800 pt-2"
+            >
+              <div className="flex items-center gap-[2px]">
+                <button
+                  type="button"
+                  aria-label="Previous turn"
+                  title="Previous turn"
+                  aria-disabled={atFirstTurn}
+                  onClick={() => {
+                    if (atFirstTurn) return;
+                    const previous = turns[currentTurnIndex - 1];
+                    if (previous) goToTurn(previous.position);
+                  }}
+                  className={cn(
+                    'grid h-6 w-6 place-items-center rounded-[2px] text-neutral-300 transition-colors hover:bg-neutral-700',
+                    atFirstTurn && 'cursor-not-allowed opacity-40 hover:bg-transparent',
+                  )}
+                >
+                  <CaretLeft size={13} />
+                </button>
+                <span
+                  data-turn-indicator
+                  className="min-w-[92px] text-center text-[12px] font-medium text-text"
+                >
+                  Turn {currentTurnIndex + 1} of {turns.length}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Next turn"
+                  title="Next turn"
+                  aria-disabled={atLastTurn}
+                  onClick={() => {
+                    if (atLastTurn) return;
+                    const next = turns[currentTurnIndex + 1];
+                    if (next) goToTurn(next.position);
+                  }}
+                  className={cn(
+                    'grid h-6 w-6 place-items-center rounded-[2px] text-neutral-300 transition-colors hover:bg-neutral-700',
+                    atLastTurn && 'cursor-not-allowed opacity-40 hover:bg-transparent',
+                  )}
+                >
+                  <CaretRight size={13} />
+                </button>
+              </div>
+              <div className="flex-1" />
+              <label className="flex items-center gap-1.5 text-[11px] text-neutral-400">
+                <span>Jump to</span>
+                <select
+                  aria-label="Jump to turn"
+                  value={currentTurn ? String(currentTurn.position) : ''}
+                  onChange={(event) => {
+                    const position = Number(event.target.value);
+                    if (Number.isFinite(position)) goToTurn(position);
+                  }}
+                  className="h-6 rounded-[2px] border border-neutral-700 bg-neutral-800 px-1 text-[11px] text-text"
+                >
+                  {turns.map((turn, index) => (
+                    <option key={turn.position} value={turn.position}>
+                      Turn {index + 1}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
         </div>
 
+        <div
+          ref={gridRef}
+          onMouseUp={captureSelection}
+          onKeyUp={(event) => {
+            // Caret browsing (F7) lets a keyboard user select text; releasing
+            // Shift or an arrow key surfaces the same Annotate affordance.
+            const target = event.target as HTMLElement;
+            if (target.closest('input, textarea, [contenteditable="true"]')) return;
+            if (event.key === 'Shift' || event.shiftKey) captureSelection();
+          }}
+          className="relative"
+        >
         {multiTurn ? (
-          <div className="flex flex-col gap-5" data-conversation-transcript>
+          <div
+            ref={transcriptRef}
+            className="flex min-w-0 flex-col gap-5"
+            data-conversation-transcript
+          >
             <div className="flex min-w-0 flex-wrap items-stretch gap-[2px] overflow-x-auto rounded-[2px] bg-surface p-1.5 [scrollbar-width:none]">
               {challengers.map((response) => {
                 const pending = isPendingResponse(response.status);
                 const failed = response.status === 'failed';
+                const stoppedAtPosition = stoppedAtBySlug.get(response.model.slug);
                 return (
                   <button
                     key={response.model.slug}
                     type="button"
                     data-challenger-tab={response.model.slug}
                     onClick={() => switchTab(response.model.slug)}
+                    aria-label={
+                      stoppedAtPosition !== undefined
+                        ? `${response.model.name} — stopped at turn ${stoppedAtPosition + 1}`
+                        : failed
+                          ? `${response.model.name} — failed: ${response.error ?? 'API timeout'}`
+                          : pending
+                            ? `${response.model.name} — in progress`
+                            : undefined
+                    }
+                    title={
+                      stoppedAtPosition !== undefined
+                        ? `Stopped at turn ${stoppedAtPosition + 1}`
+                        : failed
+                          ? response.error ?? 'API timeout'
+                          : undefined
+                    }
                     className={cn(
                       'flex flex-none items-center gap-[6px] whitespace-nowrap rounded-[2px] px-2.5 py-1.5 text-[12px] font-medium transition-colors',
                       response.model.slug === activeSlug
@@ -1647,6 +1971,9 @@ export function ComparisonView(props: ComparisonPageData) {
                     {response.model.name}
                     {pending && <CircleNotch size={12} className="anim-spin text-accent-300" />}
                     {failed && <WarningCircle size={12} className="text-danger" />}
+                    {stoppedAtPosition !== undefined && !failed && (
+                      <MinusCircle size={12} className="text-neutral-400" />
+                    )}
                   </button>
                 );
               })}
@@ -1669,16 +1996,16 @@ export function ComparisonView(props: ComparisonPageData) {
                       response.turn.position === turn.position,
                   )
                 : null;
-              const stopped = activeStoppedAt === turn.position;
               return (
                 <section
                   key={turn.position}
                   data-turn={turn.position + 1}
-                  className="flex flex-col gap-2.5 rounded-[2px] bg-surface p-3"
+                  data-turn-section={turn.position}
+                  className="flex min-w-0 flex-col gap-2.5 rounded-[2px] bg-surface p-3"
                 >
                   <div className="flex flex-col gap-1">
                     <span className="text-[11px] font-medium uppercase tracking-[0.04em] text-neutral-500">
-                      Turn {turn.position + 1} of {turns.length}
+                      Turn {turn.position + 1}
                     </span>
                     <p className="m-0 whitespace-pre-wrap text-[13px] leading-[1.5]">
                       {turn.prompt}
@@ -1713,7 +2040,7 @@ export function ComparisonView(props: ComparisonPageData) {
                             onOpen={openThread}
                           />
                         ) : (
-                          <span className="text-[12px] text-neutral-500">No base response.</span>
+                          <TurnStateLine response={turnBase} />
                         )}
                       </div>
                     </div>
@@ -1746,10 +2073,7 @@ export function ComparisonView(props: ComparisonPageData) {
                           />
                         ) : turnActive?.status === 'failed' ? (
                           <div className="flex flex-col gap-2">
-                            <span className="flex items-center gap-2 text-[12px] font-medium text-danger">
-                              <WarningCircle size={14} />
-                              {turnActive.error ?? 'API timeout'}
-                            </span>
+                            <TurnStateLine response={turnActive} />
                             {isAuthor && (
                               <div className="flex flex-wrap items-center gap-2">
                                 <button
@@ -1774,24 +2098,15 @@ export function ComparisonView(props: ComparisonPageData) {
                               <ErrorLine message={runError.message} />
                             )}
                           </div>
-                        ) : turnActive?.status === 'skipped' ? (
-                          <span className="flex items-center gap-2 text-[12px] text-neutral-500">
-                            <MinusCircle size={14} />
-                            {stopped
-                              ? `Stopped at turn ${turn.position + 1} — this comparison ends here.`
-                              : 'Skipped.'}
-                          </span>
-                        ) : turnActive && isPendingResponse(turnActive.status) ? (
-                          <span className="flex items-center gap-2 text-[12px] font-medium text-accent-200" aria-live="polite">
-                            <CircleNotch size={14} className="anim-spin" />
-                            {turnActive.status === 'queued'
-                              ? 'Queued for this turn.'
-                              : 'Generating this turn…'}
-                          </span>
                         ) : (
-                          <span className="text-[12px] text-neutral-500">
-                            No response for this turn.
-                          </span>
+                          <TurnStateLine
+                            response={turnActive}
+                            stoppedAtTurn={
+                              activeStoppedAt === null ? null : activeStoppedAt + 1
+                            }
+                            turnNumber={turn.position + 1}
+                            turnCount={turns.length}
+                          />
                         )}
                       </div>
                     </div>
@@ -1802,16 +2117,7 @@ export function ComparisonView(props: ComparisonPageData) {
           </div>
         ) : (
         <div
-          ref={gridRef}
-          onMouseUp={captureSelection}
-          onKeyUp={(event) => {
-            // Caret browsing (F7) lets a keyboard user select text; releasing
-            // Shift or an arrow key surfaces the same Annotate affordance.
-            const target = event.target as HTMLElement;
-            if (target.closest('input, textarea, [contenteditable="true"]')) return;
-            if (event.key === 'Shift' || event.shiftKey) captureSelection();
-          }}
-          className="relative grid items-start gap-3"
+          className="grid items-start gap-3"
           style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(380px, 100%), 1fr))' }}
         >
           {base && base.status === 'done' && (
@@ -2062,6 +2368,9 @@ export function ComparisonView(props: ComparisonPageData) {
             )}
           </section>
 
+        </div>
+        )}
+
           {selection && !popover && (
             <button
               type="button"
@@ -2103,6 +2412,9 @@ export function ComparisonView(props: ComparisonPageData) {
                     <span className="text-[11px] text-neutral-400">
                       {annotationPeople} {annotationPeople === 1 ? 'person' : 'people'}
                     </span>
+                    {multiTurn && activeAnnotationTurn && (
+                      <TurnBadge turn={activeAnnotationTurn} />
+                    )}
                     <div className="flex-1" />
                     {canWrite && activeAnnotation.author.id === currentUserId && (
                       <AnnotationActions
@@ -2246,6 +2558,9 @@ export function ComparisonView(props: ComparisonPageData) {
                 <>
                   <div className="flex items-center gap-1.5 px-3 pt-2.5">
                     <span className="text-[12px] font-medium">New annotation</span>
+                    {multiTurn && newAnnotationTurn && (
+                      <TurnBadge turn={newAnnotationTurn} />
+                    )}
                     <div className="flex-1" />
                     <button
                       type="button"
@@ -2305,7 +2620,6 @@ export function ComparisonView(props: ComparisonPageData) {
             </div>
           )}
         </div>
-        )}
 
         <section className="flex max-w-[860px] flex-col gap-3.5 pt-[18px]">
           <div className="flex flex-wrap items-center gap-2.5">
