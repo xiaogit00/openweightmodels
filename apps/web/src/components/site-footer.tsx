@@ -6,7 +6,7 @@ import Link from 'next/link';
  */
 export function SiteFooter() {
   return (
-    <footer className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-neutral-800 px-5 py-4 text-[10px] tracking-[0.02em] text-neutral-500">
+    <footer className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-neutral-800 px-5 py-4 text-[10.5px] tracking-[0.02em] text-neutral-500">
       <span>OpenWeightModels</span>
       <span aria-hidden>·</span>
       <Link href="/terms" className="text-neutral-400 hover:text-text">

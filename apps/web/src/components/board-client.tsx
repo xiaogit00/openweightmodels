@@ -664,7 +664,7 @@ export function BoardClient({
               aria-label="Search comparisons"
               className="min-w-0 flex-1 border-0 bg-transparent text-[12px] text-text"
             />
-            <span className="rounded-[2px] border border-neutral-700 px-[5px] py-[2px] text-[10px] font-medium text-neutral-500">
+            <span className="rounded-[2px] border border-neutral-700 px-[5px] py-[2px] text-[10.5px] font-medium text-neutral-500">
               /
             </span>
           </label>

@@ -60,7 +60,7 @@ export function ComparisonCardView({
           <span className="monogram monogram-base">{base?.monogram ?? '–'}</span>
           <span className="overflow-hidden text-ellipsis">{base?.name ?? 'Base model'}</span>
         </span>
-        <span className="text-[10px] font-medium text-neutral-500">vs</span>
+        <span className="text-[10.5px] font-medium text-neutral-500">vs</span>
         <span className="chip min-w-0 flex-[0_2_auto]">
           <span className="monogram">{challenger?.monogram ?? '–'}</span>
           <span className="overflow-hidden text-ellipsis">
@@ -83,7 +83,7 @@ export function ComparisonCardView({
         </div>
         <span
           data-card-turn-count
-          className="flex h-[16px] flex-none items-center rounded-[2px] border border-neutral-700 px-[5px] text-[10px] font-medium text-neutral-300"
+          className="flex h-[16px] flex-none items-center rounded-[2px] border border-neutral-700 px-[5px] text-[10.5px] font-medium text-neutral-300"
         >
           {card.turnCount} {card.turnCount === 1 ? 'turn' : 'turns'}
         </span>

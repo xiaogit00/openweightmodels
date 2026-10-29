@@ -1,19 +1,28 @@
 import type { Metadata } from 'next';
-import { JetBrains_Mono, Space_Grotesk } from 'next/font/google';
+import { cookies } from 'next/headers';
+import { Geist, Space_Grotesk, Space_Mono } from 'next/font/google';
 import { SiteFooter } from '@/components/site-footer';
+import { THEME_COOKIE, themeFromCookie } from '@/lib/theme';
 import './globals.css';
 
-const jetbrains = JetBrains_Mono({
+const geist = Geist({
   subsets: ['latin'],
   weight: ['400', '500', '600'],
-  variable: '--font-jetbrains',
+  variable: '--font-geist',
   display: 'swap',
 });
 
-const space = Space_Grotesk({
+const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
-  weight: ['500', '600'],
+  weight: ['500'],
   variable: '--font-space',
+  display: 'swap',
+});
+
+const spaceMono = Space_Mono({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-space-mono',
   display: 'swap',
 });
 
@@ -22,9 +31,16 @@ export const metadata: Metadata = {
   description: 'Community comparisons of open-weight and frontier model outputs.',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const cookiesStore = await cookies();
+  const theme = themeFromCookie(cookiesStore.get(THEME_COOKIE)?.value);
+
   return (
-    <html lang="en" className={`${jetbrains.variable} ${space.variable}`}>
+    <html
+      lang="en"
+      data-theme={theme === 'system' ? undefined : theme}
+      className={`${geist.variable} ${spaceGrotesk.variable} ${spaceMono.variable}`}
+    >
       <body className="flex min-h-screen flex-col">
         <div className="flex flex-1 flex-col">{children}</div>
         <SiteFooter />

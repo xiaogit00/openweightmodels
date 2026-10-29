@@ -42,7 +42,7 @@ function Step({ number, title, children }: { number: number; title: string; chil
     <li className="flex gap-2.5">
       <span
         aria-hidden
-        className="grid h-5 w-5 flex-none place-items-center rounded-[2px] border border-accent-700 text-[10px] font-medium text-accent-200"
+        className="grid h-5 w-5 flex-none place-items-center rounded-[2px] border border-accent-700 text-[10.5px] font-medium text-accent-200"
       >
         {number}
       </span>

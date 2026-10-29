@@ -378,7 +378,7 @@ export function JobSummary({ view }: { view: JobView }) {
 
           <div className="flex flex-col rounded-[2px] bg-surface">
             <div className="flex items-center gap-[10px] border-b border-neutral-800 px-[14px] py-3">
-              <span className="rounded-[2px] border border-accent-700 px-[6px] py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-accent-200">
+              <span className="rounded-[2px] border border-accent-700 px-[6px] py-1 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-accent-200">
                 Base
               </span>
               <span className="text-[12px] font-medium">
@@ -403,11 +403,11 @@ export function JobSummary({ view }: { view: JobView }) {
                   className="flex flex-col gap-[7px] border-b border-neutral-800 px-[14px] py-3 last:border-b-0"
                 >
                   <div className="flex flex-wrap items-center gap-[10px]">
-                    <span className="grid h-[22px] w-[22px] flex-none place-items-center rounded-[2px] bg-neutral-700 text-[10px] font-semibold">
+                    <span className="grid h-[22px] w-[22px] flex-none place-items-center rounded-[2px] bg-neutral-700 text-[10.5px] font-semibold">
                       {replay.monogram}
                     </span>
                     <span className="text-[12px] font-medium">{replay.modelName}</span>
-                    <span className="rounded-[2px] border border-neutral-700 px-[5px] py-[1px] text-[10px] font-medium text-neutral-400">
+                    <span className="rounded-[2px] border border-neutral-700 px-[5px] py-[1px] text-[10.5px] font-medium text-neutral-400">
                       turn {replay.turnNumber} of {replay.turnCount}
                     </span>
                     <div className="flex-1" />

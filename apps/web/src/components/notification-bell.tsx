@@ -106,7 +106,7 @@ export function NotificationBell() {
             <span
               aria-hidden="true"
               data-notification-dot
-              className="absolute -right-0.5 -top-0.5 grid h-[15px] min-w-[15px] place-items-center rounded-[2px] bg-accent px-1 text-[10px] font-semibold leading-none text-bg"
+              className="absolute -right-0.5 -top-0.5 grid h-[15px] min-w-[15px] place-items-center rounded-[2px] bg-accent px-1 text-[10.5px] font-semibold leading-none text-bg"
             >
               {unread > 9 ? '9+' : unread}
             </span>
@@ -186,7 +186,7 @@ export function NotificationBell() {
                           {notification.comparison.title}
                         </span>
                       )}
-                      <span className="text-[10px] text-neutral-500">
+                      <span className="text-[10.5px] text-neutral-500">
                         {relativeTimeAgo(notification.createdAt, now)}
                       </span>
                     </span>

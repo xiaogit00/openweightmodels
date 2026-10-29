@@ -371,7 +371,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
               >
                 <Flag size={12} />
                 {tab.label}
-                <span className="min-w-[16px] rounded-[2px] bg-neutral-800 px-1 text-center text-[10px] text-neutral-300">
+                <span className="min-w-[16px] rounded-[2px] bg-neutral-800 px-1 text-center text-[10.5px] text-neutral-300">
                   {reportCounts[tab.value]}
                 </span>
               </button>
@@ -399,7 +399,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                   className="bg-surface px-3 py-2.5"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-[2px] bg-neutral-800 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-neutral-300">
+                    <span className="rounded-[2px] bg-neutral-800 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-neutral-300">
                       {report.targetType}
                     </span>
                     {href ? (
@@ -640,7 +640,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
             className="overflow-x-auto rounded-[2px] border border-neutral-800"
           >
             <table className="w-full min-w-[720px] border-collapse text-left text-[12px]">
-              <thead className="bg-surface text-[10px] uppercase tracking-[0.08em] text-neutral-500">
+              <thead className="bg-surface text-[10.5px] uppercase tracking-[0.08em] text-neutral-500">
                 <tr>
                   <th className="px-3 py-2 font-medium">Model</th>
                   <th className="px-3 py-2 font-medium">Provider</th>
@@ -654,18 +654,18 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                   <tr key={model.id} className="border-t border-neutral-800">
                     <td className="px-3 py-2">
                       <span className="flex items-center gap-2">
-                        <span className="grid h-5 w-7 place-items-center rounded-[2px] bg-neutral-800 text-[10px] font-semibold text-neutral-200">
+                        <span className="grid h-5 w-7 place-items-center rounded-[2px] bg-neutral-800 text-[10.5px] font-semibold text-neutral-200">
                           {model.monogram}
                         </span>
                         <span className="text-neutral-100">{model.displayName}</span>
-                        <span className="text-[10px] text-neutral-500">{model.slug}</span>
+                        <span className="text-[10.5px] text-neutral-500">{model.slug}</span>
                       </span>
                     </td>
                     <td className="px-3 py-2 text-neutral-400">{model.provider}</td>
                     <td className="px-3 py-2 text-neutral-400">{model.responseCount}</td>
                     <td className="px-3 py-2">
                       <span
-                        className={`inline-flex items-center gap-1 rounded-[2px] px-1.5 py-0.5 text-[10px] font-medium ${
+                        className={`inline-flex items-center gap-1 rounded-[2px] px-1.5 py-0.5 text-[10.5px] font-medium ${
                           model.enabled
                             ? 'bg-accent-900 text-accent-200'
                             : 'bg-neutral-800 text-neutral-400'
@@ -884,7 +884,7 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
             className="overflow-x-auto rounded-[2px] border border-neutral-800"
           >
             <table className="w-full min-w-[720px] border-collapse text-left text-[12px]">
-              <thead className="bg-surface text-[10px] uppercase tracking-[0.08em] text-neutral-500">
+              <thead className="bg-surface text-[10.5px] uppercase tracking-[0.08em] text-neutral-500">
                 <tr>
                   <th className="px-3 py-2 font-medium">When</th>
                   <th className="px-3 py-2 font-medium">Actor</th>

@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Space+Grotesk:wght@500&family=Space+Mono&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>
+:root{color-scheme:dark;--color-bg:#0a0c0b;--color-surface:#121513;--color-text:#e8ebe8;--color-accent:#a3e635;--color-accent-100:#ecfccb;--color-accent-200:#d9f99d;--color-accent-300:#bef264;--color-accent-400:#a3e635;--color-accent-500:#84cc16;--color-accent-600:#65a30d;--color-accent-700:#3f6212;--color-accent-800:#263c0f;--color-accent-900:#17240b;--color-neutral-100:#ececec;--color-neutral-200:#d4d6d4;--color-neutral-300:#a9ada9;--color-neutral-400:#858a86;--color-neutral-500:#646966;--color-neutral-600:#4a4f4c;--color-neutral-700:#2e3330;--color-neutral-800:#1d211f;--color-neutral-900:#141715;--code-bg:#141715;--code-fg:#d4d6d4;--on-accent:#0a0c0b;--r:2px;--r-lg:4px;--r-bubble:10px 10px 2px 10px;--shadow-md:0 0 0 1px #2e3330,0 8px 24px rgba(0,0,0,.5);--shadow-lg:0 0 0 1px #2e3330,0 16px 40px rgba(0,0,0,.6)}
+[data-theme="light"]{color-scheme:light;--color-bg:#ffffff;--color-surface:#f6f7f7;--color-text:#091a23;--color-accent:#dc382c;--color-accent-100:#5c130d;--color-accent-200:#a8241a;--color-accent-300:#c42e22;--color-accent-400:#dc382c;--color-accent-500:#e8574c;--color-accent-600:#f08a82;--color-accent-700:#f6bdb8;--color-accent-800:#fbdcd9;--color-accent-900:#fdeeec;--color-neutral-100:#091a23;--color-neutral-200:#2d3b43;--color-neutral-300:#4e5a61;--color-neutral-400:#6b757b;--color-neutral-500:#8a9297;--color-neutral-600:#b4babd;--color-neutral-700:#d9dddf;--color-neutral-800:#ebedee;--color-neutral-900:#f4f5f5;--code-bg:#091a23;--code-fg:#e6ebee;--on-accent:#ffffff;--r:6px;--r-lg:12px;--r-bubble:18px 18px 4px 18px;--shadow-md:0 0 0 1px #d9dddf,0 8px 24px rgba(9,26,35,.08);--shadow-lg:0 0 0 1px #d9dddf,0 16px 40px rgba(9,26,35,.12)}
+body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:Geist,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:var(--color-accent-300);text-decoration:none}a:hover{color:var(--color-accent-200)}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+input::placeholder,textarea::placeholder{color:var(--color-neutral-400)}
+::selection{background:var(--color-accent-700)}
+@keyframes pop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</helmet>
+<div data-theme="{{ theme }}" style="min-height:100vh;display:flex;flex-direction:column;background:var(--color-bg);color:var(--color-text);font-family:Geist,system-ui,sans-serif;font-size:14.5px;line-height:1.55">
+  <header style="position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:20px;padding:10px 24px;height:53px;background:var(--color-bg);border-bottom:1px solid var(--color-neutral-800)">
+    <a href="Board.dc.html?theme={{ theme }}" style="display:flex;align-items:center;gap:10px;color:var(--color-text);flex-shrink:0">
+      <span style="width:22px;height:22px;border:1.5px solid var(--color-accent);border-radius:var(--r);display:flex;align-items:center;justify-content:center"><span style="width:1.5px;height:10px;background:var(--color-accent)"></span></span>
+      <span style="font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:14px">OpenWeightModels</span>
+    </a>
+    <a href="Board.dc.html?theme={{ theme }}" style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--color-neutral-400)" style-hover="color:var(--color-text)"><i class="ph ph-arrow-left" style="font-size:13px"></i>Board</a>
+    <div style="flex:1"></div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <button type="button" aria-label="Notifications" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:transparent;border:0;border-radius:var(--r);color:var(--color-neutral-300);cursor:pointer" style-hover="background:var(--color-surface);color:var(--color-text)"><i class="ph ph-bell" style="font-size:17px"></i></button>
+      <button type="button" aria-label="MI — account menu for @mira" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:var(--color-neutral-700);border:0;border-radius:var(--r);font-family:'Space Mono',monospace;font-size:11px;color:var(--color-neutral-200);cursor:pointer">MI</button>
+    </div>
+  </header>
+
+  <main style="width:100%;max-width:1200px;margin:0 auto;padding:40px 32px 80px;display:flex;flex-wrap:wrap;gap:40px 48px;align-items:flex-start">
+    <form onSubmit="{{ submit }}" style="flex:999 1 520px;display:flex;flex-direction:column;gap:24px;min-width:0">
+      <div style="display:flex;flex-direction:column;gap:10px;padding-bottom:8px">
+        <h1 style="margin:0;font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:30px;line-height:1.15;letter-spacing:-.02em">New comparison</h1>
+        <span style="font-size:14.5px;line-height:1.6;color:var(--color-neutral-300);max-width:600px;text-wrap:pretty">Upload a conversation or write one prompt, then pick who to compare it against. We'll send every turn to each model's hosted API.</span>
+      </div>
+
+      <section style="display:flex;flex-direction:column;gap:20px;padding:24px;background:var(--color-bg);border:1px solid var(--color-neutral-700);border-radius:var(--r-lg)">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <span style="width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:var(--r);background:{{ step1.bg }};color:{{ step1.fg }};font-size:12.5px;font-weight:600"><i class="ph ph-check" style="font-size:13px;display:{{ step1.check }}"></i><span style="display:{{ step1.num }}">1</span></span>
+          <span style="font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:18px;white-space:nowrap">Base output</span>
+          <div style="flex:1"></div>
+          <div role="group" aria-label="Base source" style="display:flex;gap:2px;padding:3px;background:var(--color-surface);border:1px solid var(--color-neutral-800);border-radius:var(--r-lg)">
+            <sc-for list="{{ modes }}" as="m" hint-placeholder-count="2">
+              <button type="button" aria-pressed="{{ m.on }}" onClick="{{ m.pick }}" style="display:flex;align-items:center;gap:6px;height:30px;padding:0 12px;border:0;border-radius:var(--r);background:{{ m.bg }};color:{{ m.fg }};font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="color:var(--color-text)"><i class="{{ m.icon }}" style="font-size:14px"></i>{{ m.n }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <input ref="{{ fileRef }}" type="file" accept=".md,.markdown,.txt" aria-label="Base output file" onChange="{{ onFile }}" style="display:none">
+
+        <sc-if value="{{ showDrop }}" hint-placeholder-val="{{ true }}">
+          <button type="button" onClick="{{ browse }}" onDragOver="{{ onDragOver }}" onDragLeave="{{ onDragLeave }}" onDrop="{{ onDrop }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:40px 24px;border:1.5px dashed {{ dropBd }};border-radius:var(--r-lg);background:{{ dropBg }};cursor:pointer;text-align:center" style-hover="border-color:var(--color-accent-600)">
+            <i class="ph ph-upload-simple" style="font-size:26px;color:var(--color-neutral-300)"></i>
+            <span style="font-size:15px;font-weight:500;color:var(--color-text)">Drop a .md file, or <span style="color:var(--color-accent-300)">browse</span></span>
+            <span style="font-size:13px;color:var(--color-neutral-400);max-width:420px">AI Exporter, front-matter <code style="font-family:'Space Mono',monospace;font-size:12px;color:var(--color-neutral-200)">prompt:</code> and plain markdown are read automatically</span>
+          </button>
+          <section aria-labelledby="how-to-get-this-file" style="display:flex;flex-direction:column;gap:14px;padding:20px 22px;background:var(--color-surface);border-radius:var(--r-lg)">
+            <div style="display:flex;align-items:center;gap:8px"><i class="ph ph-info" style="font-size:16px;color:var(--color-neutral-300)"></i><h2 id="how-to-get-this-file" style="margin:0;font-size:14.5px;font-weight:500">How to get this file</h2></div>
+            <ol style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px">
+              <li style="display:flex;gap:12px;font-size:14px;line-height:1.6;color:var(--color-neutral-200)"><span style="flex-shrink:0;width:20px;height:20px;margin-top:2px;display:flex;align-items:center;justify-content:center;border-radius:var(--r);background:var(--color-neutral-800);font-size:11.5px;color:var(--color-neutral-300)">1</span><span>Install <a href="https://chromewebstore.google.com/detail/ai-exporter-save-chatgpt/kagjkiiecagemklhmhkabbalfpbianbe" target="_blank" rel="noreferrer">AI Exporter from the Chrome Web Store <i class="ph ph-arrow-up-right" style="font-size:11px"></i></a> in Chrome, Edge or another Chromium browser.</span></li>
+              <li style="display:flex;gap:12px;font-size:14px;line-height:1.6;color:var(--color-neutral-200)"><span style="flex-shrink:0;width:20px;height:20px;margin-top:2px;display:flex;align-items:center;justify-content:center;border-radius:var(--r);background:var(--color-neutral-800);font-size:11.5px;color:var(--color-neutral-300)">2</span><span>Open the chat you want to compare, click the AI Exporter button and save the conversation as Markdown.</span></li>
+              <li style="display:flex;gap:12px;font-size:14px;line-height:1.6;color:var(--color-neutral-200)"><span style="flex-shrink:0;width:20px;height:20px;margin-top:2px;display:flex;align-items:center;justify-content:center;border-radius:var(--r);background:var(--color-neutral-800);font-size:11.5px;color:var(--color-neutral-300)">3</span><span>Upload the <code style="font-family:'Space Mono',monospace;font-size:12px">.md</code> file here, then check every turn before scheduling.</span></li>
+            </ol>
+            <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;font-size:13.5px">
+              <button type="button" onClick="{{ useSample }}" style="display:flex;align-items:center;gap:6px;padding:0;border:0;background:none;color:var(--color-accent-300);font-size:13.5px;cursor:pointer" style-hover="color:var(--color-accent-200)"><i class="ph ph-download-simple" style="font-size:14px"></i>Download a sample export</button>
+              <a href="#" style="color:var(--color-neutral-300)" style-hover="color:var(--color-text)">Read the export guide</a>
+            </div>
+          </section>
+        </sc-if>
+
+        <sc-if value="{{ showFile }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--color-surface);border:1px solid var(--color-neutral-800);border-radius:var(--r-lg)">
+            <span style="width:36px;height:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:var(--r);background:var(--color-accent-900);color:var(--color-accent-200)"><i class="ph ph-file-text" style="font-size:18px"></i></span>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:14.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ file.name }}</span><span style="font-size:12.5px;color:var(--color-neutral-400)">{{ file.meta }}</span></div>
+            <button type="button" onClick="{{ browse }}" style="height:32px;padding:0 12px;border:1px solid var(--color-neutral-700);border-radius:var(--r);background:transparent;color:var(--color-text);font-size:13px;font-weight:500;cursor:pointer" style-hover="background:var(--color-accent-900);border-color:var(--color-accent-700)">Replace</button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showBaseFields }}" hint-placeholder-val="{{ false }}">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px">
+            <div style="position:relative;display:flex;flex-direction:column;gap:8px">
+              <span style="font-size:13px;font-weight:500;color:var(--color-neutral-200)">{{ pickerLabel }}</span>
+              <button type="button" onClick="{{ togglePicker }}" aria-haspopup="listbox" aria-expanded="{{ pickerOpen }}" style="display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;border:1px solid {{ pickerBd }};border-radius:var(--r);background:var(--color-bg);color:{{ pickerFg }};font-size:14px;cursor:pointer;text-align:left" style-hover="border-color:var(--color-neutral-500)">
+                <span style="width:20px;height:20px;flex-shrink:0;display:{{ gbMonoDisplay }};align-items:center;justify-content:center;border-radius:var(--r);background:var(--color-accent-800);font-family:'Space Mono',monospace;font-size:9px;color:var(--color-accent-100)">{{ gb.mono }}</span>
+                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ gb.label }}</span><i class="ph ph-caret-down" style="font-size:13px;color:var(--color-neutral-400)"></i>
+              </button>
+              <sc-if value="{{ pickerOpen }}" hint-placeholder-val="{{ false }}">
+                <div role="listbox" style="position:absolute;top:72px;left:0;right:0;z-index:10;max-height:340px;overflow-y:auto;padding:6px;border-radius:var(--r-lg);background:var(--color-bg);border:1px solid var(--color-neutral-700);box-shadow:var(--shadow-lg);animation:pop .15s ease-out">
+                  <sc-for list="{{ gbGroups }}" as="g" hint-placeholder-count="4">
+                    <div style="font-size:10.5px;font-weight:500;letter-spacing:.08em;color:var(--color-neutral-400);padding:10px 8px 4px">{{ g.label }}</div>
+                    <sc-for list="{{ g.opts }}" as="o" hint-placeholder-count="3">
+                      <button type="button" role="option" aria-selected="{{ o.on }}" onClick="{{ o.pick }}" style="display:flex;align-items:center;gap:10px;width:100%;height:34px;padding:0 8px;border:0;border-radius:var(--r);background:{{ o.bg }};color:var(--color-text);font-size:13.5px;cursor:pointer;text-align:left" style-hover="background:var(--color-neutral-800)"><span style="flex:1">{{ o.name }}</span><i class="ph ph-check" style="font-size:14px;color:var(--color-accent-300);display:{{ o.check }}"></i></button>
+                    </sc-for>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+            <sc-if value="{{ isUpload }}" hint-placeholder-val="{{ true }}">
+              <label style="display:flex;flex-direction:column;gap:8px">
+                <span style="font-size:13px;font-weight:500;color:var(--color-neutral-200)">Prompt <span style="font-weight:400;color:var(--color-neutral-400)">· from front-matter</span></span>
+                <textarea rows="2" maxlength="10000" value="{{ prompt }}" onChange="{{ onPrompt }}" style="resize:vertical;min-height:40px;padding:9px 12px;border:1px solid var(--color-neutral-700);border-radius:var(--r);background:var(--color-bg);color:var(--color-text);font-size:14px;line-height:1.5;outline:0"></textarea>
+              </label>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isWrite }}" hint-placeholder-val="{{ false }}">
+          <label style="display:flex;flex-direction:column;gap:8px">
+            <span style="display:flex;justify-content:space-between;font-size:13px;font-weight:500;color:var(--color-neutral-200)">Prompt<span style="font-weight:400;color:var(--color-neutral-400)">{{ promptCount }}</span></span>
+            <textarea rows="5" maxlength="10000" value="{{ prompt }}" onChange="{{ onPrompt }}" placeholder="Write the prompt every model will answer…" style="resize:vertical;padding:12px 14px;border:1px solid var(--color-neutral-700);border-radius:var(--r);background:var(--color-bg);color:var(--color-text);font-size:14.5px;line-height:1.6;outline:0"></textarea>
+          </label>
+        </sc-if>
+
+        <sc-if value="{{ showTurns }}" hint-placeholder-val="{{ false }}">
+          <section aria-label="{{ turnsAria }}" style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><span style="font-size:13px;font-weight:500;color:var(--color-neutral-200)">Check every turn before scheduling</span><span style="font-size:12.5px;color:var(--color-neutral-400)">{{ turnCountLabel }}</span></div>
+            <ol style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px">
+              <sc-for list="{{ turns }}" as="t" hint-placeholder-count="1">
+                <li style="display:flex;flex-direction:column;gap:14px;padding:18px 20px;border:1px solid var(--color-neutral-800);border-radius:var(--r-lg);background:var(--color-surface)">
+                  <div style="display:flex;align-items:center;gap:8px"><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:var(--color-neutral-400)">TURN {{ t.n }}</span></div>
+                  <p style="margin:0;align-self:flex-end;max-width:85%;padding:10px 14px;background:var(--color-neutral-800);border-radius:var(--r-bubble);font-size:14px;line-height:1.55">{{ t.you }}</p>
+                  <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12.5px;font-weight:500;color:var(--color-neutral-400)">Reply</span><p style="margin:0;font-size:14px;line-height:1.65;color:var(--color-neutral-200);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">{{ t.reply }}</p></div>
+                </li>
+              </sc-for>
+            </ol>
+          </section>
+        </sc-if>
+
+        <sc-if value="{{ showEstimate }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:4px;padding-top:4px;font-size:13px;color:var(--color-neutral-400)">
+            <p style="margin:0;color:var(--color-neutral-300)">{{ estimate }}</p>
+            <p style="margin:0">Limits: Up to 6 turns · 0.5 MB file · 100,000 characters</p>
+          </div>
+        </sc-if>
+      </section>
+
+      <section style="display:flex;flex-direction:column;gap:20px;padding:24px;background:var(--color-bg);border:1px solid var(--color-neutral-700);border-radius:var(--r-lg)">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:var(--r);background:{{ step2.bg }};color:{{ step2.fg }};font-size:12.5px;font-weight:600"><i class="ph ph-check" style="font-size:13px;display:{{ step2.check }}"></i><span style="display:{{ step2.num }}">2</span></span>
+          <span style="font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:18px;white-space:nowrap">Compare against</span>
+          <div style="flex:1"></div>
+          <span style="font-size:13px;color:var(--color-neutral-400)">{{ selCount }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <label style="flex:1 1 260px;display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;border:1px solid var(--color-neutral-700);border-radius:var(--r);background:var(--color-bg);color:var(--color-neutral-400);cursor:text">
+            <i class="ph ph-magnifying-glass" style="font-size:15px"></i>
+            <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Search models</span>
+            <input value="{{ q }}" onChange="{{ onQ }}" placeholder="Search by name, family or slug…" style="flex:1;min-width:0;border:0;background:transparent;outline:0;color:var(--color-text);font-size:14px">
+          </label>
+          <div role="group" aria-label="Filter by weights" style="display:flex;gap:2px;padding:3px;background:var(--color-surface);border:1px solid var(--color-neutral-800);border-radius:var(--r-lg)">
+            <sc-for list="{{ weights }}" as="w" hint-placeholder-count="3">
+              <button type="button" aria-pressed="{{ w.on }}" onClick="{{ w.pick }}" style="height:30px;padding:0 12px;border:0;border-radius:var(--r);background:{{ w.bg }};color:{{ w.fg }};font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="color:var(--color-text)">{{ w.n }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <sc-if value="{{ hasSel }}" hint-placeholder-val="{{ false }}">
+          <div data-selected-models="true" style="display:flex;flex-direction:column;gap:10px">
+            <span style="font-size:10.5px;font-weight:500;letter-spacing:.08em;color:var(--color-neutral-400)">SELECTED</span>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              <sc-for list="{{ selChips }}" as="s" hint-placeholder-count="3">
+                <button type="button" aria-pressed="true" title="Remove {{ s.name }}" onClick="{{ s.remove }}" style="display:flex;align-items:center;gap:8px;height:32px;padding:0 8px 0 6px;border:1px solid var(--color-accent-700);border-radius:var(--r);background:var(--color-accent-900);color:var(--color-text);font-size:13px;font-weight:500;cursor:pointer" style-hover="border-color:var(--color-accent-500)"><span style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:var(--r);background:var(--color-accent-800);font-family:'Space Mono',monospace;font-size:9px;color:var(--color-accent-100)">{{ s.mono }}</span>{{ s.name }}<i class="ph ph-x" style="font-size:12px;color:var(--color-neutral-400)"></i></button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+        <sc-for list="{{ sections }}" as="sec" hint-placeholder-count="2">
+          <div data-model-section="{{ sec.key }}" style="display:flex;flex-direction:column;gap:10px">
+            <h3 style="margin:0;font-size:10.5px;font-weight:500;letter-spacing:.08em;color:var(--color-neutral-400)">{{ sec.label }}</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px">
+              <sc-for list="{{ sec.models }}" as="m" hint-placeholder-count="6">
+                <button type="button" aria-pressed="{{ m.on }}" data-model-weight="{{ m.w }}" onClick="{{ m.toggle }}" disabled="{{ m.disabled }}" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:10px 12px;border:1px solid {{ m.bd }};border-radius:var(--r);background:{{ m.bg }};color:var(--color-text);cursor:{{ m.cur }};opacity:{{ m.op }};text-align:left" style-hover="border-color:var(--color-neutral-500)">
+                  <span style="width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:var(--r);background:{{ m.monoBg }};font-family:'Space Mono',monospace;font-size:10px;color:{{ m.monoFg }}">{{ m.mono }}</span>
+                  <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ m.name }}</span><span style="font-size:12px;color:var(--color-neutral-400)">{{ m.sub }}</span></span>
+                  <span style="width:18px;height:18px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:50%;border:1px solid {{ m.ringBd }};background:{{ m.ringBg }};color:var(--on-accent)"><i class="ph ph-check" style="font-size:11px;display:{{ m.check }}"></i></span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ noMatch }}" hint-placeholder-val="{{ false }}"><div style="padding:20px 0;font-size:14px;color:var(--color-neutral-400)">No models match “{{ q }}”.</div></sc-if>
+        <button type="button" aria-expanded="{{ showPrev }}" onClick="{{ togglePrev }}" style="align-self:flex-start;display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;margin-left:-10px;border:0;border-radius:var(--r);background:transparent;color:var(--color-neutral-300);font-size:13px;font-weight:500;cursor:pointer" style-hover="background:var(--color-surface);color:var(--color-text)">{{ prevLabel }}<i class="{{ prevIcon }}" style="font-size:12px"></i></button>
+      </section>
+
+      <section style="display:flex;flex-direction:column;gap:22px;padding:24px;background:var(--color-bg);border:1px solid var(--color-neutral-700);border-radius:var(--r-lg)">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:var(--r);background:{{ step3.bg }};color:{{ step3.fg }};font-size:12.5px;font-weight:600"><i class="ph ph-check" style="font-size:13px;display:{{ step3.check }}"></i><span style="display:{{ step3.num }}">3</span></span>
+          <span style="font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:18px;white-space:nowrap">Details</span>
+        </div>
+        <label style="display:flex;flex-direction:column;gap:8px">
+          <span style="display:flex;justify-content:space-between;font-size:13px;font-weight:500;color:var(--color-neutral-200)">Title<span style="font-weight:400;color:var(--color-neutral-400)">{{ titleCount }}</span></span>
+          <input value="{{ title }}" onChange="{{ onTitle }}" placeholder="What's being compared?" maxlength="200" style="height:42px;padding:0 14px;border:1px solid var(--color-neutral-700);border-radius:var(--r);background:var(--color-bg);color:var(--color-text);font-size:14.5px;outline:0">
+        </label>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <span style="font-size:13px;font-weight:500;color:var(--color-neutral-200)">Categories</span>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <sc-for list="{{ catOpts }}" as="c" hint-placeholder-count="6">
+              <button type="button" aria-pressed="{{ c.on }}" onClick="{{ c.toggle }}" style="height:32px;padding:0 14px;border:1px solid {{ c.bd }};border-radius:var(--r);background:{{ c.bg }};color:{{ c.fg }};font-size:13px;font-weight:500;cursor:pointer" style-hover="border-color:var(--color-accent-600)">{{ c.n }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <span style="font-size:13px;font-weight:500;color:var(--color-neutral-200)">Effort level</span>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+            <sc-for list="{{ effOpts }}" as="e" hint-placeholder-count="3">
+              <button type="button" aria-pressed="{{ e.on }}" onClick="{{ e.pick }}" style="display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:12px 14px;border:1px solid {{ e.bd }};border-radius:var(--r);background:{{ e.bg }};color:var(--color-text);cursor:pointer;text-align:left" style-hover="border-color:var(--color-accent-600)">
+                <span style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500"><span style="display:inline-flex;align-items:flex-end;gap:2px;height:10px"><span style="width:3px;height:4px;border-radius:1px;background:var(--color-accent)"></span><span style="width:3px;height:7px;border-radius:1px;background:{{ e.b2 }}"></span><span style="width:3px;height:10px;border-radius:1px;background:{{ e.b3 }}"></span></span>{{ e.n }}</span>
+                <span style="font-size:12.5px;color:var(--color-neutral-400)">{{ e.d }}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </section>
+
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-top:4px">
+        <button type="submit" disabled="{{ cantSubmit }}" style="display:flex;align-items:center;gap:8px;height:42px;padding:0 20px;border:0;border-radius:var(--r);background:{{ submitBg }};color:{{ submitFg }};font-size:14px;font-weight:500;cursor:{{ submitCur }}"><i class="{{ submitIcon }}" style="font-size:15px;animation:{{ submitAnim }}"></i>{{ submitLabel }}</button>
+        <span style="font-size:13px;color:var(--color-neutral-400)">{{ submitHint }}</span>
+      </div>
+    </form>
+
+    <aside style="flex:1 1 280px;max-width:360px;position:sticky;top:93px;display:flex;flex-direction:column;gap:12px">
+      <span style="font-size:10.5px;font-weight:500;letter-spacing:.08em;color:var(--color-neutral-400)">ON THE BOARD</span>
+      <div style="display:flex;flex-direction:column;gap:18px;padding:20px 20px 18px;background:var(--color-surface);border:1px solid var(--color-neutral-800);border-radius:var(--r-lg)">
+        <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--color-neutral-300)">
+          <span style="display:inline-flex;align-items:center;height:22px;padding:0 8px;background:var(--color-neutral-800);color:{{ pv.catFg }};border-radius:var(--r);white-space:nowrap">{{ pv.cat }}</span>
+          <span title="Effort" style="display:inline-flex;align-items:flex-end;gap:2px;height:10px"><span style="width:3px;height:4px;border-radius:1px;background:var(--color-accent)"></span><span style="width:3px;height:7px;border-radius:1px;background:{{ pv.b2 }}"></span><span style="width:3px;height:10px;border-radius:1px;background:{{ pv.b3 }}"></span></span>
+          <span style="white-space:nowrap">{{ pv.effort }} effort</span>
+          <span style="flex:1"></span>
+          <span style="white-space:nowrap">{{ pv.turns }}</span>
+        </div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:17px;line-height:1.35;letter-spacing:-.01em;color:{{ pv.titleFg }};display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{ pv.title }}</div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--color-neutral-200);min-width:0">
+              <span style="width:20px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--color-accent-800);color:var(--color-accent-100);border-radius:var(--r);font-family:'Space Mono',monospace;font-size:9.5px">{{ pv.bi }}</span>
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ pv.base }}</span>
+              <span style="flex-shrink:0;font-size:9px;font-weight:600;letter-spacing:.08em;color:var(--color-accent-200);border:1px solid var(--color-accent-700);border-radius:var(--r);padding:0 5px;line-height:16px">BASE</span>
+            </div>
+            <div style="font-size:13.5px;line-height:1.6;color:var(--color-neutral-300);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{ pv.bt }}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--color-neutral-200);min-width:0">
+              <span style="width:20px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--color-neutral-700);color:var(--color-neutral-200);border-radius:var(--r);font-family:'Space Mono',monospace;font-size:9.5px">{{ pv.ci }}</span>
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ pv.chal }}</span>
+              <sc-if value="{{ pv.hasExtra }}" hint-placeholder-val="{{ false }}"><span style="flex-shrink:0;white-space:nowrap;font-size:12px;color:var(--color-neutral-400)">{{ pv.extra }}</span></sc-if>
+            </div>
+            <div style="font-size:13.5px;line-height:1.6;color:var(--color-neutral-400);font-style:italic">Generated after scheduling</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding-top:14px;border-top:1px solid var(--color-neutral-800);font-size:12.5px;color:var(--color-neutral-300)">
+          <span style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;background:var(--color-neutral-700);border-radius:var(--r);font-family:'Space Mono',monospace;font-size:9.5px;color:var(--color-neutral-200)">MI</span>
+          <span style="color:var(--color-neutral-200)">@mira</span><span>·</span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:6px;background:var(--color-neutral-500)"></span>Draft</span>
+        </div>
+      </div>
+      <span style="font-size:13px;color:var(--color-neutral-400)">Live preview of the card other people will see.</span>
+    </aside>
+  </main>
+
+  <footer style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:24px;border-top:1px solid var(--color-neutral-800);font-size:12px;color:var(--color-neutral-400)">
+    <div style="display:flex;align-items:center;gap:16px"><span>OpenWeightModels</span><a href="#" style="color:var(--color-neutral-300)">Terms</a><a href="#" style="color:var(--color-neutral-300)">Privacy</a></div>
+    <span>Community comparisons of open-weight and frontier model outputs.</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark'|'light'&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;initialState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;filled&quot;,&quot;empty&quot;],&quot;default&quot;:&quot;filled&quot;,&quot;tsType&quot;:&quot;'filled'|'empty'&quot;,&quot;section&quot;:&quot;State&quot;}}">
+const QS = new URLSearchParams(location.search);
+const M = (id, mono, name, w, eta, prev) => ({ id, mono, name, w, eta, prev: !!prev });
+const MODELS = [
+  M('ds41', 'D5', 'DeepSeek V4.1 Flash 1017', 'open', 6), M('gemma4', 'G4', 'Gemma 4 31B', 'open', 6), M('glm53', 'Z5', 'GLM 5.3', 'open', 9),
+  M('oss', 'GO', 'gpt-oss-120b', 'open', 8), M('kimi3', 'K3', 'Kimi K3', 'open', 20), M('llama4', 'L4', 'Llama 4 Maverick', 'open', 12),
+  M('mm3', 'X3', 'MiniMax M3', 'open', 9), M('mistral4', 'M4', 'Mistral Large 4', 'open', 10), M('nemo35', 'N4', 'Nemotron 3.5 Lightning', 'open', 5),
+  M('phi4', 'P4', 'Phi 4', 'open', 4), M('qwen38', 'Q8', 'Qwen3.8 27B', 'open', 6),
+  M('opus55', 'C6', 'Claude Opus 5.5', 'frontier', 24), M('cmdap', 'CA', 'Command A+', 'frontier', 8), M('gem4', 'GM', 'Gemini 4 Argon', 'frontier', 16),
+  M('gpt61', 'O6', 'GPT-6.1 Sol', 'frontier', 20), M('grok47', 'X7', 'Grok 4.7', 'frontier', 14),
+  M('ds40', 'D4', 'DeepSeek V4 Flash 0731', 'open', 7, 1), M('gemma3', 'G3', 'Gemma 3 27B', 'open', 6, 1), M('glm52', 'Z4', 'GLM 5.2', 'open', 9, 1),
+  M('kimi26', 'K2', 'Kimi K2.6', 'open', 18, 1), M('llama33', 'L3', 'Llama 3.3 70B', 'open', 8, 1), M('mm27', 'X2', 'MiniMax M2.7', 'open', 9, 1),
+  M('mistral3', 'M3', 'Mistral Large 3', 'open', 10, 1), M('nemo3', 'N3', 'Nemotron 3 Ultra', 'open', 14, 1), M('qwen36', 'Q6', 'Qwen3.6 27B', 'open', 6, 1),
+  M('opus5', 'C5', 'Claude Opus 5', 'frontier', 22, 1), M('cmda', 'CM', 'Command A', 'frontier', 8, 1), M('gem38', 'G8', 'Gemini 3.8 Flash', 'frontier', 9, 1),
+  M('gpt6', 'O5', 'GPT-6 Sol', 'frontier', 18, 1), M('grok46', 'X6', 'Grok 4.6', 'frontier', 13, 1),
+];
+const BY = Object.fromEntries(MODELS.map(m => [m.id, m]));
+const MAX = 4;
+const CATS = ['Coding', 'Reasoning', 'Creative', 'Math', 'Long-context', 'Language'];
+const EFF = [['Low', 'Quick prompt'], ['Med', 'Multi-step'], ['High', 'Hard / long']];
+const SAMPLE = {
+  name: 'rate-limiter-go.md', size: 0.8, lines: 35,
+  prompt: 'Write a thread-safe sliding-window rate limiter in Go.',
+  reply: 'Here\'s a sliding-window rate limiter that tracks request timestamps per key. It\'s safe for concurrent use and evicts old entries lazily on each call. type Limiter struct { mu sync.Mutex window time.Duration limit int hits map[string][]time.Time } func (l Limiter) Allow(key string) bool {…',
+};
+const GROUPS = [['OPEN WEIGHTS · CURRENT', 'open', false], ['OPEN WEIGHTS · PREVIOUS', 'open', true], ['FRONTIER API · CURRENT', 'frontier', false], ['FRONTIER API · PREVIOUS', 'frontier', true]];
+
+function parseFile(name, text, bytes) {
+  const lines = text.split(/\r?\n/);
+  let prompt = '';
+  const fm = text.match(/^---[\s\S]*?\nprompt:\s*(.+)\n[\s\S]*?---/);
+  if (fm) prompt = fm[1].replace(/^["']|["']$/g, '').trim();
+  const body = text.replace(/^---[\s\S]*?---\s*/, '');
+  const parts = body.split(/^#{1,3}\s*(?:user|you|prompt)\b.*$/gim).map(s => s.trim()).filter(Boolean);
+  const turns = (parts.length ? parts : [body]).slice(0, 6).map((p, i) => {
+    const [first, ...rest] = p.split(/^#{1,3}\s*(?:assistant|reply|response|model)\b.*$/gim);
+    const you = i === 0 && prompt ? prompt : (first || '').trim().split('\n')[0].slice(0, 300);
+    return { you: you || 'Untitled prompt', reply: (rest.join(' ') || first || '').replace(/\s+/g, ' ').trim().slice(0, 320) };
+  });
+  if (!prompt) prompt = turns[0].you;
+  return { name, size: Math.max(0.1, bytes / 1024).toFixed(1), lines: lines.length, prompt, turns };
+}
+
+class Component extends DCLogic {
+  fileRef = React.createRef();
+  state = this.init(QS.get('state') ?? this.props.initialState ?? 'filled');
+
+  init(kind) {
+    if (kind === 'empty') return { kind, mode: 'upload', file: null, gb: null, prompt: '', sel: [], q: '', weight: 'all', showPrev: false, title: '', cats: [], effort: 1, pickerOpen: false, drag: false, submitting: false, titleTouched: false };
+    return { kind, mode: 'upload', file: { name: SAMPLE.name, size: SAMPLE.size, lines: SAMPLE.lines, turns: [{ you: SAMPLE.prompt, reply: SAMPLE.reply }] }, gb: 'llama33', prompt: SAMPLE.prompt,
+      sel: ['qwen38', 'ds41', 'mistral4'], q: '', weight: 'all', showPrev: false, title: SAMPLE.prompt, cats: ['Coding'], effort: 2, pickerOpen: false, drag: false, submitting: false, titleTouched: true };
+  }
+  theme() { return this._tw ? (this.props.theme ?? 'dark') : (QS.get('theme') ?? this.props.theme ?? 'dark'); }
+  componentDidMount() { document.documentElement.setAttribute('data-theme', this.theme()); }
+  componentDidUpdate(pp) {
+    if (pp.theme !== this.props.theme && !this._tw) { this._tw = true; this.forceUpdate(); }
+    document.documentElement.setAttribute('data-theme', this.theme());
+    if (pp.initialState !== this.props.initialState && this.props.initialState) this.setState(this.init(this.props.initialState));
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+
+  readFile(f) {
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      const p = parseFile(f.name, String(r.result || ''), f.size);
+      this.setState(st => ({ file: p, prompt: p.prompt, title: st.titleTouched ? st.title : p.prompt.slice(0, 200), drag: false }));
+    };
+    r.readAsText(f);
+  }
+  toggleModel(id) {
+    this.setState(st => st.sel.includes(id) ? { sel: st.sel.filter(x => x !== id) } : st.sel.length >= MAX ? null : { sel: [...st.sel, id] });
+  }
+
+  renderVals() {
+    const st = this.state, theme = this.theme();
+    const isUpload = st.mode === 'upload', isWrite = !isUpload;
+    const hasFile = isUpload && !!st.file;
+    const turns = hasFile ? st.file.turns : [];
+    const nTurns = isUpload ? turns.length : 1;
+    const promptOk = st.prompt.trim().length > 0;
+    const baseOk = isUpload ? (hasFile && !!st.gb && promptOk) : (promptOk && !!st.gb);
+    const modelsOk = st.sel.length > 0;
+    const detailsOk = st.title.trim().length > 0 && st.cats.length > 0;
+    const step = (ok) => ok ? { bg: 'var(--color-accent-800)', fg: 'var(--color-accent-100)', check: 'inline-block', num: 'none' } : { bg: 'var(--color-neutral-800)', fg: 'var(--color-neutral-300)', check: 'none', num: 'inline' };
+    const segOn = on => on ? { bg: 'var(--color-neutral-700)', fg: 'var(--color-text)' } : { bg: 'transparent', fg: 'var(--color-neutral-400)' };
+
+    const ql = st.q.trim().toLowerCase();
+    const visible = MODELS.filter(m => (st.weight === 'all' || m.w === st.weight) && (!m.prev || st.showPrev) && (!ql || (m.name + ' ' + m.id + ' ' + m.w).toLowerCase().includes(ql)));
+    const full = st.sel.length >= MAX;
+    const card = m => {
+      const on = st.sel.includes(m.id), disabled = !on && full;
+      return { ...m, on, disabled, sub: (m.w === 'open' ? 'Open weights' : 'Frontier API') + ' · ~' + m.eta + 's',
+        bd: on ? 'var(--color-accent-600)' : 'var(--color-neutral-700)', bg: on ? 'var(--color-accent-900)' : 'transparent',
+        monoBg: on ? 'var(--color-accent-800)' : 'var(--color-neutral-800)', monoFg: on ? 'var(--color-accent-100)' : 'var(--color-neutral-200)',
+        ringBd: on ? 'var(--color-accent)' : 'var(--color-neutral-600)', ringBg: on ? 'var(--color-accent)' : 'transparent', check: on ? 'inline-block' : 'none',
+        op: disabled ? 0.45 : 1, cur: disabled ? 'not-allowed' : 'pointer', toggle: () => this.toggleModel(m.id) };
+    };
+    const sections = [['open-weights', 'OPEN WEIGHTS', 'open', false], ['frontier-api', 'FRONTIER API', 'frontier', false], ['open-weights-previous', 'OPEN WEIGHTS · PREVIOUS RELEASES', 'open', true], ['frontier-api-previous', 'FRONTIER API · PREVIOUS RELEASES', 'frontier', true]]
+      .map(([key, label, w, prev]) => ({ key, label, models: visible.filter(m => m.w === w && m.prev === prev).map(card) })).filter(s => s.models.length);
+    const prevCount = MODELS.filter(m => m.prev).length;
+
+    const gbM = st.gb && BY[st.gb];
+    const calls = nTurns * st.sel.length;
+    const tokens = Math.max(1, Math.round(st.prompt.length / 4));
+    const maxEta = st.sel.length ? Math.max(...st.sel.map(id => BY[id].eta)) : 0;
+    let hint;
+    if (!baseOk) hint = isUpload ? (!hasFile ? 'Upload a base output to continue' : !st.gb ? 'Select which model generated the base output' : 'Add the prompt to continue') : (!promptOk ? 'Write a prompt to continue' : 'Pick a base model to continue');
+    else if (!modelsOk) hint = 'Pick at least one model to compare against';
+    else hint = (isWrite ? calls + 1 : calls) + ' hosted API call' + ((isWrite ? calls + 1 : calls) === 1 ? '' : 's') + ' · ~' + maxEta + 's';
+    const can = baseOk && modelsOk && !st.submitting;
+
+    const first = st.sel[0] && BY[st.sel[0]];
+    const pv = {
+      cat: st.cats[0] || 'Category', catFg: st.cats[0] ? 'var(--color-neutral-200)' : 'var(--color-neutral-400)',
+      effort: EFF[st.effort][0], b2: st.effort >= 1 ? 'var(--color-accent)' : 'var(--color-neutral-700)', b3: st.effort >= 2 ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+      turns: nTurns + (nTurns === 1 ? ' turn' : ' turns'),
+      title: st.title.trim() || 'Your title appears here', titleFg: st.title.trim() ? 'var(--color-text)' : 'var(--color-neutral-400)',
+      bi: gbM ? gbM.mono : '–', base: gbM ? gbM.name : 'Base model',
+      bt: hasFile ? turns[0].reply : isWrite && promptOk ? 'Generated after scheduling' : 'Base output preview',
+      ci: first ? first.mono : '–', chal: first ? first.name : 'Compare to…',
+      hasExtra: st.sel.length > 1, extra: '+' + (st.sel.length - 1) + ' more',
+    };
+
+    return {
+      theme, isUpload, isWrite,
+      step1: step(baseOk), step2: step(modelsOk), step3: step(detailsOk),
+      modes: [['upload', 'Upload a conversation', 'ph ph-upload-simple'], ['write', 'Write a prompt', 'ph ph-pencil-simple']].map(([k, n, icon]) => ({ n, icon, on: st.mode === k, ...segOn(st.mode === k), pick: () => this.setState({ mode: k, pickerOpen: false }) })),
+      fileRef: this.fileRef, browse: () => this.fileRef.current?.click(),
+      onFile: e => { this.readFile(e.target.files && e.target.files[0]); e.target.value = ''; },
+      onDragOver: e => { e.preventDefault(); if (!st.drag) this.setState({ drag: true }); },
+      onDragLeave: () => this.setState({ drag: false }),
+      onDrop: e => { e.preventDefault(); this.readFile(e.dataTransfer.files && e.dataTransfer.files[0]); },
+      dropBd: st.drag ? 'var(--color-accent)' : 'var(--color-neutral-600)', dropBg: st.drag ? 'var(--color-accent-900)' : 'var(--color-surface)',
+      useSample: () => this.setState(s => ({ file: { name: SAMPLE.name, size: SAMPLE.size, lines: SAMPLE.lines, turns: [{ you: SAMPLE.prompt, reply: SAMPLE.reply }] }, prompt: SAMPLE.prompt, title: s.titleTouched ? s.title : SAMPLE.prompt })),
+      showDrop: isUpload && !hasFile, showFile: hasFile, showBaseFields: hasFile || isWrite,
+      file: hasFile ? { name: st.file.name, meta: st.file.size + ' KB · ' + st.file.lines + ' lines · ' + turns.length + (turns.length === 1 ? ' turn' : ' turns') } : { name: '', meta: '' },
+      pickerLabel: isUpload ? 'Generated by' : 'Base model',
+      pickerOpen: st.pickerOpen, togglePicker: () => this.setState({ pickerOpen: !st.pickerOpen }),
+      pickerBd: st.pickerOpen ? 'var(--color-accent)' : 'var(--color-neutral-700)', pickerFg: gbM ? 'var(--color-text)' : 'var(--color-neutral-400)',
+      gb: { mono: gbM ? gbM.mono : '', label: gbM ? gbM.name + (gbM.prev ? ' (previous)' : '') : 'Select model…' }, gbMonoDisplay: gbM ? 'flex' : 'none',
+      gbGroups: GROUPS.map(([label, w, prev]) => ({ label, opts: MODELS.filter(m => m.w === w && m.prev === prev).map(m => ({ name: m.name + (prev ? ' (previous)' : ''), on: st.gb === m.id,
+        bg: st.gb === m.id ? 'var(--color-neutral-800)' : 'transparent', check: st.gb === m.id ? 'inline-block' : 'none', pick: () => this.setState({ gb: m.id, pickerOpen: false }) })) })),
+      prompt: st.prompt, onPrompt: e => { const v = e.target.value; this.setState(s => ({ prompt: v, title: s.titleTouched ? s.title : v.slice(0, 200) })); },
+      promptCount: st.prompt.length.toLocaleString() + ' / 10,000',
+      showTurns: hasFile, turns: turns.map((t, i) => ({ ...t, n: i + 1 })), turnsAria: 'Imported ' + turns.length + (turns.length === 1 ? ' turn' : ' turns'),
+      turnCountLabel: turns.length + (turns.length === 1 ? ' turn' : ' turns'),
+      showEstimate: (hasFile || (isWrite && promptOk)) && st.sel.length > 0,
+      estimate: nTurns + (nTurns === 1 ? ' turn' : ' turns') + ' × ' + st.sel.length + (st.sel.length === 1 ? ' model' : ' models') + ' = ' + calls + (calls === 1 ? ' call' : ' calls') + ' · ~' + tokens + ' input tokens per model',
+      selCount: st.sel.length + ' of ' + MAX + ' selected',
+      q: st.q, onQ: e => this.setState({ q: e.target.value }),
+      weights: [['all', 'All'], ['open', 'Open weights'], ['frontier', 'Frontier API']].map(([k, n]) => ({ n, on: st.weight === k, ...segOn(st.weight === k), pick: () => this.setState({ weight: k }) })),
+      hasSel: st.sel.length > 0, selChips: st.sel.map(id => ({ ...BY[id], remove: () => this.toggleModel(id) })),
+      sections, noMatch: sections.length === 0,
+      showPrev: st.showPrev, togglePrev: () => this.setState({ showPrev: !st.showPrev }),
+      prevLabel: st.showPrev ? 'Hide previous releases' : 'Show previous releases (' + prevCount + ')', prevIcon: st.showPrev ? 'ph ph-caret-up' : 'ph ph-caret-down',
+      title: st.title, onTitle: e => this.setState({ title: e.target.value, titleTouched: true }), titleCount: st.title.length + ' / 200',
+      catOpts: CATS.map(n => { const on = st.cats.includes(n); return { n, on, bd: on ? 'var(--color-accent-600)' : 'var(--color-neutral-700)', bg: on ? 'var(--color-accent-900)' : 'transparent', fg: on ? 'var(--color-accent-200)' : 'var(--color-neutral-300)',
+        toggle: () => this.setState(s => ({ cats: on ? s.cats.filter(x => x !== n) : [...s.cats, n] })) }; }),
+      effOpts: EFF.map(([n, d], i) => { const on = st.effort === i; return { n, d, on, bd: on ? 'var(--color-accent-600)' : 'var(--color-neutral-700)', bg: on ? 'var(--color-accent-900)' : 'transparent',
+        b2: i >= 1 ? 'var(--color-accent)' : 'var(--color-neutral-700)', b3: i >= 2 ? 'var(--color-accent)' : 'var(--color-neutral-700)', pick: () => this.setState({ effort: i }) }; }),
+      cantSubmit: !can,
+      submitBg: can || st.submitting ? 'var(--color-accent)' : 'var(--color-neutral-800)', submitFg: can || st.submitting ? 'var(--on-accent)' : 'var(--color-neutral-400)',
+      submitCur: can ? 'pointer' : 'not-allowed',
+      submitIcon: st.submitting ? 'ph ph-circle-notch' : 'ph ph-paper-plane-tilt', submitAnim: st.submitting ? 'spin 1s linear infinite' : 'none',
+      submitLabel: st.submitting ? 'Scheduling…' : 'Schedule comparison', submitHint: hint,
+      submit: e => { e.preventDefault(); if (!can) return; this.setState({ submitting: true }); this._t = setTimeout(() => { location.href = 'Comparison.dc.html?theme=' + theme; }, 1100); },
+      pv,
+    };
+  }
+}
+</script>
+</body>
+</html>

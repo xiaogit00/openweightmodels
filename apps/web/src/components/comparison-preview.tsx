@@ -54,7 +54,7 @@ export function ComparisonPreview({
             <span className="monogram monogram-base">{base?.monogram ?? '–'}</span>
             <span className="overflow-hidden text-ellipsis">{base?.name ?? 'Base model'}</span>
           </span>
-          <span className="text-[10px] font-medium text-neutral-500">vs</span>
+          <span className="text-[10.5px] font-medium text-neutral-500">vs</span>
           <span className="chip min-w-0 flex-[0_2_auto]">
             <span className="monogram">{first?.monogram ?? '–'}</span>
             <span className="overflow-hidden text-ellipsis">

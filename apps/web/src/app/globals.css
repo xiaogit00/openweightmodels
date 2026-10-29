@@ -1,11 +1,20 @@
 @import "tailwindcss";
 
-@theme {
+/*
+ * Theme tokens. Dark is the default on :root. An explicit light or dark choice
+ * arrives as data-theme on <html>; with no choice (or "system") the
+ * prefers-color-scheme query supplies the light values, so first paint is
+ * already correct without an inline script. Values are ported from
+ * design_handoff_redesign/tokens.css; see also
+ * docs/adr/0011-theme-tokens-drive-geometry-and-colour.md.
+ */
+:root {
+  color-scheme: dark;
+
   --color-bg: #0a0c0b;
   --color-surface: #121513;
   --color-text: #e8ebe8;
   --color-accent: #a3e635;
-  --color-danger: #f87171;
 
   --color-accent-100: #ecfccb;
   --color-accent-200: #d9f99d;
@@ -21,20 +30,171 @@
   --color-neutral-200: #d4d6d4;
   --color-neutral-300: #a9ada9;
   --color-neutral-400: #858a86;
-  /* Lifted from #646966 so 10px muted text clears WCAG AA on bg, surface,
-     neutral-800 and accent-900. See apps/web/test/contrast.test.ts. */
-  --color-neutral-500: #8b908c;
+  /* The handoff's #646966 fails 4.5:1 on accent-900. Lifted to the darkest
+     value that clears it while staying below neutral-400, so the ramp keeps
+     its direction. See apps/web/test/contrast.test.ts. */
+  --color-neutral-500: #848985;
   --color-neutral-600: #4a4f4c;
   --color-neutral-700: #2e3330;
   --color-neutral-800: #1d211f;
   --color-neutral-900: #141715;
 
-  --font-body: var(--font-jetbrains), ui-monospace, Menlo, monospace;
-  --font-heading: var(--font-space), system-ui, sans-serif;
+  /* Errors must not borrow the accent, so danger is its own semantic pair. */
+  --color-danger: #f87171;
+  --color-danger-surface: #2b1412;
 
-  --radius-xs: 2px;
+  --code-bg: #141715;
+  --code-fg: #d4d6d4;
+  --on-accent: #0a0c0b;
+
+  /* Geometry is per-theme on purpose: sharp dark, softer light. ADR 0011. */
+  --r: 2px;
+  --r-lg: 4px;
+  --r-bubble: 10px 10px 2px 10px;
   --shadow-md: 0 0 0 1px #2e3330, 0 8px 24px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 0 0 1px #2e3330, 0 16px 40px rgba(0, 0, 0, 0.6);
+}
+
+/* System preference, but only while the visitor has not made a choice. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+
+    --color-bg: #ffffff;
+    --color-surface: #f6f7f7;
+    --color-text: #091a23;
+    --color-accent: #dc382c;
+
+    --color-accent-100: #5c130d;
+    --color-accent-200: #a8241a;
+    --color-accent-300: #c42e22;
+    --color-accent-400: #dc382c;
+    --color-accent-500: #e8574c;
+    --color-accent-600: #f08a82;
+    --color-accent-700: #f6bdb8;
+    --color-accent-800: #fbdcd9;
+    --color-accent-900: #fdeeec;
+
+    --color-neutral-100: #091a23;
+    --color-neutral-200: #2d3b43;
+    --color-neutral-300: #4e5a61;
+    /* Darkened from #6b757b / #8a9297 so muted text clears WCAG AA on bg,
+       surface, neutral-800 and accent-900. See contrast.test.ts. */
+    --color-neutral-400: #5e676c;
+    --color-neutral-500: #636c71;
+    --color-neutral-600: #b4babd;
+    --color-neutral-700: #d9dddf;
+    --color-neutral-800: #ebedee;
+    --color-neutral-900: #f4f5f5;
+
+    --color-danger: #b42318;
+    --color-danger-surface: #fdecea;
+
+    --code-bg: #091a23;
+    --code-fg: #e6ebee;
+    --on-accent: #ffffff;
+
+    --r: 6px;
+    --r-lg: 12px;
+    --r-bubble: 18px 18px 4px 18px;
+    --shadow-md: 0 0 0 1px #d9dddf, 0 8px 24px rgba(9, 26, 35, 0.08);
+    --shadow-lg: 0 0 0 1px #d9dddf, 0 16px 40px rgba(9, 26, 35, 0.12);
+  }
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --color-bg: #ffffff;
+  --color-surface: #f6f7f7;
+  --color-text: #091a23;
+  --color-accent: #dc382c;
+
+  --color-accent-100: #5c130d;
+  --color-accent-200: #a8241a;
+  --color-accent-300: #c42e22;
+  --color-accent-400: #dc382c;
+  --color-accent-500: #e8574c;
+  --color-accent-600: #f08a82;
+  --color-accent-700: #f6bdb8;
+  --color-accent-800: #fbdcd9;
+  --color-accent-900: #fdeeec;
+
+  --color-neutral-100: #091a23;
+  --color-neutral-200: #2d3b43;
+  --color-neutral-300: #4e5a61;
+  --color-neutral-400: #5e676c;
+  --color-neutral-500: #636c71;
+  --color-neutral-600: #b4babd;
+  --color-neutral-700: #d9dddf;
+  --color-neutral-800: #ebedee;
+  --color-neutral-900: #f4f5f5;
+
+  --color-danger: #b42318;
+  --color-danger-surface: #fdecea;
+
+  --code-bg: #091a23;
+  --code-fg: #e6ebee;
+  --on-accent: #ffffff;
+
+  --r: 6px;
+  --r-lg: 12px;
+  --r-bubble: 18px 18px 4px 18px;
+  --shadow-md: 0 0 0 1px #d9dddf, 0 8px 24px rgba(9, 26, 35, 0.08);
+  --shadow-lg: 0 0 0 1px #d9dddf, 0 16px 40px rgba(9, 26, 35, 0.12);
+}
+
+/*
+ * Map the theme-scoped custom properties into Tailwind. `inline` keeps the
+ * utilities pointing at var(--color-*), so a theme switch changes them without
+ * regenerating CSS.
+ */
+@theme inline {
+  --color-bg: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-text: var(--color-text);
+  --color-accent: var(--color-accent);
+
+  --color-accent-100: var(--color-accent-100);
+  --color-accent-200: var(--color-accent-200);
+  --color-accent-300: var(--color-accent-300);
+  --color-accent-400: var(--color-accent-400);
+  --color-accent-500: var(--color-accent-500);
+  --color-accent-600: var(--color-accent-600);
+  --color-accent-700: var(--color-accent-700);
+  --color-accent-800: var(--color-accent-800);
+  --color-accent-900: var(--color-accent-900);
+
+  --color-neutral-100: var(--color-neutral-100);
+  --color-neutral-200: var(--color-neutral-200);
+  --color-neutral-300: var(--color-neutral-300);
+  --color-neutral-400: var(--color-neutral-400);
+  --color-neutral-500: var(--color-neutral-500);
+  --color-neutral-600: var(--color-neutral-600);
+  --color-neutral-700: var(--color-neutral-700);
+  --color-neutral-800: var(--color-neutral-800);
+  --color-neutral-900: var(--color-neutral-900);
+
+  --color-danger: var(--color-danger);
+  --color-danger-surface: var(--color-danger-surface);
+  --color-code-bg: var(--code-bg);
+  --color-code-fg: var(--code-fg);
+  --color-on-accent: var(--on-accent);
+
+  --font-body: var(--font-geist), system-ui, sans-serif;
+  --font-heading: var(--font-space), system-ui, sans-serif;
+  --font-mono: var(--font-space-mono), ui-monospace, Menlo, monospace;
+
+  --radius-xs: var(--r);
+  --radius-sm: var(--r);
+  --radius-md: var(--r);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-lg);
+  --radius-2xl: var(--r-lg);
+  --radius-bubble: var(--r-bubble);
+
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
 }
 
 @layer base {
@@ -53,8 +213,19 @@
 
   body {
     font-family: var(--font-body);
-    font-size: 12px;
+    font-size: 14.5px;
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading);
+    font-weight: 500;
   }
 
   a {
@@ -77,11 +248,15 @@
 
   input::placeholder,
   textarea::placeholder {
-    color: var(--color-neutral-500);
+    color: var(--color-neutral-400);
   }
 
-  button {
-    font-family: inherit;
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+    color: inherit;
   }
 
   ::-webkit-scrollbar {
@@ -95,7 +270,7 @@
 
   ::-webkit-scrollbar-thumb {
     background: var(--color-neutral-700);
-    border-radius: 2px;
+    border-radius: var(--r);
   }
 }
 
@@ -325,9 +500,10 @@
   }
 
   .micro-label {
-    font: 500 10px var(--font-body);
-    letter-spacing: 0.06em;
-    color: var(--color-neutral-500);
+    font: 500 10.5px/1.4 var(--font-body);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-neutral-400);
   }
 
   .card {
@@ -377,9 +553,9 @@
     flex: none;
     width: 16px;
     height: 16px;
-    border-radius: 2px;
+    border-radius: var(--r);
     background: var(--color-neutral-700);
-    font: 600 10px var(--font-body);
+    font: 600 10px var(--font-mono);
     color: var(--color-neutral-100);
   }
 
@@ -391,10 +567,10 @@
   .code-block {
     margin: 0;
     padding: 12px;
-    border-radius: 2px;
-    background: var(--color-bg);
-    color: var(--color-neutral-200);
-    font: 400 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+    border-radius: var(--r);
+    background: var(--code-bg);
+    color: var(--code-fg);
+    font: 400 12px/1.65 var(--font-mono);
     white-space: pre;
     overflow-x: auto;
   }

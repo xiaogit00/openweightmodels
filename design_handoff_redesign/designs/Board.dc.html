@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Space+Grotesk:wght@500&family=Space+Mono&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>
+:root{color-scheme:dark;--color-bg:#0a0c0b;--color-surface:#121513;--color-text:#e8ebe8;--color-accent:#a3e635;--color-accent-100:#ecfccb;--color-accent-200:#d9f99d;--color-accent-300:#bef264;--color-accent-400:#a3e635;--color-accent-500:#84cc16;--color-accent-600:#65a30d;--color-accent-700:#3f6212;--color-accent-800:#263c0f;--color-accent-900:#17240b;--color-neutral-100:#ececec;--color-neutral-200:#d4d6d4;--color-neutral-300:#a9ada9;--color-neutral-400:#858a86;--color-neutral-500:#646966;--color-neutral-600:#4a4f4c;--color-neutral-700:#2e3330;--color-neutral-800:#1d211f;--color-neutral-900:#141715;--code-bg:#141715;--code-fg:#d4d6d4;--on-accent:#0a0c0b;--r:2px;--r-lg:4px;--r-bubble:10px 10px 2px 10px;--shadow-md:0 0 0 1px #2e3330,0 8px 24px rgba(0,0,0,.5);--shadow-lg:0 0 0 1px #2e3330,0 16px 40px rgba(0,0,0,.6)}
+[data-theme="light"]{color-scheme:light;--color-bg:#ffffff;--color-surface:#f6f7f7;--color-text:#091a23;--color-accent:#dc382c;--color-accent-100:#5c130d;--color-accent-200:#a8241a;--color-accent-300:#c42e22;--color-accent-400:#dc382c;--color-accent-500:#e8574c;--color-accent-600:#f08a82;--color-accent-700:#f6bdb8;--color-accent-800:#fbdcd9;--color-accent-900:#fdeeec;--color-neutral-100:#091a23;--color-neutral-200:#2d3b43;--color-neutral-300:#4e5a61;--color-neutral-400:#6b757b;--color-neutral-500:#8a9297;--color-neutral-600:#b4babd;--color-neutral-700:#d9dddf;--color-neutral-800:#ebedee;--color-neutral-900:#f4f5f5;--code-bg:#091a23;--code-fg:#e6ebee;--on-accent:#ffffff;--r:6px;--r-lg:12px;--r-bubble:18px 18px 4px 18px;--shadow-md:0 0 0 1px #d9dddf,0 8px 24px rgba(9,26,35,.08);--shadow-lg:0 0 0 1px #d9dddf,0 16px 40px rgba(9,26,35,.12)}
+body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:Geist,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:var(--color-accent-300);text-decoration:none}a:hover{color:var(--color-accent-200)}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+input::placeholder,textarea::placeholder{color:var(--color-neutral-400)}
+::selection{background:var(--color-accent-700)}
+@keyframes owmTick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes owmPulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes pop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes shimmer{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</helmet>
+<div data-theme="{{ theme }}" style="min-height:100vh;display:flex;flex-direction:column;background:var(--color-bg);color:var(--color-text);font-family:Geist,system-ui,sans-serif;font-size:14.5px;line-height:1.55">
+  <header style="position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:24px;padding:10px 24px;min-height:53px;background:var(--color-bg);border-bottom:1px solid var(--color-neutral-800)">
+    <a href="Board.dc.html?theme={{ theme }}" style="display:flex;align-items:center;gap:10px;color:var(--color-text);flex-shrink:0">
+      <span style="width:22px;height:22px;border:1.5px solid var(--color-accent);border-radius:var(--r);display:flex;align-items:center;justify-content:center"><span style="width:1.5px;height:10px;background:var(--color-accent)"></span></span>
+      <span style="font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:14px">OpenWeightModels</span>
+    </a>
+    <label style="flex:1;min-width:120px;max-width:440px;display:flex;align-items:center;gap:10px;height:34px;padding:0 10px 0 12px;background:var(--color-surface);border:1px solid var(--color-neutral-800);border-radius:var(--r);color:var(--color-neutral-400);cursor:text">
+      <i class="ph ph-magnifying-glass" style="font-size:15px"></i>
+      <input ref="{{ searchRef }}" value="{{ q }}" onChange="{{ onSearch }}" placeholder="Search prompts or models" aria-label="Search comparisons" style="flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--color-text);font:inherit;font-size:13px">
+      <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--color-neutral-300);border:1px solid var(--color-neutral-700);border-radius:var(--r);padding:0 6px;line-height:18px">/</span>
+    </label>
+    <div style="flex:1"></div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <a href="New%20Comparison.dc.html?theme={{ theme }}" style="display:flex;align-items:center;gap:8px;height:32px;padding:0 14px;background:var(--color-accent);color:var(--on-accent);border-radius:var(--r);font-size:13px;font-weight:500;white-space:nowrap;flex-shrink:0" style-hover="background:var(--color-accent-300);color:var(--on-accent)"><i class="ph ph-plus" style="font-size:14px"></i>New comparison</a>
+      <button type="button" aria-label="Notifications" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:transparent;border:0;border-radius:var(--r);color:var(--color-neutral-300);cursor:pointer" style-hover="background:var(--color-surface);color:var(--color-text)"><i class="ph ph-bell" style="font-size:17px"></i></button>
+      <button type="button" aria-label="MI — account menu for @mira" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:var(--color-neutral-700);border:0;border-radius:var(--r);font-family:'Space Mono',monospace;font-size:11px;color:var(--color-neutral-200);cursor:pointer">MI</button>
+    </div>
+  </header>
+
+  <sc-if value="{{ showTicker }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;align-items:center;gap:16px;height:38px;padding:0 24px;border-bottom:1px solid var(--color-neutral-800);font-size:12px;color:var(--color-neutral-300);overflow:hidden">
+      <span style="display:flex;align-items:center;gap:8px;flex-shrink:0;color:var(--color-accent-300);font-weight:500;letter-spacing:.08em;font-size:11px">{{ pulseDot }}LIVE</span>
+      <div style="flex:1;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 24px,#000 calc(100% - 48px),transparent);mask-image:linear-gradient(90deg,transparent,#000 24px,#000 calc(100% - 48px),transparent)">{{ ticker }}</div>
+    </div>
+  </sc-if>
+
+  <div style="flex:1;display:grid;grid-template-columns:clamp(200px,22vw,248px) minmax(0,1fr);width:100%;max-width:1440px;margin:0 auto">
+    <aside aria-label="Board filters" style="position:sticky;top:91px;align-self:start;max-height:calc(100vh - 91px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--color-neutral-700) transparent;padding:36px 16px 40px 24px;display:flex;flex-direction:column;gap:32px">
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <span style="font-size:11px;font-weight:500;letter-spacing:.08em;color:var(--color-neutral-400);padding:0 10px 8px">CATEGORIES</span>
+        <sc-for list="{{ catItems }}" as="c" hint-placeholder-count="7">
+          <button type="button" aria-pressed="{{ c.active }}" onClick="{{ c.onClick }}" style="display:flex;align-items:center;justify-content:space-between;height:34px;padding:0 10px;border:0;border-radius:var(--r);background:{{ c.bg }};color:{{ c.color }};font-size:13.5px;text-align:left;cursor:pointer" style-hover="background:var(--color-surface);color:var(--color-text)">
+            <span>{{ c.name }}</span><span style="font-size:12px;color:{{ c.countColor }}">{{ c.count }}</span>
+          </button>
+        </sc-for>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0 10px 8px">
+          <span style="font-size:11px;font-weight:500;letter-spacing:.08em;color:var(--color-neutral-400)">MODELS</span>
+          <sc-if value="{{ hasModelSel }}" hint-placeholder-val="{{ false }}">
+            <button type="button" onClick="{{ clearModels }}" style="background:transparent;border:0;padding:0;font-size:12px;color:var(--color-neutral-300);cursor:pointer" style-hover="color:var(--color-text)">Clear</button>
+          </sc-if>
+        </div>
+        <sc-for list="{{ modelItems }}" as="m" hint-placeholder-count="8">
+          <button type="button" aria-pressed="{{ m.checked }}" onClick="{{ m.onClick }}" style="display:flex;align-items:center;gap:10px;min-height:32px;padding:4px 10px;border:0;border-radius:var(--r);background:transparent;color:{{ m.color }};font-size:13.5px;text-align:left;cursor:pointer" style-hover="background:var(--color-surface);color:var(--color-text)">
+            <span style="width:15px;height:15px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border:1px solid {{ m.boxBorder }};border-radius:var(--r);background:{{ m.boxBg }};color:var(--on-accent);font-size:11px"><i class="ph ph-check" style="opacity:{{ m.checkOpacity }}"></i></span>
+            <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ m.name }}</span>
+            <span style="font-size:12px;color:var(--color-neutral-400)">{{ m.count }}</span>
+          </button>
+        </sc-for>
+        <button type="button" onClick="{{ toggleAllModels }}" style="display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;margin-top:4px;border:0;border-radius:var(--r);background:transparent;color:var(--color-neutral-300);font-size:13px;cursor:pointer" style-hover="background:var(--color-surface);color:var(--color-text)">
+          <i class="{{ modelsToggleIcon }}" style="font-size:13px"></i>{{ modelsToggleLabel }}
+        </button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <span style="font-size:11px;font-weight:500;letter-spacing:.08em;color:var(--color-neutral-400);padding:0 10px">EFFORT</span>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:0 10px">
+          <sc-for list="{{ effortItems }}" as="e" hint-placeholder-count="3">
+            <button type="button" aria-pressed="{{ e.active }}" onClick="{{ e.onClick }}" style="display:flex;align-items:center;justify-content:center;gap:6px;height:32px;border:1px solid {{ e.border }};border-radius:var(--r);background:{{ e.bg }};color:{{ e.color }};font-size:13px;cursor:pointer" style-hover="border-color:var(--color-accent-700)">{{ e.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+    </aside>
+
+    <main aria-busy="false" style="min-width:0;padding:36px 32px 72px;display:flex;flex-direction:column;gap:24px">
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px 24px">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <h1 style="margin:0;font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:30px;line-height:1.15;letter-spacing:-.02em">Board</h1>
+          <span aria-live="polite" style="font-size:13px;color:var(--color-neutral-300)">{{ countLabel }}</span>
+        </div>
+        <div role="tablist" aria-label="Sort" style="display:flex;gap:2px;padding:3px;background:var(--color-surface);border:1px solid var(--color-neutral-800);border-radius:var(--r-lg)">
+          <sc-for list="{{ sortItems }}" as="s" hint-placeholder-count="3">
+            <button type="button" aria-pressed="{{ s.active }}" onClick="{{ s.onClick }}" style="display:flex;align-items:center;gap:7px;height:30px;padding:0 14px;border:0;border-radius:var(--r);background:{{ s.bg }};color:{{ s.color }};font-size:13px;cursor:pointer" style-hover="color:var(--color-text)"><i class="{{ s.icon }}" style="font-size:14px"></i>{{ s.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <sc-if value="{{ hasChips }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+          <sc-for list="{{ chips }}" as="ch" hint-placeholder-count="1">
+            <button type="button" onClick="{{ ch.onRemove }}" style="display:flex;align-items:center;gap:6px;height:26px;padding:0 8px 0 10px;border:1px solid var(--color-neutral-700);border-radius:var(--r);background:transparent;color:var(--color-neutral-200);font-size:12.5px;cursor:pointer" style-hover="border-color:var(--color-accent-700);background:var(--color-accent-900)">{{ ch.label }}<i class="ph ph-x" style="font-size:11px;color:var(--color-neutral-400)"></i></button>
+          </sc-for>
+          <button type="button" onClick="{{ clearAll }}" style="height:26px;padding:0 6px;border:0;background:transparent;color:var(--color-neutral-300);font-size:12.5px;cursor:pointer" style-hover="color:var(--color-text)">Clear all</button>
+        </div>
+      </sc-if>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr));gap:16px;align-items:stretch">
+        <sc-for list="{{ cards }}" as="k" hint-placeholder-count="6">
+          <a href="{{ k.href }}" style="display:flex;flex-direction:column;gap:18px;padding:20px 20px 18px;background:var(--color-surface);border:1px solid var(--color-neutral-800);border-radius:var(--r-lg);color:var(--color-text);min-width:0" style-hover="border-color:var(--color-neutral-700);background:var(--color-neutral-900);color:var(--color-text)">
+            <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--color-neutral-300)">
+              <span style="display:inline-flex;align-items:center;height:22px;padding:0 8px;background:var(--color-neutral-800);color:var(--color-neutral-200);border-radius:var(--r)">{{ k.cat }}</span>
+              <span title="Effort" style="display:inline-flex;align-items:flex-end;gap:2px;height:10px">
+                <span style="width:3px;height:4px;border-radius:1px;background:{{ k.b1 }}"></span><span style="width:3px;height:7px;border-radius:1px;background:{{ k.b2 }}"></span><span style="width:3px;height:10px;border-radius:1px;background:{{ k.b3 }}"></span>
+              </span>
+              <span style="white-space:nowrap">{{ k.effort }} effort</span>
+              <span style="flex:1"></span>
+              <span data-card-turn-count="true" style="white-space:nowrap">{{ k.turns }}</span>
+            </div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:17px;line-height:1.35;letter-spacing:-.01em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-wrap:pretty">{{ k.prompt }}</div>
+            <sc-if value="{{ stacked }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:14px;flex:1">
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--color-neutral-200);min-width:0">
+                    <span style="width:20px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--color-accent-800);color:var(--color-accent-100);border-radius:var(--r);font-family:'Space Mono',monospace;font-size:9.5px">{{ k.bi }}</span>
+                    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ k.base }}</span>
+                    <span style="flex-shrink:0;font-size:9px;font-weight:600;letter-spacing:.08em;color:var(--color-accent-200);border:1px solid var(--color-accent-700);border-radius:var(--r);padding:0 5px;line-height:16px">BASE</span>
+                  </div>
+                  <div style="font-size:13.5px;line-height:1.6;color:var(--color-neutral-300);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{ k.bt }}</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--color-neutral-200);min-width:0">
+                    <span style="width:20px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--color-neutral-700);color:var(--color-neutral-200);border-radius:var(--r);font-family:'Space Mono',monospace;font-size:9.5px">{{ k.ci }}</span>
+                    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ k.chal }}</span>
+                    <sc-if value="{{ k.hasExtra }}" hint-placeholder-val="{{ false }}"><span style="flex-shrink:0;white-space:nowrap;font-size:12px;color:var(--color-neutral-400)">{{ k.extraLabel }}</span></sc-if>
+                  </div>
+                  <div style="font-size:13.5px;line-height:1.6;color:var(--color-neutral-300);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{ k.ct }}</div>
+                </div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ sideBySide }}" hint-placeholder-val="{{ false }}">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1">
+                <div style="display:flex;flex-direction:column;gap:8px;padding:12px;background:var(--color-bg);border-radius:var(--r-lg);min-width:0">
+                  <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-neutral-200);min-width:0">
+                    <span style="width:18px;height:18px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--color-accent-800);color:var(--color-accent-100);border-radius:var(--r);font-family:'Space Mono',monospace;font-size:9px">{{ k.bi }}</span>
+                    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ k.base }}</span>
+                  </div>
+                  <div style="font-size:13px;line-height:1.6;color:var(--color-neutral-300);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">{{ k.bt }}</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:8px;padding:12px;background:var(--color-bg);border-radius:var(--r-lg);min-width:0">
+                  <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-neutral-200);min-width:0">
+                    <span style="width:18px;height:18px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--color-neutral-700);color:var(--color-neutral-200);border-radius:var(--r);font-family:'Space Mono',monospace;font-size:9px">{{ k.ci }}</span>
+                    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ k.chal }}</span>
+                    <sc-if value="{{ k.hasExtra }}" hint-placeholder-val="{{ false }}"><span style="flex-shrink:0;white-space:nowrap;color:var(--color-neutral-400)">{{ k.extraLabel }}</span></sc-if>
+                  </div>
+                  <div style="font-size:13px;line-height:1.6;color:var(--color-neutral-300);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">{{ k.ct }}</div>
+                </div>
+              </div>
+            </sc-if>
+            <div style="display:flex;align-items:center;gap:8px;padding-top:14px;border-top:1px solid var(--color-neutral-800);font-size:12.5px;color:var(--color-neutral-300)">
+              <span aria-hidden="true" style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;background:var(--color-neutral-700);border-radius:var(--r);font-family:'Space Mono',monospace;font-size:9.5px;color:var(--color-neutral-200)">{{ k.ui }}</span>
+              <span style="color:var(--color-neutral-200)">{{ k.user }}</span><span>·</span><span data-relative-time="true">{{ k.time }}</span>
+              <span style="flex:1"></span>
+              <span data-card-comment-count="true" title="Comments" style="display:flex;align-items:center;gap:5px"><i class="ph ph-chat-circle" style="font-size:14px"></i>{{ k.comments }}</span>
+              <span data-card-annotation-count="true" title="Annotations" style="display:flex;align-items:center;gap:5px;margin-left:8px"><i class="ph ph-highlighter" style="font-size:14px"></i>{{ k.anns }}</span>
+            </div>
+          </a>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:72px 24px;border:1px dashed var(--color-neutral-700);border-radius:var(--r-lg);text-align:center">
+          <span style="font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:20px">No comparisons match</span>
+          <span style="font-size:13.5px;color:var(--color-neutral-300)">Try a different search or loosen the filters.</span>
+          <button type="button" onClick="{{ clearAll }}" style="margin-top:4px;height:32px;padding:0 14px;border:1px solid var(--color-neutral-700);border-radius:var(--r);background:transparent;color:var(--color-text);font-size:13px;cursor:pointer" style-hover="background:var(--color-accent-900);border-color:var(--color-accent-700)">Clear filters</button>
+        </div>
+      </sc-if>
+    </main>
+  </div>
+
+  <footer style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:24px;border-top:1px solid var(--color-neutral-800);font-size:12px;color:var(--color-neutral-400)">
+    <div style="display:flex;align-items:center;gap:16px">
+      <span>OpenWeightModels</span>
+      <a href="#" style="color:var(--color-neutral-300)">Terms</a>
+      <a href="#" style="color:var(--color-neutral-300)">Privacy</a>
+    </div>
+    <span>Community comparisons of open-weight and frontier model outputs.</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark'|'light'&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;previewLayout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;stacked&quot;,&quot;side-by-side&quot;],&quot;default&quot;:&quot;stacked&quot;,&quot;tsType&quot;:&quot;'stacked'|'side-by-side'&quot;,&quot;section&quot;:&quot;Cards&quot;},&quot;showTicker&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Header&quot;}}">
+const RAW = [
+  ['Llama 3.3 70B','L3','Qwen3.8 27B','Q8',2,'Write a thread-safe sliding-window rate limiter in Go. It should allow N requests per window per key, and explain the trade-offs of your approach.','Here’s a sliding-window rate limiter that tracks request timestamps per key. It’s safe for concurrent use and evicts old entries lazily on each call.','A sliding-window log is exact but stores every timestamp. A ring buffer of size limit gives O(1) checks and bounded memory.','Coding',2,4,6,'@mira',6],
+  ['Mistral Large 4','M4','DeepSeek V4.1 Flash 1017','D5',0,'Explain the Monty Hall problem to a 10-year-old','Imagine three doors. Behind one is a bike, behind two are goats. You pick door one, then the host opens a different door with a goat.','Think of it like this: when you first pick, you have a 1 in 3 chance. The host is not choosing at random — he knows where the bike is.','Reasoning',1,3,1,'@kev',13],
+  ['Gemma 4 31B','G4','Phi 4','P4',1,'300-word story: a lighthouse keeper who can’t sleep','The lamp turned every eleven seconds, and Ada counted each one. Sleep had become a rumour she told herself at dawn.','Night forty-two. The sea had stopped asking questions. It only breathed against the rocks and waited for her to answer.','Creative',1,27,9,'@ana',52],
+  ['Kimi K3','K3','Mistral Large 3','M3',0,'Refactor a React class component to hooks','Replace componentDidMount with useEffect(() => {…}, []) and move the fetch into a small helper so the effect body stays readable.','function Profile({ id }) { const [user, setUser] = useState(null); useEffect(() => { let live = true; … }, [id]); }','Coding',2,8,2,'@kev',60],
+  ['DeepSeek V4.1 Flash 1017','D5','Llama 3.3 70B','L3',1,'Prove √2 is irrational, then explain the proof','Assume √2 = p/q in lowest terms. Then 2q² = p², so p is even. Write p = 2k and substitute to show q is even too — a contradiction.','Suppose for contradiction that √2 is rational. Write it as a/b with no common factors. Squaring gives 2b² = a².','Math',3,5,4,'@mira',70],
+  ['Phi 4','P4','Gemma 4 31B','G4',0,'Summarize a 40-page RFC into 5 decisions','1. Adopt QUIC as the default transport for internal services. 2. Keep mTLS at the mesh edge. 3. Retries are capped at two.','The RFC lands on five calls: transport, auth, retries, quotas, and the migration window. Only the retry budget is hard to reverse.','Long-context',2,2,0,'@ana',120],
+  ['Mistral Large 4','M4','Qwen3.8 27B','Q8',2,'SQL for monthly cohort retention','WITH cohorts AS (SELECT userid, datetrunc(‘month’, createdat) AS cohort FROM users) SELECT cohort, monthoffset, count() …','First bucket users by signup month, then join activity by month offset. The left join keeps zero-activity months visible.','Coding',3,11,5,'@kev',125],
+  ['Llama 3.3 70B','L3','Mistral Large 4','M4',0,'A haiku sequence about tides','moon pulls the blanket / the shore forgets its edges / gulls rewrite the line','low water, low light / a crab inventories stones / the sea, returning','Creative',1,6,3,'@mira',180],
+  ['Qwen3.8 27B','Q8','DeepSeek V4.1 Flash 1017','D5',1,'Plan a 3-day Kyoto itinerary on a budget','Day 1 — East: Fushimi Inari at 7am before the crowds, then Philosopher’s Path and a ¥900 lunch near Demachiyanagi.','Base yourself near Kyoto Station. Get the bus day pass (¥700) and group sights by ward; temples close around 17:00.','Reasoning',2,4,1,'@ana',240],
+  ['Mistral Large 3','M3','Llama 3.3 70B','L3',0,'Regex to validate IPv6 (with explanation)','^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|::|…)$ — covers compressed forms, but readability suffers.','Honest answer: don’t. Use a parser. But if you must, here’s a pattern that handles compressed groups and embedded IPv4.','Coding',1,9,6,'@kev',300],
+  ['DeepSeek V4.1 Flash 1017','D5','Phi 4','P4',0,'Logic grid puzzle: five houses, five pets','From clue 3, the green house is immediately left of the white. Clue 9 fixes the Norwegian in house 1. Build the grid by elimination.','Let’s build the grid. Positions 1–5. Clue 9 fixes Norwegian at 1; clue 14 puts the blue house next to it.','Reasoning',3,13,8,'@mira',360],
+  ['Gemma 4 31B','G4','Mistral Large 4','M4',1,'Translate a legal clause EN → DE, keep register','Die Haftung des Auftragnehmers ist auf Vorsatz und grobe Fahrlässigkeit beschränkt. Weitergehende Ansprüche sind ausgeschlossen.','Der Auftragnehmer haftet nur für Vorsatz und grobe Fahrlässigkeit. Ansprüche aus Garantie bleiben unberührt.','Language',2,1,0,'@ana',420],
+  ['Phi 4','P4','Mistral Large 3','M3',1,'Write a bash one-liner to find the 10 largest files','du -ah . | sort -rh | head -n 10','find . -type f -printf \'%s %p\\n\' | sort -nr | head -10','Coding',1,7,2,'@kev',480],
+  ['Qwen3.8 27B','Q8','Gemma 4 31B','G4',0,'Integrate x·e^x dx step by step','Use integration by parts: u = x, dv = e^x dx, so du = dx, v = e^x. The integral becomes x·e^x − ∫e^x dx.','Let’s apply ∫u dv = uv − ∫v du with u = x and dv = e^x dx. The boundary term is the part people forget.','Math',1,2,1,'@mira',540],
+  ['Mistral Large 4','M4','Llama 3.3 70B','L3',1,'Explain transformers to a product manager','A transformer reads every word at once and decides which other words matter for each one — that weighting is called attention.','Think autocomplete, but it looks at the whole paragraph before guessing the next word, not just the last few.','Language',2,19,7,'@ana',600],
+  ['DeepSeek V4.1 Flash 1017','D5','Kimi K3','K3',0,'Design a schema for a recipe app','recipes(id, title, servings) · ingredients(id, name) · recipe_ingredients(recipe_id, ingredient_id, qty, unit)','Start with three tables and one join; tags as a separate many-to-many so search stays cheap.','Coding',2,6,3,'@kev',720],
+];
+const CARDS = RAW.map((r, i) => ({ id: i, base: r[0], bi: r[1], chal: r[2], ci: r[3], extra: r[4], prompt: r[5], bt: r[6], ct: r[7], cat: r[8], eff: r[9], comments: r[10], anns: r[11], user: r[12], age: r[13] }));
+const CATS = ['All', 'Coding', 'Reasoning', 'Creative', 'Math', 'Long-context', 'Language'];
+const MODELS = [['Claude Opus 5',0],['Claude Opus 5.5',0],['Command A',0],['Command A+',0],['DeepSeek V4 Flash 0731',0],['DeepSeek V4.1 Flash 1017',8],['Gemini 3.8 Flash',0],['Gemini 4 Argon',0],['Gemma 3 27B',0],['Gemma 4 31B',4],['GLM 5.2',0],['GLM 5.3',0],['GPT-6 Sol',0],['GPT-6.1 Sol',0],['gpt-oss-120b',0],['Grok 4.6',0],['Grok 4.7',0],['Kimi K2.6',0],['Kimi K3',2],['Llama 3.3 70B',7],['Llama 4 Maverick',0],['MiniMax M2.7',0],['MiniMax M3',0],['Mistral Large 3',4],['Mistral Large 4',6],['Nemotron 3 Ultra',0],['Nemotron 3.5 Lightning',0],['Phi 4',5],['Qwen3.6 27B',0],['Qwen3.8 27B',6]];
+const EFF = ['Low', 'Med', 'High'];
+const TICKER = [['ph ph-check-circle','finished SQL cohort retention'],['ph ph-chat-circle','replied on Monty Hall…'],['ph ph-highlighter','annotated Qwen2.5 72B'],['ph ph-git-diff','compared Llama 3.3 70B vs Qwen2.5 72B']];
+const fmtAge = m => m < 60 ? m + 'm' : Math.floor(m / 60) + 'h';
+const h = React.createElement;
+const QS = new URLSearchParams(location.search);
+
+class Component extends DCLogic {
+  state = { q: '', cat: 'All', models: [], efforts: [], sort: 'live', allModels: false };
+  searchRef = React.createRef();
+
+  componentDidMount() {
+    document.documentElement.setAttribute('data-theme', this.theme());
+    this._key = e => {
+      if (e.key === '/' && document.activeElement !== this.searchRef.current && !/input|textarea/i.test(document.activeElement?.tagName || '')) {
+        e.preventDefault(); this.searchRef.current?.focus();
+      } else if (e.key === 'Escape' && document.activeElement === this.searchRef.current) {
+        this.setState({ q: '' }); this.searchRef.current.blur();
+      }
+    };
+    window.addEventListener('keydown', this._key);
+  }
+  componentDidUpdate(pp) { if (pp.theme !== this.props.theme && !this._tw) { this._tw = true; this.forceUpdate(); } document.documentElement.setAttribute('data-theme', this.theme()); }
+  theme() { return this._tw ? (this.props.theme ?? 'dark') : (QS.get('theme') ?? this.props.theme ?? 'dark'); }
+  componentWillUnmount() { window.removeEventListener('keydown', this._key); }
+
+  toggle(key, v) { this.setState(s => ({ [key]: s[key].includes(v) ? s[key].filter(x => x !== v) : [...s[key], v] })); }
+
+  renderVals() {
+    const { q, cat, models, efforts, sort, allModels } = this.state;
+    const layout = this.props.previewLayout ?? 'stacked';
+    const ql = q.trim().toLowerCase();
+    let list = CARDS.filter(c =>
+      (cat === 'All' || c.cat === cat) &&
+      (!models.length || models.includes(c.base) || models.includes(c.chal)) &&
+      (!efforts.length || efforts.includes(EFF[c.eff - 1])) &&
+      (!ql || (c.prompt + ' ' + c.base + ' ' + c.chal).toLowerCase().includes(ql)));
+    if (sort === 'top') list = [...list].sort((a, b) => (b.comments + b.anns) - (a.comments + a.anns));
+    if (sort === 'new') list = [...list].sort((a, b) => a.age - b.age);
+
+    const cards = list.map(c => ({
+      ...c, effort: EFF[c.eff - 1], turns: '1 turn', time: fmtAge(c.age), ui: c.user.slice(1, 3).toUpperCase(),
+      b1: 'var(--color-accent)', b2: c.eff >= 2 ? 'var(--color-accent)' : 'var(--color-neutral-700)', b3: c.eff >= 3 ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+      hasExtra: c.extra > 0, href: 'Comparison.dc.html?theme=' + this.theme() + (c.id === 0 ? '' : ''), extraLabel: '+' + c.extra + ' more',
+    }));
+
+    const catItems = CATS.map(n => {
+      const active = cat === n;
+      return { name: n, count: n === 'All' ? CARDS.length : CARDS.filter(c => c.cat === n).length, active,
+        bg: active ? 'var(--color-neutral-800)' : 'transparent', color: active ? 'var(--color-text)' : 'var(--color-neutral-300)', countColor: active ? 'var(--color-accent-300)' : 'var(--color-neutral-400)',
+        onClick: () => this.setState({ cat: n }) };
+    });
+
+    const visible = allModels ? MODELS : MODELS.filter(([n, c]) => c > 0 || models.includes(n));
+    const modelItems = visible.map(([n, c]) => {
+      const checked = models.includes(n);
+      return { name: n, count: c, checked,
+        color: checked ? 'var(--color-text)' : c > 0 ? 'var(--color-neutral-300)' : 'var(--color-neutral-500)',
+        boxBg: checked ? 'var(--color-accent)' : 'transparent', boxBorder: checked ? 'var(--color-accent)' : 'var(--color-neutral-600)', checkOpacity: checked ? 1 : 0,
+        onClick: () => this.toggle('models', n) };
+    });
+
+    const effortItems = EFF.map(e => {
+      const active = efforts.includes(e);
+      return { label: e, active, bg: active ? 'var(--color-accent-900)' : 'transparent', border: active ? 'var(--color-accent-600)' : 'var(--color-neutral-700)', color: active ? 'var(--color-accent-200)' : 'var(--color-neutral-300)',
+        onClick: () => this.toggle('efforts', e) };
+    });
+
+    const sortItems = [['live', 'Live', 'ph ph-lightning'], ['top', 'Top', 'ph ph-fire'], ['new', 'New', 'ph ph-clock']].map(([k, l, i]) => {
+      const active = sort === k;
+      return { label: l, icon: i, active, bg: active ? 'var(--color-neutral-800)' : 'transparent', color: active ? 'var(--color-text)' : 'var(--color-neutral-300)', onClick: () => this.setState({ sort: k }) };
+    });
+
+    const chips = [];
+    if (ql) chips.push({ label: '“' + q.trim() + '”', onRemove: () => this.setState({ q: '' }) });
+    if (cat !== 'All') chips.push({ label: cat, onRemove: () => this.setState({ cat: 'All' }) });
+    models.forEach(m => chips.push({ label: m, onRemove: () => this.toggle('models', m) }));
+    efforts.forEach(e => chips.push({ label: e + ' effort', onRemove: () => this.toggle('efforts', e) }));
+
+    const items = [...TICKER, ...TICKER, ...TICKER, ...TICKER];
+    const ticker = h('div', { style: { display: 'flex', gap: 36, width: 'max-content', animation: 'owmTick 70s linear infinite' } },
+      items.map(([ic, t], i) => h('span', { key: i, style: { display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' } },
+        h('i', { className: ic, style: { fontSize: 13, color: 'var(--color-neutral-400)' } }), t)));
+    const pulseDot = h('span', { style: { width: 6, height: 6, borderRadius: 6, background: 'var(--color-accent)', animation: 'owmPulse 2s ease-in-out infinite' } });
+
+    return {
+      q, searchRef: this.searchRef, onSearch: e => this.setState({ q: e.target.value }),
+      catItems, modelItems, effortItems, sortItems, cards, chips,
+      hasChips: chips.length > 0, isEmpty: cards.length === 0,
+      hasModelSel: models.length > 0, clearModels: () => this.setState({ models: [] }),
+      clearAll: () => this.setState({ q: '', cat: 'All', models: [], efforts: [] }),
+      toggleAllModels: () => this.setState(s => ({ allModels: !s.allModels })),
+      modelsToggleLabel: allModels ? 'Show fewer' : 'All ' + MODELS.length + ' models',
+      modelsToggleIcon: allModels ? 'ph ph-caret-up' : 'ph ph-caret-down',
+      countLabel: cards.length === CARDS.length ? CARDS.length + ' comparisons' : cards.length + ' of ' + CARDS.length + ' comparisons',
+      stacked: layout === 'stacked', sideBySide: layout === 'side-by-side',
+      theme: this.theme(), showTicker: this.props.showTicker ?? true, ticker, pulseDot,
+    };
+  }
+}
+</script>
+</body>
+</html>

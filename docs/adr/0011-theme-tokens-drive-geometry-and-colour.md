@@ -1,0 +1,9 @@
+# Theme tokens drive both colour and geometry
+
+The redesign introduced two palettes and a user-selectable light/dark theme. All colour, radius, shadow and code-surface values now live in one token layer: dark values on `:root`, light overrides on `[data-theme="light"]`, mapped into Tailwind utilities so components never name a raw colour. The same step of the accent and neutral ramps carries the same role in both themes, which is why light mode inverts the ramps (100 is the strongest ink, 900 the faintest fill). Danger is a separate semantic token because errors must not borrow the accent.
+
+Geometry is deliberately theme-dependent: dark uses 2px/4px corners, light uses 6px/12px, and the message bubble changes shape too. This is not an oversight in the token file. It is the visual concept: dark is sharp and utilitarian, light is softer. A future reader who sees cards change radius with the theme should not "fix" it without revisiting that decision.
+
+**Considered options**: a single radius scale for both themes (rejected: the sharp dark treatment and the soft light treatment were both chosen deliberately, and flattening them loses the character of one); hard-coded colours per component (rejected: light mode would require touching every component and would drift); a runtime theme package or CSS-in-JS (rejected: the app already uses Tailwind v4 and CSS variables, and a dependency buys nothing); an inline script to set the initial theme (rejected: the server can read the cookie and a `prefers-color-scheme` media query covers the system default, so no flash and no CSP exception).
+
+**Consequences**: every new colour or radius must be added to both themes or it will be undefined in one. The contrast test parses both token blocks, so a light-mode palette that drops below 4.5:1 fails the build. Screenshot baselines exist per theme. Components must consume semantic utilities rather than literal hex values, or the theme switch silently stops working.

@@ -268,7 +268,7 @@ function TurnBadge({ turn }: { turn: { number: number; total: number } }) {
   return (
     <span
       data-annotation-turn
-      className="whitespace-nowrap rounded-[2px] border border-neutral-700 px-1.5 text-[10px] font-medium leading-[18px] text-neutral-300"
+      className="whitespace-nowrap rounded-[2px] border border-neutral-700 px-1.5 text-[10.5px] font-medium leading-[18px] text-neutral-300"
     >
       Turn {turn.number} of {turn.total}
     </span>
@@ -612,7 +612,7 @@ function AnnotationActions({
             </>
           ) : (
             <>
-              <span className="px-1 pb-0.5 pt-0.5 text-[10px] font-medium tracking-[0.06em] text-neutral-500">
+              <span className="px-1 pb-0.5 pt-0.5 text-[10.5px] font-medium uppercase tracking-[0.08em] text-neutral-400">
                 CHANGE KIND
               </span>
               <div className="grid grid-cols-2 gap-1">
@@ -753,7 +753,7 @@ function AddModelMenu({
           <Plus size={13} />
           Add model
           {atCap && (
-            <span className="text-[10px] text-neutral-500">
+            <span className="text-[10.5px] text-neutral-500">
               {challengerTotal} of {maxChallengers}
             </span>
           )}
@@ -769,11 +769,11 @@ function AddModelMenu({
         >
           {confirming ? (
             <>
-              <span className="px-2 pb-1 pt-1.5 text-[10px] font-medium tracking-[0.06em] text-neutral-500">
+              <span className="px-2 pb-1 pt-1.5 text-[10.5px] font-medium uppercase tracking-[0.08em] text-neutral-400">
                 COMPARE EVERY TURN
               </span>
               <span className="flex items-center gap-2 px-2 pb-1 text-[12px] font-medium text-text">
-                <span className="monogram !h-[18px] !w-[18px] !text-[10px]">
+                <span className="monogram !h-[18px] !w-[18px] !text-[10.5px]">
                   {confirming.monogram}
                 </span>
                 {confirming.displayName}
@@ -811,7 +811,7 @@ function AddModelMenu({
             </>
           ) : (
             <>
-              <span className="px-2 pb-1 pt-1.5 text-[10px] font-medium tracking-[0.06em] text-neutral-500">
+              <span className="px-2 pb-1 pt-1.5 text-[10.5px] font-medium uppercase tracking-[0.08em] text-neutral-400">
                 {multiTurn ? 'COMPARE EVERY TURN' : 'GENERATE ANOTHER RESPONSE'}
               </span>
               <label className="px-1 pb-1">
@@ -839,14 +839,14 @@ function AddModelMenu({
                     }}
                     className="flex h-8 flex-none items-center gap-2 rounded-[2px] px-2 text-left text-[12px] font-medium text-text transition-colors hover:bg-neutral-700 disabled:opacity-50"
                   >
-                    <span className="monogram !h-[18px] !w-[18px] !text-[10px]">
+                    <span className="monogram !h-[18px] !w-[18px] !text-[10.5px]">
                       {model.monogram}
                     </span>
                     <span className="min-w-0 flex-1 truncate">{model.displayName}</span>
                     <span
                       data-model-weight={model.openWeights ? 'open' : 'frontier'}
                       className={cn(
-                        'flex-none rounded-[2px] border px-1 py-px text-[10px] font-medium leading-none',
+                        'flex-none rounded-[2px] border px-1 py-px text-[10.5px] font-medium leading-none',
                         model.openWeights
                           ? 'border-neutral-600 text-neutral-400'
                           : 'border-accent-700 text-accent-200',
@@ -2033,7 +2033,7 @@ export function ComparisonView(props: ComparisonPageData) {
           >
             <Highlighter size={14} />
             Annotations
-            <span className="min-w-[18px] rounded-[2px] bg-neutral-800 px-[5px] text-center text-[10px] font-medium leading-[18px] text-neutral-200">
+            <span className="min-w-[18px] rounded-[2px] bg-neutral-800 px-[5px] text-center text-[10.5px] font-medium leading-[18px] text-neutral-200">
               {annotations.length}
             </span>
           </button>
@@ -2234,7 +2234,7 @@ export function ComparisonView(props: ComparisonPageData) {
                         : 'text-neutral-400 hover:text-text',
                     )}
                   >
-                    <span className="monogram !h-[18px] !w-[18px] !text-[10px]">
+                    <span className="monogram !h-[18px] !w-[18px] !text-[10.5px]">
                       {response.model.monogram}
                     </span>
                     {response.model.name}
@@ -2242,7 +2242,7 @@ export function ComparisonView(props: ComparisonPageData) {
                     {inProgress && (
                       <span
                         data-replay-in-progress
-                        className="rounded-[2px] border border-accent-700 px-1 py-0.5 text-[10px] font-medium leading-none text-accent-200"
+                        className="rounded-[2px] border border-accent-700 px-1 py-0.5 text-[10.5px] font-medium leading-none text-accent-200"
                       >
                         Generating replies
                       </span>
@@ -2314,7 +2314,7 @@ export function ComparisonView(props: ComparisonPageData) {
                   >
                     <div className="flex min-w-0 flex-col rounded-[2px] bg-bg">
                       <div className="flex h-[38px] items-center gap-2 border-b border-neutral-800 px-3">
-                        <span className="rounded-[2px] border border-accent-700 px-1.5 py-1 text-[10px] font-semibold leading-none tracking-[0.08em] text-accent-200">
+                        <span className="rounded-[2px] border border-accent-700 px-1.5 py-1 text-[10.5px] font-semibold leading-none tracking-[0.08em] text-accent-200">
                           BASE
                         </span>
                         <span className="text-[12px] font-medium">{turnBase?.model.name}</span>
@@ -2342,7 +2342,7 @@ export function ComparisonView(props: ComparisonPageData) {
 
                     <div className="flex min-w-0 flex-col rounded-[2px] bg-bg">
                       <div className="flex h-[38px] items-center gap-2 border-b border-neutral-800 px-3">
-                        <span className="monogram !h-[18px] !w-[18px] !text-[10px]">
+                        <span className="monogram !h-[18px] !w-[18px] !text-[10.5px]">
                           {active?.model.monogram ?? '--'}
                         </span>
                         <span className="text-[12px] font-medium">
@@ -2418,10 +2418,10 @@ export function ComparisonView(props: ComparisonPageData) {
           {base && base.status === 'done' && (
             <section className="flex min-w-0 flex-col rounded-[2px] bg-surface">
               <div className="flex h-[42px] items-center gap-2 border-b border-neutral-800 px-3.5">
-                <span className="rounded-[2px] border border-accent-700 px-1.5 py-1 text-[10px] font-semibold leading-none tracking-[0.08em] text-accent-200">
+                <span className="rounded-[2px] border border-accent-700 px-1.5 py-1 text-[10.5px] font-semibold leading-none tracking-[0.08em] text-accent-200">
                   BASE
                 </span>
-                <span className="monogram monogram-base !h-[18px] !w-[18px] !text-[10px]">
+                <span className="monogram monogram-base !h-[18px] !w-[18px] !text-[10.5px]">
                   {base.model.monogram}
                 </span>
                 <span className="text-[12px] font-medium">{base.model.name}</span>
@@ -2470,7 +2470,7 @@ export function ComparisonView(props: ComparisonPageData) {
                         : 'border-transparent text-neutral-400 hover:text-text',
                     )}
                   >
-                    <span className="monogram !h-[18px] !w-[18px] !text-[10px]">
+                    <span className="monogram !h-[18px] !w-[18px] !text-[10.5px]">
                       {response.model.monogram}
                     </span>
                     {response.model.name}
@@ -2969,7 +2969,7 @@ export function ComparisonView(props: ComparisonPageData) {
                         </span>
                         <span data-relative-time>{relativeTime(comment.createdAt)}</span>
                         {comment.aboutModel && (
-                          <span className="flex h-[18px] items-center rounded-[2px] border border-neutral-700 px-1.5 text-[10px] font-medium text-neutral-200">
+                          <span className="flex h-[18px] items-center rounded-[2px] border border-neutral-700 px-1.5 text-[10.5px] font-medium text-neutral-200">
                             on {comment.aboutModel.name}
                           </span>
                         )}

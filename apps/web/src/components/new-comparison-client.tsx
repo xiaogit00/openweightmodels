@@ -107,7 +107,7 @@ function Step({
       <span
         aria-hidden
         className={cn(
-          'grid h-5 w-5 place-items-center rounded-[2px] border text-[10px] font-medium',
+          'grid h-5 w-5 place-items-center rounded-[2px] border text-[10.5px] font-medium',
           done || active
             ? 'border-accent text-accent-200'
             : 'border-neutral-600 text-neutral-400',
@@ -259,7 +259,7 @@ function ChallengerPicker({
         className="flex flex-col gap-[6px]"
         data-model-section={section.key}
       >
-        <h3 className="m-0 text-[10px] font-medium uppercase tracking-[0.06em] text-neutral-500">
+        <h3 className="m-0 text-[10.5px] font-medium uppercase tracking-[0.08em] text-neutral-400">
           {section.label}
         </h3>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-[6px]">
@@ -293,7 +293,7 @@ function ChallengerPicker({
               >
                 <span
                   className={cn(
-                    'grid h-6 w-6 flex-none place-items-center rounded-[2px] text-[10px] font-semibold text-neutral-100',
+                    'grid h-6 w-6 flex-none place-items-center rounded-[2px] text-[10.5px] font-semibold text-neutral-100',
                     selected ? 'bg-accent-800' : 'bg-neutral-700',
                   )}
                 >
@@ -307,7 +307,7 @@ function ChallengerPicker({
                     {model.release === 'previous' && (
                       <span
                         data-previous-badge
-                        className="flex-none rounded-[2px] border border-neutral-600 px-1 py-px text-[9px] font-medium uppercase tracking-[0.04em] text-neutral-400"
+                        className="flex-none rounded-[2px] border border-neutral-600 px-1 py-px text-[10.5px] font-medium uppercase tracking-[0.04em] text-neutral-400"
                       >
                         Previous
                       </span>
@@ -382,7 +382,7 @@ function ChallengerPicker({
 
       {view.selected.length > 0 && (
         <div className="flex flex-col gap-[5px]" data-selected-models>
-          <span className="text-[10px] font-medium tracking-[0.06em] text-neutral-500">
+          <span className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-neutral-400">
             SELECTED
           </span>
           <div className="flex flex-wrap gap-[5px]">
@@ -811,7 +811,7 @@ export function NewComparisonClient({
                             className="rounded-[2px] border border-neutral-800 bg-bg p-[9px]"
                           >
                             <div className="flex items-center gap-[6px] text-[11px] font-medium">
-                              <span className="rounded-[2px] bg-neutral-700 px-[5px] py-px text-[10px] text-neutral-100">
+                              <span className="rounded-[2px] bg-neutral-700 px-[5px] py-px text-[10.5px] text-neutral-100">
                                 Turn {index + 1}
                               </span>
                               <span className="text-neutral-400">You</span>
@@ -1009,7 +1009,7 @@ export function NewComparisonClient({
                       )}
                     >
                       <span className="text-[12px] font-medium">{level.label}</span>
-                      <span className="text-[10px] font-normal text-neutral-300">
+                      <span className="text-[10.5px] font-normal text-neutral-300">
                         {level.sub}
                       </span>
                     </button>
