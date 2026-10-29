@@ -27,6 +27,8 @@ export default async function NewComparisonPage() {
         monogram: model.monogram,
         etaSeconds: model.etaSeconds,
         openWeights: model.openWeights,
+        family: model.family,
+        release: model.release,
       }))}
     />
   );

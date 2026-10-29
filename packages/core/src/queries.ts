@@ -27,6 +27,7 @@ import {
   users,
   votes,
 } from './db/schema';
+import { MODEL_REGISTRY } from './model-registry';
 import { decodeCursor, encodeCursor, CursorError } from './domain/cursor';
 import { BOARD_PAGE_SIZE, emptyBoardFacets } from './domain/filters';
 import { summariseMarkdown } from './domain/upload';
@@ -41,11 +42,23 @@ import type {
   ComparisonCard,
   ComparisonStatus,
   JobRunState,
+  ModelRelease,
   PublicUser,
   Sort,
 } from './domain/types';
 
 export type ModelRow = typeof models.$inferSelect;
+
+/**
+ * A Model row with its registry slot attached. `family` and `release` stay out
+ * of the database so the curated registry remains the single source of truth;
+ * rows that predate the registry (or test fixtures) fall back to a current
+ * release of their own family.
+ */
+export type ModelRowWithRelease = ModelRow & {
+  family: string;
+  release: ModelRelease;
+};
 export type ResponseRow = typeof responses.$inferSelect;
 export type ComparisonRow = typeof comparisons.$inferSelect;
 export type UserRow = typeof users.$inferSelect;
@@ -837,12 +850,25 @@ export async function getCardById(id: string): Promise<ComparisonCard | null> {
   return cardFromRows(comparison, author[0], cardData);
 }
 
-export async function getModels(): Promise<ModelRow[]> {
-  return getDb()
+const MODEL_RELEASE_BY_SLUG = new Map(
+  MODEL_REGISTRY.map((entry) => [entry.slug, entry] as const),
+);
+
+export async function getModels(): Promise<ModelRowWithRelease[]> {
+  const rows = await getDb()
     .select()
     .from(models)
     .where(eq(models.enabled, true))
     .orderBy(models.displayName);
+
+  return rows.map((row) => {
+    const entry = MODEL_RELEASE_BY_SLUG.get(row.slug);
+    return {
+      ...row,
+      family: entry?.family ?? row.slug,
+      release: entry?.release ?? 'current',
+    };
+  });
 }
 
 export async function getUserByHandle(handle: string): Promise<UserRow | null> {

@@ -1,9 +1,12 @@
 # Model registry curation
 
 `packages/core/src/model-registry.ts` is the single source of truth for the
-Models the platform can run. Both the development seed and production
-`pnpm db:bootstrap` read it; neither creates users, Comparisons or other
-content from it.
+Models the platform can run. The development seed, `pnpm db:init` and
+production `pnpm db:bootstrap` all read it. None of them creates users,
+Comparisons or other content from it: `db:init` syncs the registry before it
+decides whether to seed, so a populated local database still picks up a new
+release. The sync inserts new slugs, disables rows that left the catalogue, and
+preserves an Admin-disabled Model.
 
 Every entry records whether its weights are openly available (`openWeights`).
 The catalogue deliberately mixes open-weight families with closed frontier
@@ -37,6 +40,22 @@ pnpm --filter @owm/core test model-registry
 They reject duplicate slugs, duplicate provider model IDs, missing monograms,
 an unparseable ETA, a family with no current release and duplicate releases.
 
+## How the pickers present the catalogue
+
+- **Current releases lead.** Step 2 groups them into **Open weights** and
+  **Frontier API**; the Base picker uses four optgroups: Open weights · current,
+  Open weights · previous, Frontier API · current, Frontier API · previous.
+- **Previous releases stay available but out of the way.** Step 2 keeps them
+  behind a `Show previous releases` disclosure and labels their tiles
+  **Previous**. The Base picker marks previous options with `(previous)` so
+  native type-ahead still finds them.
+- **Search spans every release.** Typing in Step 2 or the Add model menu
+  matches display name, slug or family across current and previous entries, so
+  a collapsed release is never unreachable. Selected Challengers stay pinned in
+  a **Selected** strip while filters change.
+- **Long menus scroll.** The Add model popover has its own search field and a
+  capped, scrollable list; Base and existing Challengers remain excluded.
+
 ## Disabling versus removing
 
 - **Disable** an entry from the Admin surface when it is temporarily unavailable
@@ -62,5 +81,6 @@ an unparseable ETA, a family with no current release and duplicate releases.
 4. Keep monograms unique and ETAs positive integers; the registry tests fail on
    duplicate or missing monograms and unusable ETAs.
 5. Run `pnpm --filter @owm/core test model-registry` and `pnpm typecheck`.
-6. Release with `pnpm db:bootstrap` (or the staging deploy, which runs it). The
-   new entries appear in every picker; disabled state is preserved.
+6. Release with `pnpm db:init` locally, or `pnpm db:bootstrap` (the staging
+   deploy runs it) in production. The new entries appear in every picker;
+   disabled state is preserved.

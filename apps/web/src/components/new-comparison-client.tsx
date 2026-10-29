@@ -1,9 +1,10 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
+  CaretDown,
   Check,
   CircleNotch,
   FileArrowUp,
@@ -18,6 +19,7 @@ import {
   MAX_BASE_OUTPUT_CHARS,
   MAX_PROMPT_CHARS,
   UploadValidationError,
+  buildModelPickerView,
   challengerDisabled,
   decodeUtf8,
   defaultTitleForImport,
@@ -28,6 +30,7 @@ import {
   matchVendorModels,
   modelWeightLabel,
   parseConversationUpload,
+  splitModelsByRelease,
   summariseMarkdown,
   toggleChallenger,
   validateFileSize,
@@ -35,6 +38,8 @@ import {
   type BaseSource,
   type ConversationImport,
   type ConversationTurnInput,
+  type ModelRelease,
+  type ModelWeightFilter,
   type SelectableModel,
 } from '@owm/core/client';
 import { SiteHeader } from './site-header';
@@ -46,6 +51,8 @@ import { cn, plural } from '@/lib/utils';
 export type FormModel = SelectableModel & {
   monogram: string;
   openWeights: boolean;
+  family: string;
+  release: ModelRelease;
 };
 
 type LoadedFile = {
@@ -146,6 +153,15 @@ function PromptEditor({
   );
 }
 
+function modelOption(model: FormModel) {
+  return (
+    <option key={model.id} value={model.id}>
+      {model.displayName}
+      {model.release === 'previous' ? ' (previous)' : ''}
+    </option>
+  );
+}
+
 function BaseModelSelect({
   models,
   value,
@@ -155,8 +171,27 @@ function BaseModelSelect({
   value: string;
   onChange: (modelId: string) => void;
 }) {
-  const openWeight = models.filter((model) => model.openWeights);
-  const frontier = models.filter((model) => !model.openWeights);
+  const { current, previous } = splitModelsByRelease(models);
+  // Current releases lead; previous ones stay findable by typing, labelled so
+  // nobody mistakes an older release for the family's current model.
+  const groups = [
+    {
+      label: 'Open weights · current',
+      models: current.filter((model) => model.openWeights),
+    },
+    {
+      label: 'Open weights · previous',
+      models: previous.filter((model) => model.openWeights),
+    },
+    {
+      label: 'Frontier API · current',
+      models: current.filter((model) => !model.openWeights),
+    },
+    {
+      label: 'Frontier API · previous',
+      models: previous.filter((model) => !model.openWeights),
+    },
+  ].filter((group) => group.models.length > 0);
 
   return (
     <label className="flex flex-col gap-[5px]">
@@ -170,26 +205,241 @@ function BaseModelSelect({
         )}
       >
         <option value="">Select model…</option>
-        {openWeight.length > 0 && (
-          <optgroup label="Open weights">
-            {openWeight.map((model) => (
-              <option key={model.id} value={model.id}>
-                {model.displayName}
-              </option>
-            ))}
+        {groups.map((group) => (
+          <optgroup key={group.label} label={group.label}>
+            {group.models.map(modelOption)}
           </optgroup>
-        )}
-        {frontier.length > 0 && (
-          <optgroup label="Frontier API">
-            {frontier.map((model) => (
-              <option key={model.id} value={model.id}>
-                {model.displayName}
-              </option>
-            ))}
-          </optgroup>
-        )}
+        ))}
       </select>
     </label>
+  );
+}
+
+const WEIGHT_FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'open', label: 'Open weights' },
+  { value: 'frontier', label: 'Frontier API' },
+] as const satisfies ReadonlyArray<{ value: ModelWeightFilter; label: string }>;
+
+function ChallengerPicker({
+  models,
+  baseModelId,
+  picked,
+  maxChallengers,
+  onChange,
+}: {
+  models: FormModel[];
+  baseModelId: string;
+  picked: string[];
+  maxChallengers: number;
+  onChange: (modelIds: string[]) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const [weight, setWeight] = useState<ModelWeightFilter>('all');
+  const [showPrevious, setShowPrevious] = useState(false);
+  const searching = query.trim().length > 0;
+  const view = useMemo(
+    () =>
+      buildModelPickerView({
+        models,
+        selectedIds: picked,
+        query,
+        weight,
+        showPrevious,
+      }),
+    [models, picked, query, weight, showPrevious],
+  );
+
+  const toggle = (modelId: string) =>
+    onChange(toggleChallenger(modelId, baseModelId || null, picked, maxChallengers));
+
+  const renderSection = (section: (typeof view.sections)[number]) => (
+      <div
+        key={section.key}
+        className="flex flex-col gap-[6px]"
+        data-model-section={section.key}
+      >
+        <h3 className="m-0 text-[10px] font-medium uppercase tracking-[0.06em] text-neutral-500">
+          {section.label}
+        </h3>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-[6px]">
+          {section.models.map((model) => {
+            const isBase = model.id === baseModelId;
+            const selected = picked.includes(model.id);
+            const disabled = challengerDisabled(
+              model.id,
+              baseModelId || null,
+              picked,
+              maxChallengers,
+            );
+
+            return (
+              <button
+                key={model.id}
+                type="button"
+                aria-pressed={selected}
+                disabled={disabled}
+                data-model-weight={model.openWeights ? 'open' : 'frontier'}
+                onClick={() => toggle(model.id)}
+                className={cn(
+                  'flex items-center gap-[9px] rounded-[2px] border p-[9px] text-left text-text transition-colors',
+                  selected
+                    ? 'border-accent bg-accent-900'
+                    : 'border-neutral-800 bg-surface',
+                  disabled
+                    ? 'cursor-not-allowed opacity-45'
+                    : 'cursor-pointer hover:border-accent-700',
+                )}
+              >
+                <span
+                  className={cn(
+                    'grid h-6 w-6 flex-none place-items-center rounded-[2px] text-[10px] font-semibold text-neutral-100',
+                    selected ? 'bg-accent-800' : 'bg-neutral-700',
+                  )}
+                >
+                  {model.monogram}
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col gap-[2px]">
+                  <span className="flex min-w-0 items-center gap-[5px]">
+                    <span className="truncate text-[12.5px] font-medium">
+                      {model.displayName}
+                    </span>
+                    {model.release === 'previous' && (
+                      <span
+                        data-previous-badge
+                        className="flex-none rounded-[2px] border border-neutral-600 px-1 py-px text-[9px] font-medium uppercase tracking-[0.04em] text-neutral-400"
+                      >
+                        Previous
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-[11px] font-normal text-neutral-500">
+                    {isBase
+                      ? `Base model · ${modelWeightLabel(model.openWeights)}`
+                      : `${modelWeightLabel(model.openWeights)} · ~${model.etaSeconds}s`}
+                  </span>
+                </span>
+                <span
+                  className={cn(
+                    'grid h-4 w-4 flex-none place-items-center rounded-[2px] border',
+                    selected ? 'border-accent bg-accent' : 'border-neutral-600',
+                  )}
+                >
+                  {selected && <Check size={11} weight="bold" className="text-bg" />}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+  );
+  const currentSections = view.sections.filter(
+    (section) => section.key !== 'previous',
+  );
+  const previousSection = view.sections.find(
+    (section) => section.key === 'previous',
+  );
+
+  return (
+    <div className="flex flex-col gap-[10px]">
+      <div className="flex flex-col gap-[8px] sm:flex-row sm:items-end">
+        <label className="flex min-w-0 flex-1 flex-col gap-[5px]">
+          <span className="text-[11px] font-medium text-neutral-400">Search models</span>
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search by name, family or slug…"
+            className="h-8 w-full rounded-[2px] border border-neutral-700 bg-bg px-2 text-[12px] font-normal text-text placeholder:text-neutral-500 focus:border-accent"
+          />
+        </label>
+        <div
+          role="group"
+          aria-label="Filter by weights"
+          className="flex gap-[2px] self-start rounded-[2px] bg-surface p-[2px]"
+        >
+          {WEIGHT_FILTERS.map((filter) => {
+            const selected = weight === filter.value;
+            return (
+              <button
+                key={filter.value}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setWeight(filter.value)}
+                className={cn(
+                  'rounded-[2px] px-[9px] py-[5px] text-[11px] font-medium transition-colors',
+                  selected
+                    ? 'bg-neutral-700 text-text'
+                    : 'bg-transparent text-neutral-400 hover:text-neutral-200',
+                )}
+              >
+                {filter.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {view.selected.length > 0 && (
+        <div className="flex flex-col gap-[5px]" data-selected-models>
+          <span className="text-[10px] font-medium tracking-[0.06em] text-neutral-500">
+            SELECTED
+          </span>
+          <div className="flex flex-wrap gap-[5px]">
+            {view.selected.map((model) => (
+              <button
+                key={model.id}
+                type="button"
+                aria-pressed
+                onClick={() => toggle(model.id)}
+                title={`Remove ${model.displayName}`}
+                className="flex items-center gap-[5px] rounded-[2px] border border-accent bg-accent-900 py-[3px] pl-[3px] pr-[6px] text-[11px] font-medium text-text transition-colors hover:border-accent-700"
+              >
+                <span className="grid h-[18px] w-[18px] place-items-center rounded-[2px] bg-accent-800 text-[9px] font-semibold text-neutral-100">
+                  {model.monogram}
+                </span>
+                <span className="max-w-[180px] truncate">{model.displayName}</span>
+                <X size={10} className="flex-none text-neutral-400" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {currentSections.map(renderSection)}
+
+      {view.empty && (
+        <p
+          role="status"
+          className="rounded-[2px] border border-neutral-800 bg-surface px-3 py-2 text-[12px] font-normal leading-[1.45] text-neutral-400"
+        >
+          {view.empty === 'registry'
+            ? 'No models are available. Ask an Admin to enable one.'
+            : searching
+              ? `No models match “${query.trim()}”.`
+              : 'No models match these filters.'}
+        </p>
+      )}
+
+      {view.previousMatches > 0 && !searching && (
+        <button
+          type="button"
+          aria-expanded={showPrevious}
+          onClick={() => setShowPrevious((current) => !current)}
+          className="flex items-center gap-[5px] self-start rounded-[2px] border border-neutral-700 px-[9px] py-[5px] text-[11px] font-medium text-neutral-300 transition-colors hover:border-accent-700 hover:text-accent-200"
+        >
+          {showPrevious
+            ? `Hide previous releases (${view.previousMatches})`
+            : `Show previous releases (${view.previousMatches})`}
+          <CaretDown
+            size={11}
+            className={cn('transition-transform', showPrevious && 'rotate-180')}
+          />
+        </button>
+      )}
+
+      {previousSection && renderSection(previousSection)}
+    </div>
   );
 }
 
@@ -684,74 +934,13 @@ export function NewComparisonClient({
               </span>
             </div>
 
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-[6px]">
-              {models.map((model) => {
-                const selected = picked.includes(model.id);
-                const isBase = model.id === baseModelId;
-                const disabled = challengerDisabled(
-                  model.id,
-                  baseModelId || null,
-                  picked,
-                  maxChallengers,
-                );
-
-                return (
-                  <button
-                    key={model.id}
-                    type="button"
-                    aria-pressed={selected}
-                    disabled={disabled}
-                    data-model-weight={model.openWeights ? 'open' : 'frontier'}
-                    onClick={() =>
-                      setPicked((current) =>
-                        toggleChallenger(
-                          model.id,
-                          baseModelId || null,
-                          current,
-                          maxChallengers,
-                        ),
-                      )
-                    }
-                    className={cn(
-                      'flex items-center gap-[9px] rounded-[2px] border p-[9px] text-left text-text transition-colors',
-                      selected
-                        ? 'border-accent bg-accent-900'
-                        : 'border-neutral-800 bg-surface',
-                      disabled
-                        ? 'cursor-not-allowed opacity-45'
-                        : 'cursor-pointer hover:border-accent-700',
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'grid h-6 w-6 flex-none place-items-center rounded-[2px] text-[10px] font-semibold text-neutral-100',
-                        selected ? 'bg-accent-800' : 'bg-neutral-700',
-                      )}
-                    >
-                      {model.monogram}
-                    </span>
-                    <span className="flex min-w-0 flex-1 flex-col gap-[2px]">
-                      <span className="truncate text-[12.5px] font-medium">
-                        {model.displayName}
-                      </span>
-                      <span className="text-[11px] font-normal text-neutral-500">
-                        {isBase
-                          ? `Base model · ${modelWeightLabel(model.openWeights)}`
-                          : `${modelWeightLabel(model.openWeights)} · ~${model.etaSeconds}s`}
-                      </span>
-                    </span>
-                    <span
-                      className={cn(
-                        'grid h-4 w-4 flex-none place-items-center rounded-[2px] border',
-                        selected ? 'border-accent bg-accent' : 'border-neutral-600',
-                      )}
-                    >
-                      {selected && <Check size={11} weight="bold" className="text-bg" />}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            <ChallengerPicker
+              models={models}
+              baseModelId={baseModelId}
+              picked={picked}
+              maxChallengers={maxChallengers}
+              onChange={setPicked}
+            />
           </section>
 
           <section className="flex flex-col gap-3">

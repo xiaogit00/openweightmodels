@@ -73,7 +73,7 @@ brew services start redis
 createdb openweightmodels           # once; skip if it already exists
 cp .env.example .env                # then point DATABASE_URL at your OS user
 pnpm install
-pnpm db:init                        # migrate, then seed only if the database is empty
+pnpm db:init                        # migrate, sync the Model registry, then seed only if empty
 pnpm dev                            # web + worker
 # or run them separately:
 pnpm dev:web
@@ -123,9 +123,17 @@ Only the `test:live` script runs that file, so `pnpm test` never calls a
 provider and never bills you. `LIVE_PROVIDER_MODEL` overrides the default
 `deepseek/deepseek-chat`.
 
-`pnpm db:init` is idempotent. Use `pnpm db:seed` to replace content with the
-deterministic dev fixtures, and `pnpm db:reset` to drop and recreate the public
-schema (it refuses to run in production).
+`pnpm db:init` is idempotent and always refreshes the Model registry: new
+catalogue entries are inserted, retired rows are disabled rather than deleted,
+an Admin-disabled Model stays disabled, and users and Comparisons are left
+alone. Use `pnpm db:seed` to replace content with the deterministic dev
+fixtures, and `pnpm db:reset` to drop and recreate the public schema (it
+refuses to run in production).
+
+Model pickers show current releases first, grouped into **Open weights** and
+**Frontier API**. Previous releases sit behind a `Show previous releases`
+disclosure; search always reaches them, and the Base picker labels them
+`(previous)` in its current/previous optgroups.
 
 ### AWS staging
 
@@ -189,7 +197,7 @@ visual suite there.
 | `pnpm db:generate` | Generate Drizzle SQL from schema |
 | `pnpm db:migrate` | Apply migrations |
 | `pnpm db:bootstrap` | Apply migrations and upsert the Model registry only (production) |
-| `pnpm db:init` | Apply migrations, seed only when the database is empty |
+| `pnpm db:init` | Apply migrations, sync the Model registry, seed only when the database is empty |
 | `pnpm db:seed` | Reset and seed dev data |
 | `pnpm db:reset` | Drop and recreate the public schema (refuses production) |
 | `pnpm stack:up` | `docker compose up --build` |

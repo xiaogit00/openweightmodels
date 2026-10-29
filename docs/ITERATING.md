@@ -18,7 +18,7 @@ Related: `docs/DEPLOYMENT.md` (topology, first deploy, rollback, cost) and
 | Identity | magic link, or `POST /api/dev/user` | magic link only |
 | Database | your Postgres | RDS, private subnets |
 | Schema changes | `pnpm db:migrate` on your machine | migration task during `deploy:staging` |
-| Model registry | `pnpm db:bootstrap` | bootstrap task during `deploy:staging` |
+| Model registry | `pnpm db:init` (or `pnpm db:bootstrap`) | bootstrap task during `deploy:staging` |
 
 The code is identical. The differences are configuration and credentials, which
 is why a local pass does not prove a staging pass — the release step at the end
@@ -51,7 +51,7 @@ brew services start postgresql@17 redis
 createdb openweightmodels     # once
 cp .env.example .env          # set DATABASE_URL to your OS user
 pnpm install
-pnpm db:init                  # migrate, then seed only if the database is empty
+pnpm db:init                  # migrate, sync the registry, then seed only if empty
 pnpm dev                      # web + worker, or dev:web / dev:worker separately
 ```
 
@@ -113,7 +113,15 @@ pnpm db:bootstrap      # upsert by slug; never touches Comparisons or users
 ```
 
 `db:bootstrap` preserves an Admin-disabled model, so re-running it will not
-silently re-enable something you turned off.
+silently re-enable something you turned off. `pnpm db:init` now performs the
+same registry sync on every run, so a populated local database picks up a new
+release without a manual reseed; retired entries are disabled, not deleted.
+
+The pickers show current releases by default, grouped into **Open weights** and
+**Frontier API**. Previous releases stay behind a `Show previous releases`
+disclosure, while search scans every release and badges the previous matches.
+The Base picker lists current entries first in its four current/previous
+optgroups and marks previous options with `(previous)`.
 
 ### 2.5 Real generations locally
 
@@ -365,7 +373,8 @@ migration has to be undone.
 # local
 pnpm stack:up                       # or: pnpm db:init && pnpm dev
 pnpm db:generate && pnpm db:migrate # schema change
-pnpm db:bootstrap                   # registry change
+pnpm db:init                        # local registry refresh (syncs by slug)
+pnpm db:bootstrap                   # production registry change
 pnpm typecheck && pnpm test         # before anything else
 pnpm test:e2e                       # UI changes
 pnpm test:live                      # provider changes

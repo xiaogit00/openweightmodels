@@ -31,6 +31,7 @@ import type {
   AnnotationKind,
   AnnotationView,
   CommentView,
+  ModelRelease,
   PublicUser,
 } from '@owm/core/client';
 import {
@@ -40,6 +41,7 @@ import {
   estimateConversationCalls,
   formatHandle,
   isPendingResponse,
+  modelMatchesQuery,
   modelWeightShortLabel,
   relativeTime,
   relativeTimeAgo,
@@ -84,10 +86,12 @@ export type ComparisonPageData = {
   models: Array<{
     id: string;
     slug: string;
-    name: string;
+    displayName: string;
     monogram: string;
     etaSeconds: number;
     openWeights: boolean;
+    family: string;
+    release: ModelRelease;
   }>;
   maxChallengers: number;
   currentUserId: string | null;
@@ -692,12 +696,17 @@ function AddModelMenu({
   onOpenChange: (open: boolean) => void;
 }) {
   const [confirming, setConfirming] = useState<AddableModel | null>(null);
+  const [query, setQuery] = useState('');
   const multiTurn = turnCount > 1;
   const calls = estimateConversationCalls(turnCount, 1);
   const callLabel = calls === 1 ? 'hosted API call' : 'hosted API calls';
+  const matching = models.filter((model) => modelMatchesQuery(model, query));
 
   useEffect(() => {
-    if (!open) setConfirming(null);
+    if (!open) {
+      setConfirming(null);
+      setQuery('');
+    }
   }, [open]);
 
   const close = () => {
@@ -767,13 +776,13 @@ function AddModelMenu({
                 <span className="monogram !h-[18px] !w-[18px] !text-[10px]">
                   {confirming.monogram}
                 </span>
-                {confirming.name}
+                {confirming.displayName}
               </span>
               <span
                 data-add-replay-confirmation
                 className="px-2 pb-1.5 text-[11.5px] leading-[1.5] text-neutral-300"
               >
-                {confirming.name} answers {turnCount}{' '}
+                {confirming.displayName} answers {turnCount}{' '}
                 {turnCount === 1 ? 'turn' : 'turns'} · {calls} {callLabel}.
               </span>
               {addError && (
@@ -805,42 +814,62 @@ function AddModelMenu({
               <span className="px-2 pb-1 pt-1.5 text-[10px] font-medium tracking-[0.06em] text-neutral-500">
                 {multiTurn ? 'COMPARE EVERY TURN' : 'GENERATE ANOTHER RESPONSE'}
               </span>
-              {models.map((model) => (
-                <button
-                  key={model.id}
-                  type="button"
-                  disabled={Boolean(addingModelId)}
-                  onClick={() => {
-                    if (multiTurn) setConfirming(model);
-                    else onAdd(model);
-                  }}
-                  className="flex h-8 items-center gap-2 rounded-[2px] px-2 text-left text-[12px] font-medium text-text transition-colors hover:bg-neutral-700 disabled:opacity-50"
-                >
-                  <span className="monogram !h-[18px] !w-[18px] !text-[10px]">
-                    {model.monogram}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">{model.name}</span>
-                  <span
-                    data-model-weight={model.openWeights ? 'open' : 'frontier'}
-                    className={cn(
-                      'flex-none rounded-[2px] border px-1 py-px text-[10px] font-medium leading-none',
-                      model.openWeights
-                        ? 'border-neutral-600 text-neutral-400'
-                        : 'border-accent-700 text-accent-200',
-                    )}
+              <label className="px-1 pb-1">
+                <span className="sr-only">Search models</span>
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search models…"
+                  className="h-7 w-full rounded-[2px] border border-neutral-600 bg-neutral-900 px-2 text-[12px] font-normal text-text placeholder:text-neutral-500 focus:border-accent"
+                />
+              </label>
+              <div
+                data-add-model-list
+                className="flex max-h-[260px] flex-col gap-[2px] overflow-y-auto"
+              >
+                {matching.map((model) => (
+                  <button
+                    key={model.id}
+                    type="button"
+                    disabled={Boolean(addingModelId)}
+                    onClick={() => {
+                      if (multiTurn) setConfirming(model);
+                      else onAdd(model);
+                    }}
+                    className="flex h-8 flex-none items-center gap-2 rounded-[2px] px-2 text-left text-[12px] font-medium text-text transition-colors hover:bg-neutral-700 disabled:opacity-50"
                   >
-                    {modelWeightShortLabel(model.openWeights)}
+                    <span className="monogram !h-[18px] !w-[18px] !text-[10px]">
+                      {model.monogram}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{model.displayName}</span>
+                    <span
+                      data-model-weight={model.openWeights ? 'open' : 'frontier'}
+                      className={cn(
+                        'flex-none rounded-[2px] border px-1 py-px text-[10px] font-medium leading-none',
+                        model.openWeights
+                          ? 'border-neutral-600 text-neutral-400'
+                          : 'border-accent-700 text-accent-200',
+                      )}
+                    >
+                      {modelWeightShortLabel(model.openWeights)}
+                    </span>
+                    <span className="text-[11px] font-normal text-neutral-400">
+                      {addingModelId === model.id ? 'Adding…' : `~${model.etaSeconds}s`}
+                    </span>
+                  </button>
+                ))}
+                {models.length === 0 && (
+                  <span className="px-2 py-1 text-[11px] text-neutral-400">
+                    Every available model is already in this comparison.
                   </span>
-                  <span className="text-[11px] font-normal text-neutral-400">
-                    {addingModelId === model.id ? 'Adding…' : `~${model.etaSeconds}s`}
+                )}
+                {models.length > 0 && matching.length === 0 && (
+                  <span className="px-2 py-1 text-[11px] text-neutral-400">
+                    No models match “{query.trim()}”.
                   </span>
-                </button>
-              ))}
-              {models.length === 0 && (
-                <span className="px-2 py-1 text-[11px] text-neutral-400">
-                  Every available model is already in this comparison.
-                </span>
-              )}
+                )}
+              </div>
               {addError && (
                 <span className="px-2 py-1 text-[11px] text-danger" role="alert">
                   {addError}
@@ -1167,7 +1196,12 @@ export function ComparisonView(props: ComparisonPageData) {
       const match = models.find((item) => item.slug === model.slug);
       if (match && !seen.has(model.slug)) {
         seen.add(model.slug);
-        rows.push(match);
+        rows.push({
+          id: match.id,
+          slug: match.slug,
+          name: match.displayName,
+          monogram: match.monogram,
+        });
       }
     }
     return rows;
@@ -1810,7 +1844,7 @@ export function ComparisonView(props: ComparisonPageData) {
         latencyMs: null,
         status: 'queued',
         error: null,
-        model: { slug: model.slug, name: model.name, monogram: model.monogram },
+        model: { slug: model.slug, name: model.displayName, monogram: model.monogram },
         turn: turnByPosition.get(entry.position) ?? {
           id: entry.turnId,
           position: entry.position,

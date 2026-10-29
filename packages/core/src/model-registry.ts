@@ -1,6 +1,5 @@
 import { uuidv7 } from 'uuidv7';
-
-export type ModelRelease = 'current' | 'previous';
+import type { ModelRelease } from './domain/types';
 
 export type ModelRegistryEntry = {
   slug: string;

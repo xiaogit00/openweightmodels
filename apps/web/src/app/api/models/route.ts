@@ -14,6 +14,8 @@ export async function GET() {
       etaSeconds: model.etaSeconds,
       provider: model.provider,
       openWeights: model.openWeights,
+      family: model.family,
+      release: model.release,
     })),
   });
 }

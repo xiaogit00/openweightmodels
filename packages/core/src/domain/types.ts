@@ -9,6 +9,9 @@ export const CATEGORIES = [
 
 export type Category = (typeof CATEGORIES)[number];
 
+/** The slot a Model occupies within its family in the curated registry. */
+export type ModelRelease = 'current' | 'previous';
+
 export const EFFORT_LEVELS = [
   { value: 1, label: 'Low', sub: 'Quick prompt' },
   { value: 2, label: 'Med', sub: 'Multi-step' },

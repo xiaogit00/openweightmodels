@@ -65,10 +65,12 @@ export default async function ComparisonPage({
       models={models.map((model) => ({
         id: model.id,
         slug: model.slug,
-        name: model.displayName,
+        displayName: model.displayName,
         monogram: model.monogram,
         etaSeconds: model.etaSeconds,
         openWeights: model.openWeights,
+        family: model.family,
+        release: model.release,
       }))}
       maxChallengers={resolveMaxChallengers(process.env.MAX_CHALLENGERS)}
       currentUserId={user?.handle ? user.id : null}
