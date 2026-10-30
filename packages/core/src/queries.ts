@@ -488,12 +488,22 @@ export async function getComparisonForViewer(
     : [];
   const modelMap = new Map(modelRows.map((row) => [row.id, row]));
 
+  // Responses are written in one transaction, so `created_at` ties and the
+  // database is free to return them in any order. The reader expects Turn
+  // order: order by the Turn's position, then break remaining ties stably.
+  const turnPosition = new Map(turnRows.map((turn) => [turn.id, turn.position]));
+  const orderedResponses = responseRows.slice().sort((a, b) => {
+    const byTurn = (turnPosition.get(a.turnId) ?? 0) - (turnPosition.get(b.turnId) ?? 0);
+    if (byTurn !== 0) return byTurn;
+    return a.createdAt.getTime() - b.createdAt.getTime() || a.modelId.localeCompare(b.modelId);
+  });
+
   return {
     comparison,
     author: toPublicUser(author),
     baseModel,
     turns: turnRows,
-    responses: responseRows
+    responses: orderedResponses
       .map((response) => {
         const model = modelMap.get(response.modelId);
         return model ? { response, model } : null;
