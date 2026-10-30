@@ -532,7 +532,10 @@ A **Replay** is one Challenger's Responses across every Turn, generated in Turn 
    - the Conversation's user messages 1..*n*,
    - interleaved with **this Model's own** done Responses 1..*n-1*,
    - never the Base model's replies, another Challenger's replies, or reasoning content,
-   - `temperature: 0.7`, `max_tokens: 4096`, `stream: true`, a 120-second timeout.
+   - `temperature: 0.7`, `max_tokens: 16384`, `stream: true`, a 300-second timeout.
+   - `max_tokens` covers reasoning tokens on reasoning-capable Models, so it is
+     deliberately larger than the answer length. An empty completion is Failed,
+     not Done, because the Model may have spent the budget on reasoning.
    A worker whose earlier Turn is not done no-ops, so out-of-order delivery cannot break the Replay.
 4. **Stream.** The worker appends chunks, updates `tokens` and `response.status` at most every 500 ms, and emits `response.status` job events. Each Turn carries its own status, tokens, latency, error and attempt.
 5. **Finish.** On success it stores `content_md`, final tokens, latency and provider cost, sets that Turn `done`, and enqueues the next queued Turn of the same Replay. On failure it stores the error and sets only that Turn `failed`; later Turns stay queued. It schedules the attempt-scoped 24-hour auto-skip, which cascades skipped through the rest of that Replay, then attempts to finalise.

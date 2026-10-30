@@ -372,6 +372,16 @@ export async function processRun(responseId: string) {
       },
     });
 
+    // A reasoning Model can burn the whole output budget before emitting any
+    // visible text. Storing that as Done leaves an empty cell with no
+    // explanation, so surface it as a failure the Author can retry.
+    if (!result.text.trim()) {
+      tokens = result.tokens;
+      throw new Error(
+        'The model returned no text. It may have used its entire output budget on reasoning.',
+      );
+    }
+
     const latencyMs = Date.now() - startedAt;
     await db
       .update(responses)

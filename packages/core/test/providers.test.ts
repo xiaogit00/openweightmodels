@@ -81,11 +81,37 @@ describe('OpenAI-compatible provider', () => {
         model: 'fixture/challenger',
         messages: [{ role: 'user', content: 'Say hello' }],
         temperature: 0.7,
-        max_tokens: 4096,
+        max_tokens: 16_384,
         stream: true,
         stream_options: { include_usage: true },
       },
     });
+  });
+
+  it('flushes a final frame that is not terminated by a blank line', async () => {
+    const providerServer = await fakeOpenAi(() => ({
+      status: 200,
+      contentType: 'text/event-stream',
+      // A provider that closes right after its last event must not lose it.
+      body:
+        `data: ${JSON.stringify({ choices: [{ delta: { content: 'Tail' } }] })}\n\n` +
+        `data: ${JSON.stringify({ usage: { completion_tokens: 3 } })}`,
+    }));
+    cleanups.push(providerServer.close);
+
+    const provider = new OpenAICompatibleProvider('test-key');
+    const chunks: string[] = [];
+    const result = await provider.generate({
+      model: model({ apiBase: providerServer.baseUrl }),
+      messages: [{ role: 'user', content: 'Say hello' }],
+      attempt: 0,
+      onToken: (chunk) => {
+        chunks.push(chunk);
+      },
+    });
+
+    expect(result).toEqual({ text: 'Tail', tokens: 3, costUsd: null });
+    expect(chunks.join('')).toBe('Tail');
   });
 
   it('sends the same Prompt and generation parameters to every Challenger', async () => {
@@ -116,7 +142,7 @@ describe('OpenAI-compatible provider', () => {
       expect.objectContaining({
         messages,
         temperature: 0.7,
-        max_tokens: 4096,
+        max_tokens: 16_384,
         stream: true,
         stream_options: { include_usage: true },
       }),

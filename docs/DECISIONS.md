@@ -75,7 +75,7 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 | 33 | Keep `comparisons.comment_count` / `annotation_count`, updated transactionally | Board Top sort and cards read them constantly. |
 | 34 | Provider-agnostic **OpenAI-compatible adapter**; `MockProvider` default; OpenRouter first | One interface, no lock-in, testable without spend. |
 | 35 | Provider secrets live in env/Secrets Manager, never in `models` | `api_base` and `api_model_id` are configuration, not credentials. |
-| 36 | Identical generation params across Challengers: temperature 0.7, max_tokens 4096, 120s timeout | Fair comparisons. |
+| 36 | Identical generation params across Challengers: temperature 0.7, max_tokens 16384, 300s timeout | Fair comparisons. The cap covers reasoning tokens, which can otherwise consume the whole budget before visible text. |
 | 37 | **Cost tracking**: `responses.cost_usd`, nullable | Production spend must be observable even without billing. |
 | 38 | Quotas: 10 Jobs/hour, 50 Runs/day, 4 concurrent provider calls, 4 Challengers | Bounds abuse and spend; env-configurable. |
 | 39 | Auto-skip jobs are **attempt-scoped**, and `queued → calling` is an atomic claim | A retry gets a fresh 24h window; a duplicate delivery cannot call the provider twice. |
@@ -235,7 +235,7 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 23. **Anonymous visitors** can read everything public, including highlights and vote counts, but every write prompts sign-in.
 24. **SSE reconnect** replays from `Last-Event-ID`; malformed/unknown cursors are ignored and the stream starts from the beginning of the retained window.
 25. **Redis failure**: SSE keeps polling Postgres; enqueueing new Runs currently fails at the API boundary (OPEN).
-26. **Provider timeout** is 120s; the error is stored and surfaced as "API timeout".
+26. **Provider timeout** is 300s; the error is stored and surfaced as "API timeout".
 27. **Mock failures** are opt-in via `MOCK_FAIL_ONCE=true` and optional `MOCK_FAIL_MODEL`.
 28. **Upload failures** are `400` with a specific code: unsupported type, too large, empty, binary, invalid UTF-8, invalid front matter, empty body, prompt/title limits.
 29. **Front-matter `model:`** is matched to a registry slug or display name to preselect the Base model. Unknown values are ignored with a prompt to choose.

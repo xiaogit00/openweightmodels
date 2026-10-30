@@ -107,7 +107,7 @@ The worker validates this at startup: `PROVIDER=openrouter` without
 never falls back to mock. Keep the key out of shell history by putting it in
 `.env.local` (gitignored); Next, the worker and the db scripts read it. Each
 Challenger receives the same frozen Prompt,
-`temperature: 0.7`, `max_tokens: 4096`, streaming and a 120-second timeout;
+`temperature: 0.7`, `max_tokens: 16384`, streaming and a 300-second timeout;
 the final content, provider-reported completion tokens, latency and cost are
 stored on the Response. The key stays in the environment and is redacted from
 error messages stored on a failed Run.

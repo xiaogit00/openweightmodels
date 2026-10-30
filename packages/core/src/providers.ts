@@ -31,6 +31,16 @@ export interface Provider {
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Reasoning-capable Models spend part of this budget before emitting any
+ * visible text, so a small cap can exhaust the response on thinking alone.
+ * Kept uniform across Challengers so a Comparison stays fair.
+ */
+export const MAX_OUTPUT_TOKENS = 16_384;
+
+/** One provider call may stream for this long before it fails as a timeout. */
+export const PROVIDER_TIMEOUT_MS = 300_000;
+
 /** Remove a provider key from anything that may be logged or stored. */
 export function redactSecrets(value: string, secret: string) {
   return secret ? value.split(secret).join('[redacted]') : value;
@@ -214,7 +224,8 @@ export class OpenAICompatibleProvider implements Provider {
   constructor(
     private readonly apiKey: string,
     /** One call may stream for this long before it fails as a timeout. */
-    private readonly timeoutMs = 120_000,
+    private readonly timeoutMs = PROVIDER_TIMEOUT_MS,
+    private readonly maxOutputTokens = MAX_OUTPUT_TOKENS,
   ) {}
 
   private failure(error: unknown): Error {
@@ -263,7 +274,7 @@ export class OpenAICompatibleProvider implements Provider {
           model: model.apiModelId ?? model.slug,
           messages,
           temperature: 0.7,
-          max_tokens: 4096,
+          max_tokens: this.maxOutputTokens,
           stream: true,
           // OpenAI-compatible providers only include the usage block (tokens
           // and, on aggregators such as OpenRouter, cost) when asked.
@@ -283,6 +294,43 @@ export class OpenAICompatibleProvider implements Provider {
       let tokens = 0;
       let costUsd: number | null = null;
 
+      // An SSE frame is one or more `data:` lines ending in a blank line. Parse
+      // in one place so the final frame can be flushed when the stream closes.
+      const consumeFrame = async (frame: string) => {
+        for (const line of frame.split('\n')) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const data = trimmed.slice(5).trim();
+          if (!data || data === '[DONE]') continue;
+          let parsed: {
+            choices?: Array<{ delta?: { content?: string } }>;
+            usage?: { completion_tokens?: number; cost?: number };
+            error?: { message?: string } | string;
+          };
+          try {
+            parsed = JSON.parse(data);
+          } catch {
+            continue;
+          }
+          if (parsed.error) {
+            const detail =
+              typeof parsed.error === 'string'
+                ? parsed.error
+                : (parsed.error.message ?? 'unknown error');
+            throw new Error(`provider stream error: ${detail}`);
+          }
+          const chunk = parsed.choices?.[0]?.delta?.content ?? '';
+          if (chunk) {
+            text += chunk;
+            await onToken(chunk);
+          }
+          if (parsed.usage) {
+            tokens = parsed.usage.completion_tokens ?? tokens;
+            costUsd = typeof parsed.usage.cost === 'number' ? parsed.usage.cost : costUsd;
+          }
+        }
+      };
+
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -290,41 +338,14 @@ export class OpenAICompatibleProvider implements Provider {
         const frames = buffer.split('\n\n');
         buffer = frames.pop() ?? '';
 
-        for (const frame of frames) {
-          for (const line of frame.split('\n')) {
-            const trimmed = line.trim();
-            if (!trimmed.startsWith('data:')) continue;
-            const data = trimmed.slice(5).trim();
-            if (!data || data === '[DONE]') continue;
-            let parsed: {
-              choices?: Array<{ delta?: { content?: string } }>;
-              usage?: { completion_tokens?: number; cost?: number };
-              error?: { message?: string } | string;
-            };
-            try {
-              parsed = JSON.parse(data);
-            } catch {
-              continue;
-            }
-            if (parsed.error) {
-              const detail =
-                typeof parsed.error === 'string'
-                  ? parsed.error
-                  : (parsed.error.message ?? 'unknown error');
-              throw new Error(`provider stream error: ${detail}`);
-            }
-            const chunk = parsed.choices?.[0]?.delta?.content ?? '';
-            if (chunk) {
-              text += chunk;
-              await onToken(chunk);
-            }
-            if (parsed.usage) {
-              tokens = parsed.usage.completion_tokens ?? tokens;
-              costUsd = typeof parsed.usage.cost === 'number' ? parsed.usage.cost : costUsd;
-            }
-          }
-        }
+        for (const frame of frames) await consumeFrame(frame);
       }
+
+      // Some providers close immediately after the last event without sending
+      // the blank line that would normally terminate it. Dropping that frame
+      // loses the tail of the answer and, often, the usage block.
+      buffer += decoder.decode();
+      if (buffer.trim()) await consumeFrame(buffer);
 
       return {
         text,

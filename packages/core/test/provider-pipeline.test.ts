@@ -120,6 +120,61 @@ describe.skipIf(!available)('real provider through the Job pipeline', () => {
     }
   });
 
+  it('fails a Run that returned no visible text instead of storing an empty Done', async () => {
+    let empty = true;
+    const providerServer = await fakeOpenAi(() =>
+      empty
+        ? {
+            status: 200,
+            contentType: 'text/event-stream',
+            body: sse(
+              JSON.stringify({ choices: [], usage: { completion_tokens: 4096 } }),
+              '[DONE]',
+            ),
+          }
+        : {
+            status: 200,
+            contentType: 'text/event-stream',
+            body: sse(
+              JSON.stringify({ choices: [{ delta: { content: 'Recovered' } }] }),
+              JSON.stringify({ usage: { completion_tokens: 1, cost: 0.0004 } }),
+              '[DONE]',
+            ),
+          },
+    );
+
+    process.env.PROVIDER = 'openrouter';
+    process.env.OPENROUTER_API_KEY = 'test-key';
+
+    const fixture = await createJobFixture({
+      challengers: 1,
+      provider: 'openrouter',
+      apiBase: providerServer.baseUrl,
+    });
+    const responseId = fixture.runIds[0]!;
+
+    try {
+      await processRun(responseId);
+
+      let bundle = await getJobForAuthor(fixture.jobId, fixture.userId);
+      expect(bundle?.runs[0]).toMatchObject({ status: 'failed', attempt: 0, tokens: 4096 });
+      expect(bundle?.runs[0]?.error).toContain('returned no text');
+      expect(await getRunQueue().getJob(autoSkipJobId(responseId, 0))).toBeTruthy();
+
+      empty = false;
+      await retryRun(responseId, fixture.userId);
+      await processRun(responseId);
+
+      bundle = await getJobForAuthor(fixture.jobId, fixture.userId);
+      expect(bundle?.runs[0]).toMatchObject({ status: 'done', attempt: 1 });
+      expect(bundle?.job.status).toBe('ready');
+    } finally {
+      await removeQueuedRuns(fixture.runIds);
+      await fixture.cleanup();
+      await providerServer.close();
+    }
+  });
+
   it('turns a provider error into a failed Run that retries to success', async () => {
     let fail = true;
     const providerServer = await fakeOpenAi(() =>
