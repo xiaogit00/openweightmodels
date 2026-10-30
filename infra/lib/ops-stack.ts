@@ -39,17 +39,24 @@ export class StagingOpsStack extends Stack {
       displayName: `OpenWeightModels ${config.domainName} alarms`,
     });
     this.alarmTopic.addSubscription(new subscriptions.EmailSubscription(config.alarmEmail));
-    // AWS Budgets publishes as a service principal, so the default topic policy
-    // (which only allows the owning account) is not enough. Without this the
-    // 80%/100% budget notifications are silently dropped.
-    this.alarmTopic.addToResourcePolicy(
-      new iam.PolicyStatement({
-        sid: 'AllowBudgetsToPublish',
-        principals: [new iam.ServicePrincipal('budgets.amazonaws.com')],
-        actions: ['sns:Publish'],
-        resources: [this.alarmTopic.topicArn],
-      }),
-    );
+    // Adding any resource policy replaces SNS's default topic policy, so the
+    // principals that must publish have to be stated explicitly. CloudWatch
+    // runs the alarm actions, and Budgets delivers the 80%/100% notifications;
+    // without both statements those deliveries fail silently.
+    for (const [sid, principal] of [
+      ['AllowCloudWatchAlarmsToPublish', new iam.ServicePrincipal('cloudwatch.amazonaws.com')],
+      ['AllowBudgetsToPublish', new iam.ServicePrincipal('budgets.amazonaws.com')],
+      ['AllowOwnerAccountToPublish', new iam.AccountRootPrincipal()],
+    ] as const) {
+      this.alarmTopic.addToResourcePolicy(
+        new iam.PolicyStatement({
+          sid,
+          principals: [principal],
+          actions: ['sns:Publish'],
+          resources: [this.alarmTopic.topicArn],
+        }),
+      );
+    }
     const alarmAction = new cwActions.SnsAction(this.alarmTopic);
 
     const alarm = (id: string, props: cloudwatch.AlarmProps) => {

@@ -477,14 +477,13 @@ describe('staging operations', () => {
       Endpoint: 'owner@example.com',
     });
 
-    // The budget publishes as a service principal; without an explicit policy
-    // AWS Budgets cannot deliver its notifications to the topic.
+    // Adding a topic policy replaces SNS's default one, so every publisher must
+    // be named explicitly: CloudWatch executes alarm actions and Budgets sends
+    // its notifications.
     const policies = ops.findResources('AWS::SNS::TopicPolicy');
-    expect(
-      Object.values(policies).some((policy) =>
-        JSON.stringify(policy).includes('budgets.amazonaws.com'),
-      ),
-    ).toBe(true);
+    const policyJson = JSON.stringify(Object.values(policies));
+    expect(policyJson).toContain('cloudwatch.amazonaws.com');
+    expect(policyJson).toContain('budgets.amazonaws.com');
   });
 
   it('derives queue depth and job failure rate from worker logs', () => {
