@@ -3,6 +3,7 @@ import * as budgets from 'aws-cdk-lib/aws-budgets';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as cwActions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
@@ -38,6 +39,17 @@ export class StagingOpsStack extends Stack {
       displayName: `OpenWeightModels ${config.domainName} alarms`,
     });
     this.alarmTopic.addSubscription(new subscriptions.EmailSubscription(config.alarmEmail));
+    // AWS Budgets publishes as a service principal, so the default topic policy
+    // (which only allows the owning account) is not enough. Without this the
+    // 80%/100% budget notifications are silently dropped.
+    this.alarmTopic.addToResourcePolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowBudgetsToPublish',
+        principals: [new iam.ServicePrincipal('budgets.amazonaws.com')],
+        actions: ['sns:Publish'],
+        resources: [this.alarmTopic.topicArn],
+      }),
+    );
     const alarmAction = new cwActions.SnsAction(this.alarmTopic);
 
     const alarm = (id: string, props: cloudwatch.AlarmProps) => {
@@ -109,10 +121,13 @@ export class StagingOpsStack extends Stack {
 
     // The worker has no target group, so watch its running task count. The
     // service minimum is one; a zero here means no one is draining the queue.
+    // ECS publishes `LiveTaskCount`; the older `RunningTaskCount` name has no
+    // datapoints, which with treatMissingData BREACHING pinned this alarm to
+    // ALARM permanently.
     alarm('WorkerRunningTasksAlarm', {
       metric: new cloudwatch.Metric({
         namespace: 'AWS/ECS',
-        metricName: 'RunningTaskCount',
+        metricName: 'LiveTaskCount',
         dimensionsMap: {
           ClusterName: props.clusterName,
           ServiceName: props.workerServiceName,
@@ -135,8 +150,12 @@ export class StagingOpsStack extends Stack {
       metricNamespace: 'OWM/Queue',
       metricName: 'Depth',
       metricValue: '$.depth',
-      defaultValue: 0,
-      dimensions: { QueueName: props.queueName },
+      // CloudWatch rejects `defaultValue` together with `dimensions`, and each
+      // dimension value must be a selector rather than a literal. The worker's
+      // JSON line carries `queue`, so the dimension comes from the event. The
+      // alarm treats missing data as not breaching, so an idle queue needs no
+      // zero datapoint.
+      dimensions: { QueueName: '$.queue' },
       filterName: `${name}-queue-depth`,
     });
 

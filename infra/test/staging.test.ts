@@ -462,7 +462,7 @@ describe('staging operations', () => {
         'HTTPCode_ELB_5XX_Count',
         'HTTPCode_Target_5XX_Count',
         'UnHealthyHostCount',
-        'RunningTaskCount',
+        'LiveTaskCount',
       ]),
     );
 
@@ -476,6 +476,15 @@ describe('staging operations', () => {
       Protocol: 'email',
       Endpoint: 'owner@example.com',
     });
+
+    // The budget publishes as a service principal; without an explicit policy
+    // AWS Budgets cannot deliver its notifications to the topic.
+    const policies = ops.findResources('AWS::SNS::TopicPolicy');
+    expect(
+      Object.values(policies).some((policy) =>
+        JSON.stringify(policy).includes('budgets.amazonaws.com'),
+      ),
+    ).toBe(true);
   });
 
   it('derives queue depth and job failure rate from worker logs', () => {
@@ -491,12 +500,21 @@ describe('staging operations', () => {
     expect(byName.Depth).toMatchObject({
       MetricNamespace: 'OWM/Queue',
       MetricValue: '$.depth',
+      Dimensions: [{ Key: 'QueueName', Value: '$.queue' }],
     });
     expect(byName.Failed).toMatchObject({
       MetricNamespace: 'OWM/Jobs',
       MetricValue: '1',
     });
     expect(byName.Finished).toMatchObject({ MetricNamespace: 'OWM/Jobs' });
+
+    // CloudWatch rejects a metric transformation that combines these two.
+    for (const transform of Object.values(byName) as Array<Record<string, any>>) {
+      expect(
+        transform.DefaultValue !== undefined && transform.Dimensions !== undefined,
+        `${transform.MetricName} sets both DefaultValue and Dimensions`,
+      ).toBe(false);
+    }
 
     const alarms = ops.findResources('AWS::CloudWatch::Alarm');
     const expressions = (Object.values(alarms) as Array<Record<string, any>>)
