@@ -1,27 +1,29 @@
 import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
-import { Geist, Space_Grotesk, Space_Mono } from 'next/font/google';
+import localFont from 'next/font/local';
 import { SiteFooter } from '@/components/site-footer';
 import { THEME_COOKIE, themeFromCookie } from '@/lib/theme';
 import './globals.css';
 
-const geist = Geist({
-  subsets: ['latin'],
-  weight: ['400', '500', '600'],
+// Self-hosted: next/font/google fetches at build time and both bundlers fail
+// intermittently when Google returns an extensionless font URL. See fonts/README.md.
+const geist = localFont({
+  src: './fonts/geist.woff2',
+  weight: '100 900',
   variable: '--font-geist',
   display: 'swap',
 });
 
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  weight: ['500'],
+const spaceGrotesk = localFont({
+  src: './fonts/space-grotesk-500.woff2',
+  weight: '500',
   variable: '--font-space',
   display: 'swap',
 });
 
-const spaceMono = Space_Mono({
-  subsets: ['latin'],
-  weight: ['400'],
+const spaceMono = localFont({
+  src: './fonts/space-mono-400.woff2',
+  weight: '400',
   variable: '--font-space-mono',
   display: 'swap',
 });
