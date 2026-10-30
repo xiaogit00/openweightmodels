@@ -581,6 +581,30 @@ describe('GitHub OIDC deploy role', () => {
     expect(template.toJSON().Outputs).toHaveProperty('DeployRoleArn');
   });
 
+  it('trusts the immutable OIDC subject when the repository uses one', () => {
+    const config = testConfig({
+      githubRepo: 'owner/repo',
+      githubBranch: 'main',
+      githubSubjectPrefix: 'repo:owner@123456/repo@789012',
+    });
+    const app = new App();
+    const stack = new StagingCiStack(app, 'Ci', { config, env });
+    const template = Template.fromStack(stack);
+
+    const roles = template.findResources('AWS::IAM::Role');
+    const deployRole = Object.values(roles).find(
+      (role) => (role as Record<string, any>).Properties.RoleName === 'test-staging-github-deploy',
+    ) as Record<string, any> | undefined;
+    expect(deployRole).toBeDefined();
+
+    const condition = JSON.stringify(
+      deployRole!.Properties.AssumeRolePolicyDocument.Statement[0].Condition,
+    );
+    expect(condition).toContain('repo:owner@123456/repo@789012:ref:refs/heads/main');
+    expect(condition).toContain('repo:owner@123456/repo@789012:environment:staging');
+    expect(condition).not.toContain('repo:owner/repo:');
+  });
+
   it('does not create a CI stack without a repository', () => {
     const app = new App();
     expect(

@@ -36,6 +36,8 @@ export class StagingCiStack extends Stack {
           clientIds: ['sts.amazonaws.com'],
         });
 
+    const subjectPrefix = config.githubSubjectPrefix ?? `repo:${config.githubRepo}`;
+
     const role = new iam.Role(this, 'DeployRole', {
       roleName: `${config.namePrefix}-github-deploy`,
       description: `GitHub Actions deploy role for ${config.githubRepo} (OIDC, no access keys)`,
@@ -47,8 +49,8 @@ export class StagingCiStack extends Stack {
           },
           StringLike: {
             'token.actions.githubusercontent.com:sub': [
-              `repo:${config.githubRepo}:ref:refs/heads/${config.githubBranch}`,
-              `repo:${config.githubRepo}:environment:staging`,
+              `${subjectPrefix}:ref:refs/heads/${config.githubBranch}`,
+              `${subjectPrefix}:environment:staging`,
             ],
           },
         },

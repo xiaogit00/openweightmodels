@@ -125,6 +125,7 @@ variables:
 | `OWM_SENTRY_DSN` | no | unset | Sentry-compatible error tracker; unset writes structured errors to logs only |
 | `OWM_GITHUB_REPO` | for `deploy:ci` | — | `owner/repository` allowed to assume the deploy role |
 | `OWM_GITHUB_BRANCH` | no | `main` | Branch allowed to deploy through OIDC |
+| `OWM_GITHUB_SUBJECT_PREFIX` | no | detected | The token's `sub` prefix, e.g. `repo:owner@123/repo@456` for a repository created after 15 July 2026, or `repo:owner/repo` for an older one. `deploy:ci` asks GitHub for it with `gh`; set it when `gh` is unavailable |
 | `OWM_GITHUB_OIDC_PROVIDER_ARN` | no | create | Reuse an existing GitHub OIDC provider |
 | `OWM_SIGNIN_ALLOWED_EMAILS` | no | unset (any address) | Comma-separated sign-in allowlist: `owner@example.com` for one address, `@example.com` for a domain |
 | `OWM_ALLOW_SEARCH_INDEXING` | no | `false` | Set `true` only for a public launch; it is a build argument, so it needs a rebuild |
@@ -400,8 +401,11 @@ pnpm deploy:ci
 
 `pnpm deploy:ci` creates `OwmStagingCi` with the GitHub OIDC provider (or imports
 one via `OWM_GITHUB_OIDC_PROVIDER_ARN`) and the `<name>-github-deploy` role. Its
-trust policy is fenced to `repo:<owner>/<repo>:ref:refs/heads/<branch>` and
-`repo:<owner>/<repo>:environment:staging`. The role has `AdministratorAccess`
+trust policy is fenced to the repository, branch and `staging` environment
+subjects. Repositories created after 15 July 2026 use immutable subjects such as
+`repo:<owner>@<owner-id>/<repo>@<repo-id>:ref:refs/heads/<branch>`; older ones
+use `repo:<owner>/<repo>:...`. `deploy:ci` reads the exact prefix from GitHub
+with `gh` (or `OWM_GITHUB_SUBJECT_PREFIX`), so the trust matches the token. The role has `AdministratorAccess`
 because `cdk deploy` manages every staging resource; it exists only in the
 staging account.
 

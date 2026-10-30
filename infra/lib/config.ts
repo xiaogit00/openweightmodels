@@ -39,6 +39,13 @@ export type StagingConfig = {
   githubRepo?: string;
   /** Branch allowed to assume the deploy role. */
   githubBranch: string;
+  /**
+   * The `sub` claim prefix GitHub issues for this repository. Repositories
+   * created after 15 July 2026 use immutable IDs, for example
+   * `repo:owner@123/repo@456`; older repositories use `repo:owner/repo`.
+   * Defaults to the non-immutable form.
+   */
+  githubSubjectPrefix?: string;
   /** Existing GitHub OIDC provider ARN, when the account already has one. */
   githubOidcProviderArn?: string;
   account?: string;
@@ -145,6 +152,20 @@ export function loadStagingConfig(app: App): StagingConfig {
     throw new Error('CDK context "githubRepo" must look like owner/repository');
   }
 
+  // GitHub switched new repositories to immutable OIDC subjects in July 2026:
+  // repo:owner@ownerId/repo@repoId instead of repo:owner/repo. A trust policy
+  // written for one form never matches the other, so the deploy script detects
+  // the prefix and passes it in.
+  const githubSubjectPrefix =
+    stringContext(context, 'githubSubjectPrefix') ??
+    process.env.OWM_GITHUB_SUBJECT_PREFIX ??
+    (githubRepo ? `repo:${githubRepo}` : undefined);
+  if (githubSubjectPrefix && !/^repo:[^:]+$/.test(githubSubjectPrefix)) {
+    throw new Error(
+      'githubSubjectPrefix must look like repo:owner/repo or repo:owner@id/repo@id',
+    );
+  }
+
   const webDesiredCount = intContext(context, 'webDesiredCount', 2);
   const minWebTasks = intContext(context, 'minWebTasks', 2);
   const maxWebTasks = intContext(context, 'maxWebTasks', 4);
@@ -188,6 +209,7 @@ export function loadStagingConfig(app: App): StagingConfig {
     sentryDsn: stringContext(context, 'sentryDsn') ?? process.env.OWM_SENTRY_DSN,
     githubRepo,
     githubBranch: stringContext(context, 'githubBranch') ?? 'main',
+    githubSubjectPrefix,
     githubOidcProviderArn:
       stringContext(context, 'githubOidcProviderArn') ??
       process.env.OWM_GITHUB_OIDC_PROVIDER_ARN,

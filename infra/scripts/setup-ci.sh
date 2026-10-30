@@ -11,6 +11,8 @@
 #   AWS_REGION (or AWS_DEFAULT_REGION)
 #   OWM_GITHUB_REPO       owner/repository
 #   OWM_ALARM_EMAIL       named alarm owner
+#   OWM_GITHUB_SUBJECT_PREFIX  optional; the OIDC `sub` prefix, e.g.
+#                         repo:owner@123/repo@456. Detected with `gh` when unset.
 #   OWM_DOMAIN_NAME       hostname used by the staging stacks
 #   OWM_HOSTED_ZONE_ID or OWM_CERTIFICATE_ARN
 #
@@ -40,6 +42,7 @@ ALARM_EMAIL="${OWM_ALARM_EMAIL:-}"
 GITHUB_REPO="${OWM_GITHUB_REPO:-}"
 GITHUB_BRANCH="${OWM_GITHUB_BRANCH:-main}"
 GITHUB_OIDC_PROVIDER_ARN="${OWM_GITHUB_OIDC_PROVIDER_ARN:-}"
+GITHUB_SUBJECT_PREFIX="${OWM_GITHUB_SUBJECT_PREFIX:-}"
 MONTHLY_BUDGET_USD="${OWM_MONTHLY_BUDGET_USD:-200}"
 MONTHLY_SPEND_CAP_USD="${OWM_MONTHLY_SPEND_CAP_USD:-100}"
 
@@ -65,9 +68,23 @@ if [[ -z "$HOSTED_ZONE_ID" && -z "$CERTIFICATE_ARN" ]]; then
 fi
 command -v aws >/dev/null || { echo "Missing required tool: aws" >&2; exit 1; }
 
+# New GitHub repositories use immutable OIDC subjects, which embed the owner and
+# repository IDs. Ask GitHub for the exact prefix so the trust policy matches
+# the token instead of assuming the older name-only form.
+if [[ -z "$GITHUB_SUBJECT_PREFIX" ]] && command -v gh >/dev/null 2>&1; then
+  GITHUB_SUBJECT_PREFIX="$(gh api "repos/$GITHUB_REPO/actions/oidc/customization/sub" \
+    --jq '.sub_claim_prefix' 2>/dev/null || true)"
+fi
+GITHUB_SUBJECT_PREFIX="${GITHUB_SUBJECT_PREFIX:-repo:$GITHUB_REPO}"
+if [[ ! "$GITHUB_SUBJECT_PREFIX" =~ ^repo:[^:]+$ ]]; then
+  echo "OWM_GITHUB_SUBJECT_PREFIX must look like repo:owner/repo or repo:owner@id/repo@id." >&2
+  exit 1
+fi
+
 export AWS_REGION
 ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
 echo "Creating the GitHub OIDC deploy role for $GITHUB_REPO in account $ACCOUNT"
+echo "OIDC subject prefix: $GITHUB_SUBJECT_PREFIX"
 
 CONTEXT=(
   -c "domainName=$DOMAIN"
@@ -81,6 +98,7 @@ CONTEXT=(
   -c "monthlySpendCapUsd=$MONTHLY_SPEND_CAP_USD"
   -c "githubRepo=$GITHUB_REPO"
   -c "githubBranch=$GITHUB_BRANCH"
+  -c "githubSubjectPrefix=$GITHUB_SUBJECT_PREFIX"
 )
 if [[ -n "$HOSTED_ZONE_ID" ]]; then
   CONTEXT+=(-c "hostedZoneId=$HOSTED_ZONE_ID")
