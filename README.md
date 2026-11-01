@@ -225,10 +225,11 @@ visual suite there.
 | `GLOSSARY.md` | Canonical domain vocabulary |
 | `docs/DECISIONS.md` | Every settled decision, rejected alternative, edge case and open question |
 | `docs/MODEL-REGISTRY.md` | Curation rule for the Model catalogue: releases kept, disabling, adding a new Model |
-| `docs/adr/` | Architectural decisions 0001–0010 |
+| `docs/adr/` | Architectural decisions 0001–0011 |
 | `docs/IMPLEMENTATION-STATUS.md` | What is built, what is missing, known issues, next steps |
 | `docs/DEPLOYMENT.md` | AWS staging topology, first deploy, release, rollback, cost and smoke tests |
 | `docs/ITERATING.md` | Day-to-day loop: local development, pre-release checks, deploying to staging |
+| `docs/STACK-CHALLENGES.md` | 70 hands-on challenges for Docker, queues, BullMQ, Redis, AWS, CDK and CI/CD |
 | `docs/CODEBASE-TOUR.md` | Guided explanation of every stack layer, data model, end-to-end flows and extension points |
 | `docs/LABS.md` | Hands-on lab sessions for the database, parser, markdown offsets, API, queue, SSE, auth and moderation |
 
