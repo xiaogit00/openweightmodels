@@ -28,6 +28,7 @@
     "stack:seed": "docker compose run --rm migrate node_modules/.bin/tsx packages/core/src/seed.ts",
     "cdk:synth": "pnpm --filter @owm/infra synth",
     "deploy:staging": "bash infra/scripts/deploy.sh",
+    "deploy:prod": "OWM_ENVIRONMENT=production bash infra/scripts/deploy.sh",
     "deploy:ci": "bash infra/scripts/setup-ci.sh"
   },
   "devDependencies": {

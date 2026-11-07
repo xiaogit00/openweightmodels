@@ -2,10 +2,14 @@
 #
 # One-time setup for GitHub Actions deploys. Creates the OIDC provider (or
 # imports one) and the deploy role, then prints the role ARN to store as the
-# `AWS_DEPLOY_ROLE_ARN` repository variable.
+# `AWS_DEPLOY_ROLE_ARN` variable in the matching GitHub environment.
 #
-# After this, `pnpm deploy:staging` runs from CI with a short-lived token; no
-# AWS access key is stored in GitHub.
+# Set OWM_ENVIRONMENT=production for OwmProdCi (owm-prod-github-deploy). The
+# production role trusts only the `production` GitHub environment; the staging
+# role keeps the branch + environment trust.
+#
+# After this, `pnpm deploy:staging` or `pnpm deploy:prod` runs from CI with a
+# short-lived token; no AWS access key is stored in GitHub.
 #
 # Required environment:
 #   AWS_REGION (or AWS_DEFAULT_REGION)
@@ -13,14 +17,17 @@
 #   OWM_ALARM_EMAIL       named alarm owner
 #   OWM_GITHUB_SUBJECT_PREFIX  optional; the OIDC `sub` prefix, e.g.
 #                         repo:owner@123/repo@456. Detected with `gh` when unset.
-#   OWM_DOMAIN_NAME       hostname used by the staging stacks
+#   OWM_DOMAIN_NAME       hostname used by the stacks
 #   OWM_HOSTED_ZONE_ID or OWM_CERTIFICATE_ARN
 #
 # Optional:
-#   OWM_GITHUB_BRANCH              branch allowed to deploy (defaults to main)
+#   OWM_ENVIRONMENT                staging (default) or production
+#   OWM_GITHUB_ENVIRONMENT         defaults to OWM_ENVIRONMENT
+#   OWM_GITHUB_BRANCH              branch allowed to deploy staging (defaults to main)
 #   OWM_GITHUB_OIDC_PROVIDER_ARN   reuse an existing provider
 #   OWM_STACK_PREFIX / OWM_NAME_PREFIX
 #   OWM_SES_IDENTITY / OWM_HOSTED_ZONE_NAME / OWM_EMAIL_FROM / OWM_PROVIDER
+#   OWM_SES_PRODUCTION_ACCESS      true or false (defaults to false)
 #
 set -euo pipefail
 
@@ -28,6 +35,25 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
 AWS_REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-}}"
+ENVIRONMENT="${OWM_ENVIRONMENT:-staging}"
+if [[ "$ENVIRONMENT" != "staging" && "$ENVIRONMENT" != "production" ]]; then
+  echo "OWM_ENVIRONMENT must be staging or production (got '$ENVIRONMENT')." >&2
+  exit 1
+fi
+if [[ "$ENVIRONMENT" == "production" ]]; then
+  DEFAULT_STACK_PREFIX=OwmProd
+  DEFAULT_NAME_PREFIX=owm-prod
+else
+  DEFAULT_STACK_PREFIX=OwmStaging
+  DEFAULT_NAME_PREFIX=owm-staging
+fi
+STACK_PREFIX="${OWM_STACK_PREFIX:-$DEFAULT_STACK_PREFIX}"
+NAME_PREFIX="${OWM_NAME_PREFIX:-$DEFAULT_NAME_PREFIX}"
+if [[ "$STACK_PREFIX" != "$DEFAULT_STACK_PREFIX" || "$NAME_PREFIX" != "$DEFAULT_NAME_PREFIX" ]]; then
+  echo "OWM_ENVIRONMENT=$ENVIRONMENT requires OWM_STACK_PREFIX=$DEFAULT_STACK_PREFIX and OWM_NAME_PREFIX=$DEFAULT_NAME_PREFIX." >&2
+  exit 1
+fi
+
 DOMAIN="${OWM_DOMAIN_NAME:-}"
 HOSTED_ZONE_ID="${OWM_HOSTED_ZONE_ID:-}"
 HOSTED_ZONE_ID="${HOSTED_ZONE_ID#/hostedzone/}"
@@ -36,15 +62,15 @@ CERTIFICATE_ARN="${OWM_CERTIFICATE_ARN:-}"
 SES_IDENTITY="${OWM_SES_IDENTITY:-$DOMAIN}"
 EMAIL_FROM="${OWM_EMAIL_FROM:-OpenWeightModels <no-reply@${DOMAIN}>}"
 PROVIDER="${OWM_PROVIDER:-openrouter}"
-STACK_PREFIX="${OWM_STACK_PREFIX:-OwmStaging}"
-NAME_PREFIX="${OWM_NAME_PREFIX:-owm-staging}"
 ALARM_EMAIL="${OWM_ALARM_EMAIL:-}"
 GITHUB_REPO="${OWM_GITHUB_REPO:-}"
 GITHUB_BRANCH="${OWM_GITHUB_BRANCH:-main}"
+GITHUB_ENVIRONMENT="${OWM_GITHUB_ENVIRONMENT:-$ENVIRONMENT}"
 GITHUB_OIDC_PROVIDER_ARN="${OWM_GITHUB_OIDC_PROVIDER_ARN:-}"
 GITHUB_SUBJECT_PREFIX="${OWM_GITHUB_SUBJECT_PREFIX:-}"
 MONTHLY_BUDGET_USD="${OWM_MONTHLY_BUDGET_USD:-200}"
 MONTHLY_SPEND_CAP_USD="${OWM_MONTHLY_SPEND_CAP_USD:-100}"
+SES_PRODUCTION_ACCESS="${OWM_SES_PRODUCTION_ACCESS:-false}"
 
 if [[ -z "$AWS_REGION" ]]; then
   echo "Set AWS_REGION (or AWS_DEFAULT_REGION)." >&2
@@ -66,6 +92,10 @@ if [[ -z "$HOSTED_ZONE_ID" && -z "$CERTIFICATE_ARN" ]]; then
   echo "Set OWM_HOSTED_ZONE_ID or OWM_CERTIFICATE_ARN." >&2
   exit 1
 fi
+if [[ ! "$SES_PRODUCTION_ACCESS" =~ ^(true|false)$ ]]; then
+  echo "OWM_SES_PRODUCTION_ACCESS must be true or false." >&2
+  exit 1
+fi
 command -v aws >/dev/null || { echo "Missing required tool: aws" >&2; exit 1; }
 
 # New GitHub repositories use immutable OIDC subjects, which embed the owner and
@@ -84,9 +114,11 @@ fi
 export AWS_REGION
 ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
 echo "Creating the GitHub OIDC deploy role for $GITHUB_REPO in account $ACCOUNT"
+echo "Environment: $ENVIRONMENT (GitHub environment: $GITHUB_ENVIRONMENT)"
 echo "OIDC subject prefix: $GITHUB_SUBJECT_PREFIX"
 
 CONTEXT=(
+  -c "environment=$ENVIRONMENT"
   -c "domainName=$DOMAIN"
   -c "provider=$PROVIDER"
   -c "stackPrefix=$STACK_PREFIX"
@@ -96,8 +128,10 @@ CONTEXT=(
   -c "alarmEmail=$ALARM_EMAIL"
   -c "monthlyBudgetUsd=$MONTHLY_BUDGET_USD"
   -c "monthlySpendCapUsd=$MONTHLY_SPEND_CAP_USD"
+  -c "sesProductionAccess=$SES_PRODUCTION_ACCESS"
   -c "githubRepo=$GITHUB_REPO"
   -c "githubBranch=$GITHUB_BRANCH"
+  -c "githubEnvironment=$GITHUB_ENVIRONMENT"
   -c "githubSubjectPrefix=$GITHUB_SUBJECT_PREFIX"
 )
 if [[ -n "$HOSTED_ZONE_ID" ]]; then
@@ -129,7 +163,8 @@ ROLE_ARN="$(aws cloudformation describe-stacks \
   --output text)"
 
 echo
-echo "Store this as the GitHub repository variable AWS_DEPLOY_ROLE_ARN:"
+echo "Store this as the AWS_DEPLOY_ROLE_ARN variable in the GitHub '$GITHUB_ENVIRONMENT' environment:"
 echo "  $ROLE_ARN"
 echo
-echo "Also set the staging environment variables/secrets listed in docs/DEPLOYMENT.md §7."
+echo "Also set the $GITHUB_ENVIRONMENT environment variables/secrets listed in docs/DEPLOYMENT.md §7"
+echo "or docs/PRODUCTION.md."

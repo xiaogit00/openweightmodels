@@ -11,6 +11,10 @@ CloudWatch Logs. The infrastructure is AWS CDK in TypeScript under `infra/`
 > with GitHub OIDC, rate limits, alarms, budgets, the provider spend cap, the
 > error tracker and rollback. There are no long-lived AWS access keys in the
 > repository or in GitHub.
+>
+> Production is a separate AWS account with its own profile and a tag-gated
+> release. See [`docs/PRODUCTION.md`](PRODUCTION.md) for the production
+> topology, settings, first deploy, rollback and launch gates.
 
 ---
 

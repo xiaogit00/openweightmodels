@@ -1,16 +1,17 @@
 import { App } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { describe, expect, it } from 'vitest';
-import { StagingAppStack } from '../lib/app-stack';
-import { StagingCiStack } from '../lib/ci-stack';
-import { loadStagingConfig, type StagingConfig } from '../lib/config';
-import { StagingFoundationStack } from '../lib/foundation-stack';
-import { StagingOpsStack } from '../lib/ops-stack';
+import { AppStack } from '../lib/app-stack';
+import { CiStack } from '../lib/ci-stack';
+import { loadDeploymentConfig, type DeploymentConfig } from '../lib/config';
+import { FoundationStack } from '../lib/foundation-stack';
+import { OpsStack } from '../lib/ops-stack';
 
 const env = { account: '123456789012', region: 'eu-west-1' };
 
-function testConfig(overrides: Partial<StagingConfig> = {}): StagingConfig {
+function testConfig(overrides: Partial<DeploymentConfig> = {}): DeploymentConfig {
   return {
+    environment: 'staging',
     stackPrefix: 'TestStaging',
     namePrefix: 'test-staging',
     domainName: 'staging.example.com',
@@ -27,7 +28,36 @@ function testConfig(overrides: Partial<StagingConfig> = {}): StagingConfig {
     workerDesiredCount: 1,
     minWorkerTasks: 1,
     maxWorkerTasks: 2,
+    workerMinHealthyPercent: 0,
+    workerMaxPercent: 100,
+    webCpu: 512,
+    webMemoryMiB: 1024,
+    workerCpu: 512,
+    workerMemoryMiB: 1024,
     cacheNodeType: 'cache.t4g.micro',
+    natGateways: 1,
+    dbInstanceClass: 'BURSTABLE4_GRAVITON',
+    dbInstanceSize: 'MICRO',
+    dbAllocatedStorage: 20,
+    dbMaxAllocatedStorage: 50,
+    dbBackupRetentionDays: 7,
+    dbMultiAz: false,
+    dbDeletionProtection: false,
+    dbDeleteAutomatedBackups: true,
+    dbRemovalPolicy: 'DESTROY',
+    redisNumCacheClusters: 1,
+    redisAutomaticFailover: false,
+    redisMultiAz: false,
+    ecrEmptyOnDelete: true,
+    ecrRemovalPolicy: 'DESTROY',
+    logRetentionDays: 30,
+    logRemovalPolicy: 'DESTROY',
+    containerInsightsEnabled: false,
+    albDeletionProtection: false,
+    albAccessLogs: false,
+    sentryEnvironment: 'staging',
+    githubEnvironment: 'staging',
+    sesProductionAccess: false,
     alarmEmail: 'owner@example.com',
     monthlyBudgetUsd: 200,
     monthlySpendCapUsd: 100,
@@ -38,8 +68,8 @@ function testConfig(overrides: Partial<StagingConfig> = {}): StagingConfig {
 
 function synth(config = testConfig()) {
   const app = new App();
-  const foundation = new StagingFoundationStack(app, 'Foundation', { config, env });
-  const appStack = new StagingAppStack(app, 'App', {
+  const foundation = new FoundationStack(app, 'Foundation', { config, env });
+  const appStack = new AppStack(app, 'App', {
     config,
     env,
     vpc: foundation.vpc,
@@ -48,7 +78,7 @@ function synth(config = testConfig()) {
     webSecurityGroup: foundation.webSecurityGroup,
     workerSecurityGroup: foundation.workerSecurityGroup,
   });
-  const ops = new StagingOpsStack(app, 'Ops', {
+  const ops = new OpsStack(app, 'Ops', {
     config,
     env,
     alb: appStack.alb,
@@ -553,7 +583,7 @@ describe('GitHub OIDC deploy role', () => {
   it('trusts only the configured repository, branch and staging environment', () => {
     const config = testConfig({ githubRepo: 'owner/repo', githubBranch: 'main' });
     const app = new App();
-    const stack = new StagingCiStack(app, 'Ci', { config, env });
+    const stack = new CiStack(app, 'Ci', { config, env });
     const template = Template.fromStack(stack);
 
     template.hasResourceProperties('Custom::AWSCDKOpenIdConnectProvider', {
@@ -587,7 +617,7 @@ describe('GitHub OIDC deploy role', () => {
       githubSubjectPrefix: 'repo:owner@123456/repo@789012',
     });
     const app = new App();
-    const stack = new StagingCiStack(app, 'Ci', { config, env });
+    const stack = new CiStack(app, 'Ci', { config, env });
     const template = Template.fromStack(stack);
 
     const roles = template.findResources('AWS::IAM::Role');
@@ -607,7 +637,7 @@ describe('GitHub OIDC deploy role', () => {
   it('does not create a CI stack without a repository', () => {
     const app = new App();
     expect(
-      () => new StagingCiStack(app, 'Ci', { config: testConfig(), env }),
+      () => new CiStack(app, 'Ci', { config: testConfig(), env }),
     ).toThrow(/OWM_GITHUB_REPO/);
   });
 });
@@ -620,12 +650,12 @@ describe('deployment config', () => {
   }
 
   it('requires a hostname and a way to obtain HTTPS', () => {
-    expect(() => loadStagingConfig(context({}))).toThrow(/domainName/);
-    expect(() => loadStagingConfig(context({ domainName: 'staging.example.com' }))).toThrow(
+    expect(() => loadDeploymentConfig(context({}))).toThrow(/domainName/);
+    expect(() => loadDeploymentConfig(context({ domainName: 'staging.example.com' }))).toThrow(
       /hostedZoneId|certificateArn/,
     );
     expect(() =>
-      loadStagingConfig(
+      loadDeploymentConfig(
         context({ domainName: 'https://staging.example.com', certificateArn: 'arn:cert' }),
       ),
     ).toThrow(/bare hostname/);
@@ -633,12 +663,12 @@ describe('deployment config', () => {
 
   it('requires a named alarm owner', () => {
     expect(() =>
-      loadStagingConfig(
+      loadDeploymentConfig(
         context({ domainName: 'staging.example.com', hostedZoneId: 'Z0123456789' }),
       ),
     ).toThrow(/alarmEmail/);
     expect(() =>
-      loadStagingConfig(
+      loadDeploymentConfig(
         context({
           domainName: 'staging.example.com',
           hostedZoneId: 'Z0123456789',
@@ -649,7 +679,7 @@ describe('deployment config', () => {
   });
 
   it('derives safe defaults and validates task counts', () => {
-    const config = loadStagingConfig(
+    const config = loadDeploymentConfig(
       context({
         domainName: 'staging.example.com',
         hostedZoneId: 'Z0123456789',
@@ -672,7 +702,7 @@ describe('deployment config', () => {
     });
 
     expect(() =>
-      loadStagingConfig(
+      loadDeploymentConfig(
         context({
           domainName: 'staging.example.com',
           hostedZoneId: 'Z0123456789',
@@ -684,7 +714,7 @@ describe('deployment config', () => {
     ).toThrow(/min <= desired <= max/);
 
     expect(() =>
-      loadStagingConfig(
+      loadDeploymentConfig(
         context({
           domainName: 'staging.example.com',
           hostedZoneId: 'Z0123456789',
@@ -695,7 +725,7 @@ describe('deployment config', () => {
     ).toThrow(/inside hostedZoneName/);
 
     expect(() =>
-      loadStagingConfig(
+      loadDeploymentConfig(
         context({
           domainName: 'staging.example.com',
           hostedZoneId: 'Z0123456789',

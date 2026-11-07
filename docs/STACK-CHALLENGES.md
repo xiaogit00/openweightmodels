@@ -1422,7 +1422,7 @@ App
 └── OwmStagingCi           (GitHub OIDC role; only when githubRepo is set)
 ```
 
-`infra/bin/infra.ts` builds them; `loadStagingConfig(app)` reads context
+`infra/bin/infra.ts` builds them; `loadDeploymentConfig(app)` reads context
 (`-c key=value`) or environment variables and validates it. This is why no
 account, domain, or secret is committed (`infra/lib/config.ts`).
 
@@ -1522,7 +1522,7 @@ implementation.
 
 ### 59 · Add a validated config knob · ●●○ · 30 min · local
 
-**Do** Add `workerConcurrency` to `StagingConfig`, parse it with
+**Do** Add `workerConcurrency` to `DeploymentConfig`, parse it with
 `intContext(context, 'workerConcurrency', 4)` and validate it is positive, then
 pass it to the worker's `PROVIDER_CONCURRENCY` in `foundation-stack.ts`. Add an
 assertion and run:

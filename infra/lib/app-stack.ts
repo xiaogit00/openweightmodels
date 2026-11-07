@@ -1,6 +1,7 @@
 import {
   CfnOutput,
   Duration,
+  RemovalPolicy,
   Stack,
   type StackProps,
 } from 'aws-cdk-lib';
@@ -12,11 +13,12 @@ import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import type { Construct } from 'constructs';
-import type { StagingConfig } from './config';
+import type { DeploymentConfig } from './config';
 
-export type StagingAppProps = StackProps & {
-  config: StagingConfig;
+export type AppStackProps = StackProps & {
+  config: DeploymentConfig;
   vpc: ec2.Vpc;
   cluster: ecs.Cluster;
   albSecurityGroup: ec2.SecurityGroup;
@@ -25,20 +27,20 @@ export type StagingAppProps = StackProps & {
 };
 
 /**
- * Stateless half of staging: ALB, HTTPS, DNS and the two ECS services.
+ * Stateless half of an environment: ALB, HTTPS, DNS and the two ECS services.
  *
  * Services reference their task definitions by family, not by ARN, so a new
  * image revision does not create a cross-stack export change. The release
  * script runs the migration task and then updates each service to the newest
  * revision (see infra/scripts/deploy.sh).
  */
-export class StagingAppStack extends Stack {
+export class AppStack extends Stack {
   readonly alb: elbv2.ApplicationLoadBalancer;
   readonly targetGroup: elbv2.ApplicationTargetGroup;
   readonly webServiceName: string;
   readonly workerServiceName: string;
 
-  constructor(scope: Construct, id: string, props: StagingAppProps) {
+  constructor(scope: Construct, id: string, props: AppStackProps) {
     super(scope, id, props);
     const { config } = props;
     const name = config.namePrefix;
@@ -67,8 +69,26 @@ export class StagingAppStack extends Stack {
       idleTimeout: Duration.seconds(4000),
       dropInvalidHeaderFields: true,
       http2Enabled: true,
-      deletionProtection: false,
+      deletionProtection: config.albDeletionProtection,
     });
+
+    if (config.albAccessLogs) {
+      // Access logs are the only way to reconstruct a request after an abuse or
+      // incident report; the bucket retains them for 90 days.
+      const accessLogs = new s3.Bucket(this, 'AlbAccessLogs', {
+        blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+        encryption: s3.BucketEncryption.S3_MANAGED,
+        enforceSSL: true,
+        lifecycleRules: [
+          {
+            id: 'expire-alb-access-logs',
+            expiration: Duration.days(90),
+          },
+        ],
+        removalPolicy: RemovalPolicy.RETAIN,
+      });
+      alb.logAccessLogs(accessLogs, 'alb');
+    }
 
     const targetGroup = new elbv2.ApplicationTargetGroup(this, 'WebTargetGroup', {
       vpc: props.vpc,
@@ -171,8 +191,10 @@ export class StagingAppStack extends Stack {
       },
       healthCheckGracePeriodSeconds: 120,
       deploymentConfiguration: {
-        minimumHealthyPercent: 0,
-        maximumPercent: 100,
+        // Production keeps the only consumer alive across a release. Staging
+        // stops-then-starts to minimise Fargate spend.
+        minimumHealthyPercent: config.workerMinHealthyPercent,
+        maximumPercent: config.workerMaxPercent,
         deploymentCircuitBreaker: { enable: true, rollback: true },
       },
       enableExecuteCommand: false,

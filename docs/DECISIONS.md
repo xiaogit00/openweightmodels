@@ -295,7 +295,7 @@ These are intentionally unresolved. Do not assume them.
 
 ### Infrastructure and operations
 31. Resolved by ticket 16: CI/CD, GitHub OIDC, budgets, alarms and the spend cap are implemented in `infra/` and `.github/workflows/ci.yml`; secret rotation and backup/restore drills remain operational exercises.
-32. RDS Multi-AZ timing and ElastiCache sizing/cost are staging defaults in `docs/DEPLOYMENT.md`; production sizing is still undecided.
+32. RDS Multi-AZ timing and ElastiCache sizing/cost are staging defaults in `docs/DEPLOYMENT.md`. Ticket 28 adds a provisional production profile (`db.t4g.small`, 2-node `cache.t4g.small`, 1 vCPU/2 GiB tasks) in `docs/PRODUCTION.md`; production sizing is still open until a load test.
 33. Resolved by ticket 16: CloudWatch alarms have a named `OWM_ALARM_EMAIL` owner, and application errors go to a Sentry-compatible tracker when `OWM_SENTRY_DSN` is set.
 34. SES production access must be requested; exact sender/domain is undecided.
 35. WAF and rate limiting at the edge are not specified.

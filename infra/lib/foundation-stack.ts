@@ -16,10 +16,10 @@ import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as ses from 'aws-cdk-lib/aws-ses';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import type { Construct } from 'constructs';
-import type { StagingConfig } from './config';
+import type { DeploymentConfig } from './config';
 
-export type StagingFoundationProps = StackProps & {
-  config: StagingConfig;
+export type FoundationStackProps = StackProps & {
+  config: DeploymentConfig;
 };
 
 function containerHealthCheck(url: string): ecs.HealthCheck {
@@ -36,12 +36,12 @@ function containerHealthCheck(url: string): ecs.HealthCheck {
 }
 
 /**
- * Stateful/foundation half of staging: network, data, images, secrets, SES,
- * task definitions and logs. The App stack owns the ALB and the ECS services,
- * which lets a release run the migration task between registering new task
- * definitions and rolling the services.
+ * Stateful/foundation half of an environment: network, data, images, secrets,
+ * SES, task definitions and logs. The App stack owns the ALB and the ECS
+ * services, which lets a release run the migration task between registering new
+ * task definitions and rolling the services.
  */
-export class StagingFoundationStack extends Stack {
+export class FoundationStack extends Stack {
   readonly vpc: ec2.Vpc;
   readonly cluster: ecs.Cluster;
   readonly albSecurityGroup: ec2.SecurityGroup;
@@ -55,7 +55,7 @@ export class StagingFoundationStack extends Stack {
   readonly webLogGroup: logs.LogGroup;
   readonly workerLogGroup: logs.LogGroup;
 
-  constructor(scope: Construct, id: string, props: StagingFoundationProps) {
+  constructor(scope: Construct, id: string, props: FoundationStackProps) {
     super(scope, id, props);
     const { config } = props;
     const name = config.namePrefix;
@@ -63,7 +63,7 @@ export class StagingFoundationStack extends Stack {
 
     this.vpc = new ec2.Vpc(this, 'Vpc', {
       maxAzs: 2,
-      natGateways: 1,
+      natGateways: config.natGateways,
       subnetConfiguration: [
         { name: 'public', subnetType: ec2.SubnetType.PUBLIC, cidrMask: 24 },
         { name: 'private', subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS, cidrMask: 24 },
@@ -72,7 +72,7 @@ export class StagingFoundationStack extends Stack {
 
     this.albSecurityGroup = new ec2.SecurityGroup(this, 'AlbSecurityGroup', {
       vpc: this.vpc,
-      description: 'Public HTTP/HTTPS for the staging ALB',
+      description: `Public HTTP/HTTPS for the ${config.environment} ALB`,
       allowAllOutbound: true,
     });
     this.albSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(80), 'HTTP redirect');
@@ -120,8 +120,10 @@ export class StagingFoundationStack extends Stack {
         version: rds.PostgresEngineVersion.VER_17_5,
       }),
       instanceType: ec2.InstanceType.of(
-        ec2.InstanceClass.BURSTABLE4_GRAVITON,
-        ec2.InstanceSize.MICRO,
+        ec2.InstanceClass[
+          config.dbInstanceClass as keyof typeof ec2.InstanceClass
+        ] as ec2.InstanceClass,
+        ec2.InstanceSize[config.dbInstanceSize as keyof typeof ec2.InstanceSize] as ec2.InstanceSize,
       ),
       vpc: this.vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
@@ -130,16 +132,18 @@ export class StagingFoundationStack extends Stack {
       credentials: rds.Credentials.fromGeneratedSecret('owm', {
         secretName: `${name}/database`,
       }),
-      allocatedStorage: 20,
-      maxAllocatedStorage: 50,
+      allocatedStorage: config.dbAllocatedStorage,
+      maxAllocatedStorage: config.dbMaxAllocatedStorage,
       storageEncrypted: true,
-      backupRetention: Duration.days(7),
-      // Staging is disposable and single-AZ; production should raise both.
-      multiAz: false,
+      backupRetention: Duration.days(config.dbBackupRetentionDays),
+      // Staging is disposable and single-AZ; production is Multi-AZ and
+      // retained once it holds real users.
+      multiAz: config.dbMultiAz,
       autoMinorVersionUpgrade: true,
-      deletionProtection: false,
-      deleteAutomatedBackups: true,
-      removalPolicy: RemovalPolicy.DESTROY,
+      deletionProtection: config.dbDeletionProtection,
+      deleteAutomatedBackups: config.dbDeleteAutomatedBackups,
+      removalPolicy:
+        config.dbRemovalPolicy === 'RETAIN' ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
       publiclyAccessible: false,
     });
 
@@ -163,11 +167,11 @@ export class StagingFoundationStack extends Stack {
       engine: 'redis',
       engineVersion: '7.1',
       cacheNodeType: config.cacheNodeType,
-      numCacheClusters: 1,
+      numCacheClusters: config.redisNumCacheClusters,
       // Cluster mode off: BullMQ talks to the single primary endpoint.
       clusterMode: 'disabled',
-      automaticFailoverEnabled: false,
-      multiAzEnabled: false,
+      automaticFailoverEnabled: config.redisAutomaticFailover,
+      multiAzEnabled: config.redisMultiAz,
       cacheSubnetGroupName: redisSubnetGroup.ref,
       cacheParameterGroupName: redisParameterGroup.ref,
       securityGroupIds: [redisSecurityGroup.securityGroupId],
@@ -182,9 +186,10 @@ export class StagingFoundationStack extends Stack {
       new ecr.Repository(this, id, {
         repositoryName: `${name}-${suffix}`,
         imageScanOnPush: true,
-        // The stacks are disposable; CloudFormation must be able to delete a
-        // repository that still contains the images pushed by a release.
-        emptyOnDelete: true,
+        // Staging is disposable, so CloudFormation may empty and delete a
+        // repository that still contains images. Production retains both the
+        // repository and its tags for rollback.
+        emptyOnDelete: config.ecrEmptyOnDelete,
         lifecycleRules: [
           {
             tagStatus: ecr.TagStatus.UNTAGGED,
@@ -192,7 +197,8 @@ export class StagingFoundationStack extends Stack {
             description: 'Expire untagged images',
           },
         ],
-        removalPolicy: RemovalPolicy.DESTROY,
+        removalPolicy:
+          config.ecrRemovalPolicy === 'RETAIN' ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
       });
 
     this.webRepository = repository('WebRepository', 'web');
@@ -243,14 +249,20 @@ export class StagingFoundationStack extends Stack {
     this.cluster = new ecs.Cluster(this, 'Cluster', {
       vpc: this.vpc,
       clusterName: `${name}-cluster`,
-      containerInsightsV2: ecs.ContainerInsights.DISABLED,
+      containerInsightsV2: config.containerInsightsEnabled
+        ? ecs.ContainerInsights.ENABLED
+        : ecs.ContainerInsights.DISABLED,
     });
 
     const logGroup = (id: string, segment: string) =>
       new logs.LogGroup(this, id, {
         logGroupName: `/aws/ecs/${name}/${segment}`,
-        retention: logs.RetentionDays.ONE_MONTH,
-        removalPolicy: RemovalPolicy.DESTROY,
+        retention:
+          config.logRetentionDays >= 90
+            ? logs.RetentionDays.THREE_MONTHS
+            : logs.RetentionDays.ONE_MONTH,
+        removalPolicy:
+          config.logRemovalPolicy === 'RETAIN' ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
       });
 
     const webLogs = logGroup('WebLogs', 'web');
@@ -316,16 +328,24 @@ export class StagingFoundationStack extends Stack {
     // (in the sandbox every recipient is one). `sesIdentity.grantSendEmail()`
     // only covers the domain, so a verified recipient is denied with
     // "not authorized to perform ses:SendEmail on ... identity/<recipient>".
-    // Scope this back to the sending domain once the account has production
-    // access and recipients are no longer identities.
+    // Once SES production access is granted, recipients are no longer
+    // identities and the grant narrows to the sending identity.
     webTaskRole.addToPolicy(
       new iam.PolicyStatement({
         actions: ['ses:SendEmail', 'ses:SendRawEmail'],
-        resources: [`arn:${this.partition}:ses:${this.region}:${this.account}:identity/*`],
+        resources: config.sesProductionAccess
+          ? [sesIdentity.emailIdentityArn]
+          : [`arn:${this.partition}:ses:${this.region}:${this.account}:identity/*`],
       }),
     );
 
-    this.webTaskDefinition = taskDefinition('WebTask', 'web', 512, 1024, webTaskRole);
+    this.webTaskDefinition = taskDefinition(
+      'WebTask',
+      'web',
+      config.webCpu,
+      config.webMemoryMiB,
+      webTaskRole,
+    );
     this.webTaskDefinition.addContainer('web', {
       image: ecs.ContainerImage.fromEcrRepository(this.webRepository, config.imageTag),
       logging: ecs.LogDrivers.awsLogs({ streamPrefix: 'web', logGroup: webLogs }),
@@ -353,7 +373,7 @@ export class StagingFoundationStack extends Stack {
         ...(config.sentryDsn
           ? {
               SENTRY_DSN: config.sentryDsn,
-              SENTRY_ENVIRONMENT: 'staging',
+              SENTRY_ENVIRONMENT: config.sentryEnvironment,
               SENTRY_RELEASE: config.imageTag,
             }
           : {}),
@@ -378,7 +398,13 @@ export class StagingFoundationStack extends Stack {
       assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
       description: 'BullMQ worker; calls the model provider',
     });
-    this.workerTaskDefinition = taskDefinition('WorkerTask', 'worker', 512, 1024, workerTaskRole);
+    this.workerTaskDefinition = taskDefinition(
+      'WorkerTask',
+      'worker',
+      config.workerCpu,
+      config.workerMemoryMiB,
+      workerTaskRole,
+    );
     this.workerTaskDefinition.addContainer('worker', {
       image: ecs.ContainerImage.fromEcrRepository(this.workerRepository, config.imageTag),
       logging: ecs.LogDrivers.awsLogs({ streamPrefix: 'worker', logGroup: workerLogs }),
@@ -400,7 +426,7 @@ export class StagingFoundationStack extends Stack {
         ...(config.sentryDsn
           ? {
               SENTRY_DSN: config.sentryDsn,
-              SENTRY_ENVIRONMENT: 'staging',
+              SENTRY_ENVIRONMENT: config.sentryEnvironment,
             }
           : {}),
         ...databaseEnvironment,
@@ -452,6 +478,9 @@ export class StagingFoundationStack extends Stack {
     });
     new CfnOutput(this, 'MigrateSecurityGroupId', {
       value: this.workerSecurityGroup.securityGroupId,
+    });
+    new CfnOutput(this, 'DatabaseInstanceIdentifier', {
+      value: database.instanceIdentifier,
     });
     new CfnOutput(this, 'DatabaseEndpoint', {
       value: `${database.dbInstanceEndpointAddress}:${database.dbInstanceEndpointPort}`,

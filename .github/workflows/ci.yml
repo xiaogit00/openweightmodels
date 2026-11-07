@@ -23,60 +23,8 @@ permissions:
 
 jobs:
   verify:
-    name: Typecheck, test and build
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: openweightmodels
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-      redis:
-        image: redis:7
-        ports: ['6379:6379']
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-    env:
-      DATABASE_URL: postgres://postgres:postgres@localhost:5432/openweightmodels
-      REDIS_URL: redis://localhost:6379
-      APP_URL: http://localhost:3000
-      BETTER_AUTH_SECRET: ci-only-secret-not-used-in-production
-      EMAIL_FROM: OpenWeightModels <hello@example.test>
-      SMTP_URL: smtp://localhost:1025
-      PROVIDER: mock
-      ALLOW_DEV_USER_SWITCH: "true"
-      # Keep the abuse controls out of the way of tests; their own suites set
-      # explicit small limits.
-      MAGIC_LINK_EMAIL_MAX: "1000"
-      WRITE_RATE_LIMIT_PER_USER: "100000"
-      WRITE_RATE_LIMIT_PER_IP: "100000"
-      RUN_RATE_LIMIT_PER_USER: "100000"
-      RUN_RATE_LIMIT_PER_IP: "100000"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      # Migrations + the production Model registry. CI must run the same schema
-      # a deploy would, not a hand-made test database.
-      - run: pnpm db:bootstrap
-      - run: pnpm typecheck
-      - run: pnpm test
-      - run: pnpm build
+    name: Verify
+    uses: ./.github/workflows/verify.yml
 
   deploy:
     name: Deploy staging (OIDC)

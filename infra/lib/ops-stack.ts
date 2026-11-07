@@ -8,10 +8,10 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import type { Construct } from 'constructs';
-import type { StagingConfig } from './config';
+import type { DeploymentConfig } from './config';
 
-export type StagingOpsProps = StackProps & {
-  config: StagingConfig;
+export type OpsStackProps = StackProps & {
+  config: DeploymentConfig;
   alb: elbv2.ApplicationLoadBalancer;
   targetGroup: elbv2.ApplicationTargetGroup;
   clusterName: string;
@@ -26,10 +26,10 @@ export type StagingOpsProps = StackProps & {
  * alarms can be added or tuned without rolling the services, and so the
  * alarm topic has one named owner rather than a list of scattered actions.
  */
-export class StagingOpsStack extends Stack {
+export class OpsStack extends Stack {
   readonly alarmTopic: sns.Topic;
 
-  constructor(scope: Construct, id: string, props: StagingOpsProps) {
+  constructor(scope: Construct, id: string, props: OpsStackProps) {
     super(scope, id, props);
     const { config } = props;
     const name = config.namePrefix;

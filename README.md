@@ -161,6 +161,11 @@ Once `pnpm deploy:ci` has created the GitHub OIDC role, `.github/workflows/ci.ym
 runs typecheck, tests and a build, then deploys `main` to staging without a stored
 AWS access key.
 
+Production is a separate AWS account with its own profile and a tag-gated
+release: `OWM_ENVIRONMENT=production pnpm deploy:prod`, or `.github/workflows/deploy-production.yml`
+on a `v*` tag. See [`docs/PRODUCTION.md`](docs/PRODUCTION.md) and the owner
+runbook in ticket 29.
+
 ### Checks
 
 ```bash
@@ -212,6 +217,7 @@ visual suite there.
 | `pnpm stack:seed` | Reseed content inside the running stack |
 | `pnpm cdk:synth` | Synthesize the AWS staging templates |
 | `pnpm deploy:staging` | Build, push and release the staging stack |
+| `pnpm deploy:prod` | Build, push and release the production stack (`OWM_ENVIRONMENT=production`) |
 | `pnpm test` | Run the core and worker test suites |
 | `pnpm test:e2e` | Run the Playwright journey against an isolated database |
 | `pnpm typecheck` | Typecheck all workspace packages and the E2E suite |
@@ -228,6 +234,7 @@ visual suite there.
 | `docs/adr/` | Architectural decisions 0001–0011 |
 | `docs/IMPLEMENTATION-STATUS.md` | What is built, what is missing, known issues, next steps |
 | `docs/DEPLOYMENT.md` | AWS staging topology, first deploy, release, rollback, cost and smoke tests |
+| `docs/PRODUCTION.md` | Production profile, first deploy, tag releases, rollback, cost and launch gates |
 | `docs/ITERATING.md` | Day-to-day loop: local development, pre-release checks, deploying to staging |
 | `docs/STACK-CHALLENGES.md` | 70 hands-on challenges for Docker, queues, BullMQ, Redis, AWS, CDK and CI/CD |
 | `docs/CODEBASE-TOUR.md` | Guided explanation of every stack layer, data model, end-to-end flows and extension points |

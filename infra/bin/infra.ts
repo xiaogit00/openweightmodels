@@ -1,27 +1,28 @@
 #!/usr/bin/env tsx
 import { App } from 'aws-cdk-lib';
-import { StagingAppStack } from '../lib/app-stack';
-import { StagingCiStack } from '../lib/ci-stack';
-import { loadStagingConfig } from '../lib/config';
-import { StagingFoundationStack } from '../lib/foundation-stack';
-import { StagingOpsStack } from '../lib/ops-stack';
+import { AppStack } from '../lib/app-stack';
+import { CiStack } from '../lib/ci-stack';
+import { loadDeploymentConfig } from '../lib/config';
+import { FoundationStack } from '../lib/foundation-stack';
+import { OpsStack } from '../lib/ops-stack';
 
 const app = new App();
-const config = loadStagingConfig(app);
+const config = loadDeploymentConfig(app);
 const env = config.account && config.region
   ? { account: config.account, region: config.region }
   : undefined;
+const label = config.environment;
 
-const foundation = new StagingFoundationStack(app, `${config.stackPrefix}Foundation`, {
+const foundation = new FoundationStack(app, `${config.stackPrefix}Foundation`, {
   config,
   env,
-  description: 'OpenWeightModels staging: network, data, images, secrets and task definitions',
+  description: `OpenWeightModels ${label}: network, data, images, secrets and task definitions`,
 });
 
-const appStack = new StagingAppStack(app, `${config.stackPrefix}App`, {
+const appStack = new AppStack(app, `${config.stackPrefix}App`, {
   config,
   env,
-  description: 'OpenWeightModels staging: ALB, HTTPS and ECS services',
+  description: `OpenWeightModels ${label}: ALB, HTTPS and ECS services`,
   vpc: foundation.vpc,
   cluster: foundation.cluster,
   albSecurityGroup: foundation.albSecurityGroup,
@@ -29,10 +30,10 @@ const appStack = new StagingAppStack(app, `${config.stackPrefix}App`, {
   workerSecurityGroup: foundation.workerSecurityGroup,
 });
 
-new StagingOpsStack(app, `${config.stackPrefix}Ops`, {
+new OpsStack(app, `${config.stackPrefix}Ops`, {
   config,
   env,
-  description: 'OpenWeightModels staging: CloudWatch alarms, alarm owner and budgets',
+  description: `OpenWeightModels ${label}: CloudWatch alarms, alarm owner and budgets`,
   alb: appStack.alb,
   targetGroup: appStack.targetGroup,
   clusterName: foundation.cluster.clusterName,
@@ -43,9 +44,9 @@ new StagingOpsStack(app, `${config.stackPrefix}Ops`, {
 });
 
 if (config.githubRepo) {
-  new StagingCiStack(app, `${config.stackPrefix}Ci`, {
+  new CiStack(app, `${config.stackPrefix}Ci`, {
     config,
     env,
-    description: 'OpenWeightModels staging: GitHub Actions OIDC deploy role',
+    description: `OpenWeightModels ${label}: GitHub Actions OIDC deploy role`,
   });
 }
