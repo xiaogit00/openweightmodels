@@ -45,6 +45,7 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(process.cwd(), '../..'),
   serverExternalPackages: ['postgres', 'ioredis', 'bullmq'],
   experimental: {
+    agentUpgrade: 'security',
     serverActions: {
       bodySizeLimit: '2mb',
     },
