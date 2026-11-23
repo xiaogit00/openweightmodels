@@ -41,8 +41,16 @@ The user who created a Comparison.
 _Avoid_: owner, poster, submitter
 
 **Category**:
-A topical tag from the fixed Category list, used for filtering the Board. A Comparison may have several.
+A topical label used to describe and filter Comparisons. A Comparison may have several. The preset Categories are curated; every other Category is created by an Author.
 _Avoid_: tag, topic
+
+**Preset category**:
+One of the curated Categories offered first in the category picker, where it is labelled *Featured*.
+_Avoid_: default category, fixed category, featured category
+
+**Community category**:
+A Category created by an Author rather than curated by the platform.
+_Avoid_: custom category, user category, tag
 
 **Effort**:
 The Low/Med/High classification of how demanding a Prompt is.
@@ -102,6 +110,18 @@ _Avoid_: provider, endpoint
 A Model whose weights are published, so it can be run by a provider or self-hosted.
 _Avoid_: open model, open-source model
 
+**Weight class**:
+The hardware tier of an open-weight Model. The tiers are defined by Run size, but the registry stores the curated class rather than recomputing it, so reclassifying is a curation change. It is a fixed property of the Model, not of a Comparison, and frontier Models have none.
+_Avoid_: size class, tier, size bucket
+
+**Run size**:
+The memory an open-weight Model needs to run at 4-bit, counting both VRAM and system RAM. It is not a parameter count.
+_Avoid_: model size, model weight, model footprint
+
+**Publisher**:
+The lab or vendor that published a Model, e.g. Alibaba or Anthropic. It is display and search metadata, distinct from the routing provider that serves the API.
+_Avoid_: provider, endpoint, vendor (as the preferred term)
+
 **Frontier model**:
 A closed Model available only through its vendor's API, at the current top capability tier.
 _Avoid_: proprietary model, commercial model, closed model (as the preferred term)
@@ -111,12 +131,8 @@ The curated catalogue of Models the platform can run.
 _Avoid_: model list, provider list
 
 **Model family**:
-A line of Models that shares a name and release history, e.g. Llama or Claude. The registry keeps one current release and, while it is still callable, one previous release per family.
+A line of Models that shares a name and a history, e.g. Llama or Claude. It is search metadata; the catalogue does not group or hide by it.
 _Avoid_: vendor, brand
-
-**Model release**:
-The `current` or `previous` slot a Model occupies within its family. A retired release is removed from the catalogue and its row is disabled.
-_Avoid_: version (when referring to the registry slot), generation
 
 **Job**:
 One batch of generation work for a Comparison: the initial Challenger set, or a later add-model request. A Job contains one Replay per Challenger.

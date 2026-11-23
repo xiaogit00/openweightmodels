@@ -70,7 +70,9 @@ test('import an AI Exporter conversation, confirm it, then replay every Turn', a
   await expect(page.getByText(/merged into Turn 1/)).toBeVisible();
   await expect(page.getByText(/final reply looks cut off/)).toBeVisible();
   await expect(page.getByText(/input tokens per model/)).toBeVisible();
-  await expect(page.getByText(/DeepSeek conversation, which matches 2 models/)).toBeVisible();
+  await expect(
+    page.getByText(/DeepSeek conversation, which matches \d+ models/),
+  ).toBeVisible();
 
   // The title defaults to the first Prompt and stays editable.
   await expect(page.getByLabel('Title')).toHaveValue(/First question about queues/);

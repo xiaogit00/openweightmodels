@@ -78,12 +78,11 @@ for (const colorScheme of ['dark', 'light'] as const) {
       await expect(page.getByRole('heading', { name: 'New comparison' })).toBeVisible();
       await expectNoSeriousViolations(page, `New Comparison (${colorScheme})`);
 
-      // The expanded picker states are part of the screen too: previous
-      // releases behind the disclosure, a weight filter and a search result.
-      await page.getByRole('button', { name: /Show previous releases/ }).click();
-      await expect(page.locator('[data-model-section="previous"]')).toBeVisible();
-      await page.getByRole('button', { name: 'Open weights', exact: true }).click();
-      await page.getByRole('searchbox', { name: 'Search models' }).fill('llama');
+      // The expanded picker states are part of the screen too: a class tab, a
+      // Memory bar and a search result.
+      await page.getByRole('tab', { name: /Light/ }).click();
+      await expect(page.locator('[data-model-section="light"]')).toBeVisible();
+      await page.getByRole('searchbox', { name: 'Search models' }).fill('qwen');
       await expectNoSeriousViolations(
         page,
         `New Comparison expanded picker (${colorScheme})`,

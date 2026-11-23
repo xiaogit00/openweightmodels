@@ -13,9 +13,11 @@ import {
 } from '@phosphor-icons/react';
 import {
   estimateConversationCalls,
+  groupModelsByClass,
   isPendingResponse,
   modelMatchesQuery,
   modelWeightShortLabel,
+  weightClassLabel,
 } from '@owm/core/client';
 import { cn } from '@/lib/utils';
 import { InitialsBadge } from '../ui/initials-badge';
@@ -79,7 +81,12 @@ export function ModelPicker({
   const multiTurn = turnCount > 1;
   const calls = estimateConversationCalls(turnCount, 1);
   const callLabel = calls === 1 ? 'hosted API call' : 'hosted API calls';
-  const matching = models.filter((model) => modelMatchesQuery(model, query));
+  const matching = models
+    .filter((model) => modelMatchesQuery(model, query))
+    .sort((left, right) => left.displayName.localeCompare(right.displayName));
+  // Step 2 and the Add model menu agree on the browsing axis: Weight class,
+  // then Frontier. There is no release grouping.
+  const groups = groupModelsByClass(matching);
   const pending = active ? isPendingResponse(active.status) : false;
   const showsAdd = canAdd && !atCap && models.length > 0;
   const meta = activeMeta(active);
@@ -282,36 +289,60 @@ export function ModelPicker({
                       data-add-model-list
                       className="flex max-h-[260px] flex-col gap-0.5 overflow-y-auto"
                     >
-                      {matching.map((model) => (
-                        <button
-                          key={model.id}
-                          type="button"
-                          disabled={Boolean(addingModelId)}
-                          onClick={() => {
-                            if (multiTurn) setConfirming(model);
-                            else onAdd(model);
-                          }}
-                          className="flex h-9 flex-none items-center gap-2.5 rounded-[var(--r)] px-2 text-left text-[13px] font-medium text-text transition-colors hover:bg-neutral-800 disabled:opacity-50"
+                      {groups.map((group) => (
+                        <div
+                          key={group.key}
+                          role="group"
+                          aria-label={group.label}
+                          className="flex flex-col gap-0.5"
                         >
-                          <Plus size={13} className="flex-none text-accent-300" aria-hidden />
-                          <span className="min-w-0 flex-1 truncate">{model.displayName}</span>
                           <span
-                            data-model-weight={model.openWeights ? 'open' : 'frontier'}
-                            className={cn(
-                              'flex-none rounded-[var(--r)] border px-1 py-px text-[10.5px] font-medium leading-none',
-                              model.openWeights
-                                ? 'border-neutral-600 text-neutral-400'
-                                : 'border-accent-700 text-accent-200',
-                            )}
+                            aria-hidden
+                            className="micro-label px-2 pb-0.5 pt-2"
                           >
-                            {modelWeightShortLabel(model.openWeights)}
+                            {group.label}
                           </span>
-                          <span className="flex-none text-[12px] font-normal text-neutral-400">
-                            {addingModelId === model.id
-                              ? 'Adding…'
-                              : `~${model.etaSeconds}s`}
-                          </span>
-                        </button>
+                          {group.models.map((model) => (
+                            <button
+                              key={model.id}
+                              type="button"
+                              disabled={Boolean(addingModelId)}
+                              title={weightClassLabel(model.weightClass)}
+                              onClick={() => {
+                                if (multiTurn) setConfirming(model);
+                                else onAdd(model);
+                              }}
+                              className="flex h-9 flex-none items-center gap-2.5 rounded-[var(--r)] px-2 text-left text-[13px] font-medium text-text transition-colors hover:bg-neutral-800 disabled:opacity-50"
+                            >
+                              <Plus
+                                size={13}
+                                className="flex-none text-accent-300"
+                                aria-hidden
+                              />
+                              <span className="min-w-0 flex-1 truncate">
+                                {model.displayName}
+                              </span>
+                              <span
+                                data-model-weight={
+                                  model.openWeights ? 'open' : 'frontier'
+                                }
+                                className={cn(
+                                  'flex-none rounded-[var(--r)] border px-1 py-px text-[10.5px] font-medium leading-none',
+                                  model.openWeights
+                                    ? 'border-neutral-600 text-neutral-400'
+                                    : 'border-accent-700 text-accent-200',
+                                )}
+                              >
+                                {modelWeightShortLabel(model.openWeights)}
+                              </span>
+                              <span className="flex-none text-[12px] font-normal text-neutral-400">
+                                {addingModelId === model.id
+                                  ? 'Adding…'
+                                  : `~${model.etaSeconds}s`}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
                       ))}
                       {matching.length === 0 && (
                         <span className="px-2 py-1 text-[12px] text-neutral-400">

@@ -68,9 +68,10 @@ export default async function ComparisonPage({
         displayName: model.displayName,
         monogram: model.monogram,
         etaSeconds: model.etaSeconds,
+        publisher: model.publisher,
         openWeights: model.openWeights,
         family: model.family,
-        release: model.release,
+        weightClass: model.weightClass,
       }))}
       maxChallengers={resolveMaxChallengers(process.env.MAX_CHALLENGERS)}
       currentUserId={user?.handle ? user.id : null}

@@ -13,9 +13,13 @@ export async function GET() {
       monogram: model.monogram,
       etaSeconds: model.etaSeconds,
       provider: model.provider,
+      publisher: model.publisher,
       openWeights: model.openWeights,
       family: model.family,
-      release: model.release,
+      weightClass: model.weightClass,
+      runSizeGb: model.runSizeGb,
+      totalParams: model.totalParams,
+      activeParams: model.activeParams,
     })),
   });
 }

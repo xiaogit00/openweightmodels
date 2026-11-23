@@ -292,9 +292,9 @@ test.describe('keyboard operation', () => {
       .focus();
     await page.keyboard.type('A bounded queue makes producers wait.');
 
-    const challenger = page.getByRole('button', {
-      name: /Qwen3\.8 27B Open weights/,
-    });
+    const challenger = page
+      .locator('[data-model-section="light"] button')
+      .filter({ hasText: 'Qwen3.8 27B' });
     await challenger.focus();
     await page.keyboard.press('Enter');
     await expect(challenger).toHaveAttribute('aria-pressed', 'true');

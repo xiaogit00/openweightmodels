@@ -1,8 +1,8 @@
 import type {
   AnnotationView,
   CommentView,
-  ModelRelease,
   PublicUser,
+  WeightClassKey,
 } from '@owm/core/client';
 import type { ComparisonResponseView } from '@/lib/comparison-responses';
 
@@ -31,9 +31,10 @@ export type ComparisonPageData = {
     displayName: string;
     monogram: string;
     etaSeconds: number;
+    publisher: string;
     openWeights: boolean;
     family: string;
-    release: ModelRelease;
+    weightClass: WeightClassKey | null;
   }>;
   maxChallengers: number;
   currentUserId: string | null;

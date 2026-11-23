@@ -115,13 +115,14 @@ pnpm db:bootstrap      # upsert by slug; never touches Comparisons or users
 `db:bootstrap` preserves an Admin-disabled model, so re-running it will not
 silently re-enable something you turned off. `pnpm db:init` now performs the
 same registry sync on every run, so a populated local database picks up a new
-release without a manual reseed; retired entries are disabled, not deleted.
+Model without a manual reseed; retired entries are disabled, not deleted.
 
-The pickers show current releases by default, grouped into **Open weights** and
-**Frontier API**. Previous releases stay behind a `Show previous releases`
-disclosure, while search scans every release and badges the previous matches.
-The Base picker lists current entries first in its four current/previous
-optgroups and marks previous options with `(previous)`.
+The pickers browse by **Weight class**: an **All sizes** tab, one tab per
+populated class, and a Frontier tab. Each card shows a Memory bar on one global
+log scale with its Run size in GB. The Base picker groups its menu by class,
+then Frontier, and no option carries a release marker. Searching matches a
+Model's name, publisher, family, slug and class label, and applies within the
+active tab.
 
 ### 2.5 Real generations locally
 

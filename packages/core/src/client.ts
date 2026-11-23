@@ -7,4 +7,5 @@ export * from './domain/markdown';
 export * from './domain/new-comparison';
 export * from './domain/model-picker';
 export * from './domain/model-labels';
+export * from './domain/weight-class';
 export * from './domain/handle';

@@ -1,190 +1,185 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildModelPickerView,
-  groupCurrentModels,
+  modelClassTabs,
   modelMatchesQuery,
-  modelMatchesWeight,
-  splitModelsByRelease,
   type PickableModel,
 } from '../src/domain/model-picker';
 
 const model = (overrides: Partial<PickableModel> & { id: string }): PickableModel => ({
-  slug: 'llama-4-maverick',
-  displayName: 'Llama 4 Maverick',
+  slug: 'llama-3-3-70b',
+  displayName: 'Llama 3.3 70B',
   openWeights: true,
   family: 'llama',
-  release: 'current',
+  publisher: 'Meta',
+  weightClass: 'middle',
+  runSizeGb: 64,
   ...overrides,
 });
 
 const models: PickableModel[] = [
-  model({ id: 'llama-current', slug: 'llama-4-maverick', displayName: 'Llama 4 Maverick' }),
   model({
-    id: 'qwen-current',
+    id: 'llama-middle',
+    slug: 'llama-3-3-70b',
+    displayName: 'Llama 3.3 70B',
+    weightClass: 'middle',
+    runSizeGb: 64,
+  }),
+  model({
+    id: 'qwen-light',
     slug: 'qwen-3-8-27b',
     displayName: 'Qwen3.8 27B',
     family: 'qwen',
+    publisher: 'Alibaba',
+    weightClass: 'light',
+    runSizeGb: 32,
   }),
   model({
-    id: 'llama-previous',
-    slug: 'llama-3-3-70b',
-    displayName: 'Llama 3.3 70B',
-    release: 'previous',
+    id: 'ministral-fly',
+    slug: 'ministral-3b',
+    displayName: 'Ministral 3B',
+    family: 'ministral',
+    publisher: 'Mistral',
+    weightClass: 'fly',
+    runSizeGb: 6,
   }),
   model({
-    id: 'claude-current',
+    id: 'kimi-heavy',
+    slug: 'kimi-k3',
+    displayName: 'Kimi K3',
+    family: 'kimi',
+    publisher: 'Moonshot AI',
+    weightClass: 'super-heavy',
+    runSizeGb: 1548,
+  }),
+  model({
+    id: 'claude-frontier',
     slug: 'claude-opus-5-5',
     displayName: 'Claude Opus 5.5',
     openWeights: false,
     family: 'claude',
-  }),
-  model({
-    id: 'claude-previous',
-    slug: 'claude-opus-5',
-    displayName: 'Claude Opus 5',
-    openWeights: false,
-    family: 'claude',
-    release: 'previous',
+    publisher: 'Anthropic',
+    weightClass: null,
+    runSizeGb: null,
   }),
 ];
 
 describe('Model picker search', () => {
-  it('matches a display name or slug, ignoring case and surrounding space', () => {
-    expect(modelMatchesQuery(models[0]!, ' maverick ')).toBe(true);
-    expect(modelMatchesQuery(models[0]!, 'LLAMA-4')).toBe(true);
-    expect(modelMatchesQuery(models[0]!, 'qwen')).toBe(false);
+  it('matches display name, slug, family, publisher or class label', () => {
+    expect(modelMatchesQuery(models[0]!, ' maverick llama ')).toBe(false);
+    expect(modelMatchesQuery(models[0]!, 'LLAMA-3-3')).toBe(true);
+    expect(modelMatchesQuery(models[1]!, 'alibaba')).toBe(true);
+    expect(modelMatchesQuery(models[2]!, 'ministral')).toBe(true);
+    expect(modelMatchesQuery(models[3]!, 'super heavy')).toBe(true);
+    expect(modelMatchesQuery(models[3]!, 'heavy')).toBe(true);
+    expect(modelMatchesQuery(models[4]!, 'frontier')).toBe(true);
+    expect(modelMatchesQuery(models[0]!, 'frontier')).toBe(false);
     expect(modelMatchesQuery(models[0]!, '   ')).toBe(true);
   });
-
-  it('matches a model by its family name', () => {
-    expect(modelMatchesQuery(models[3]!, 'claude')).toBe(true);
-  });
 });
 
-describe('Model weight filter', () => {
-  it('keeps every Model when the filter is all', () => {
-    expect(models.every((candidate) => modelMatchesWeight(candidate, 'all'))).toBe(true);
+describe('Weight class tabs', () => {
+  it('offers All sizes, one tab per populated class, then Frontier', () => {
+    const tabs = modelClassTabs(models);
+
+    expect(tabs.map((tab) => tab.key)).toEqual([
+      'all',
+      'fly',
+      'light',
+      'middle',
+      'super-heavy',
+      'frontier',
+    ]);
+    expect(tabs.map((tab) => tab.count)).toEqual([5, 1, 1, 1, 1, 1]);
   });
 
-  it('keeps only open-weight or only frontier Models', () => {
-    expect(modelMatchesWeight(models[0]!, 'open')).toBe(true);
-    expect(modelMatchesWeight(models[0]!, 'frontier')).toBe(false);
-    expect(modelMatchesWeight(models[3]!, 'frontier')).toBe(true);
-    expect(modelMatchesWeight(models[3]!, 'open')).toBe(false);
-  });
-});
+  it('formats a class subline with its range and Frontier with API', () => {
+    const tabs = modelClassTabs(models);
 
-describe('Model release split', () => {
-  it('partitions current and previous releases', () => {
-    const split = splitModelsByRelease(models);
-
-    expect(split.current.map((entry) => entry.id).sort()).toEqual([
-      'claude-current',
-      'llama-current',
-      'qwen-current',
-    ]);
-    expect(split.previous.map((entry) => entry.id).sort()).toEqual([
-      'claude-previous',
-      'llama-previous',
-    ]);
+    expect(tabs[0]?.subline).toBe('5 models');
+    expect(tabs.find((tab) => tab.key === 'light')?.subline).toBe('1 · ~32 GB');
+    expect(tabs.at(-1)?.subline).toBe('1 · API');
   });
 
-  it('groups current releases into Open weights and Frontier API', () => {
-    const groups = groupCurrentModels(splitModelsByRelease(models).current);
+  it('lets tab counts follow the query without dropping an empty class tab', () => {
+    const tabs = modelClassTabs(
+      models,
+      models.filter((entry) => modelMatchesQuery(entry, 'mistral')),
+    );
 
-    expect(groups.openWeights.map((entry) => entry.id).sort()).toEqual([
-      'llama-current',
-      'qwen-current',
-    ]);
-    expect(groups.frontier.map((entry) => entry.id)).toEqual(['claude-current']);
+    expect(tabs.map((tab) => tab.key)).toContain('middle');
+    expect(tabs.find((tab) => tab.key === 'fly')?.count).toBe(1);
+    expect(tabs.find((tab) => tab.key === 'middle')?.count).toBe(0);
   });
 });
 
 describe('Step 2 picker view', () => {
-  it('shows current releases by default and keeps previous releases behind the disclosure', () => {
+  it('opens on All sizes with every populated class then Frontier', () => {
     const view = buildModelPickerView({ models });
 
+    expect(view.activeTab).toBe('all');
     expect(view.sections.map((section) => section.key)).toEqual([
-      'open-weights',
-      'frontier-api',
+      'fly',
+      'light',
+      'middle',
+      'super-heavy',
+      'frontier',
     ]);
-    expect(view.previousMatches).toBe(2);
+    expect(view.sections.find((section) => section.key === 'light')?.label).toBe(
+      'Light weight',
+    );
+    expect(view.sections.at(-1)?.label).toBe('Frontier API');
     expect(view.empty).toBeNull();
   });
 
-  it('shows previous releases when the disclosure is open', () => {
-    const view = buildModelPickerView({ models, showPrevious: true });
+  it('shows only the active class section', () => {
+    const view = buildModelPickerView({ models, tab: 'light' });
 
-    expect(view.sections.map((section) => section.key)).toEqual([
-      'open-weights',
-      'frontier-api',
-      'previous',
-    ]);
-    expect(view.sections.at(-1)?.models.map((entry) => entry.id).sort()).toEqual([
-      'claude-previous',
-      'llama-previous',
-    ]);
+    expect(view.sections).toHaveLength(1);
+    expect(view.sections[0]?.models.map((entry) => entry.id)).toEqual(['qwen-light']);
   });
 
-  it('searches all releases, surfacing a collapsed previous release', () => {
+  it('applies search within the active tab', () => {
+    expect(
+      buildModelPickerView({ models, tab: 'light', query: 'qwen' }).sections,
+    ).toHaveLength(1);
+    expect(
+      buildModelPickerView({ models, tab: 'fly', query: 'qwen' }).sections,
+    ).toHaveLength(0);
+  });
+
+  it('matches a class label on All sizes', () => {
+    const view = buildModelPickerView({ models, query: 'heavy' });
+
+    expect(view.sections.map((section) => section.key)).toEqual(['super-heavy']);
+  });
+
+  it('pins selected Models even when a tab or search hides them', () => {
     const view = buildModelPickerView({
       models,
-      query: 'llama 3.3',
-      showPrevious: false,
-    });
-
-    const previous = view.sections.find((section) => section.key === 'previous');
-    expect(previous?.models.map((entry) => entry.id)).toEqual(['llama-previous']);
-    expect(view.previousMatches).toBe(1);
-  });
-
-  it('applies the weight filter to current and previous releases', () => {
-    const view = buildModelPickerView({ models, weight: 'frontier', showPrevious: true });
-
-    expect(view.sections.map((section) => section.key)).toEqual([
-      'frontier-api',
-      'previous',
-    ]);
-    expect(view.sections.at(-1)?.models.map((entry) => entry.id)).toEqual([
-      'claude-previous',
-    ]);
-    expect(view.previousMatches).toBe(1);
-  });
-
-  it('pins selected Models even when a search or collapse hides them', () => {
-    const view = buildModelPickerView({
-      models,
-      query: 'claude',
-      selectedIds: ['llama-previous', 'llama-current'],
-      showPrevious: false,
+      tab: 'fly',
+      query: 'ministral',
+      selectedIds: ['qwen-light', 'llama-middle'],
     });
 
     expect(view.selected.map((entry) => entry.id)).toEqual([
-      'llama-previous',
-      'llama-current',
+      'qwen-light',
+      'llama-middle',
     ]);
-    // A pinned Model that the query excludes stays in the strip, not below.
+    // A pinned Model that the tab excludes stays in the strip, not below.
     expect(
       view.sections.flatMap((section) => section.models.map((entry) => entry.id)),
-    ).not.toContain('llama-previous');
-    expect(view.sections.map((section) => section.key)).toEqual([
-      'frontier-api',
-      'previous',
-    ]);
-
-    // Without a filter, the tile stays in its group so it keeps focus and can
-    // be toggled off either there or in the strip.
-    const unfiltered = buildModelPickerView({
-      models,
-      selectedIds: ['llama-current'],
-    });
-    expect(
-      unfiltered.sections
-        .flatMap((section) => section.models.map((entry) => entry.id)),
-    ).toContain('llama-current');
+    ).toEqual(['ministral-fly']);
   });
 
-  it('reports an explicit empty state for a search that matches nothing', () => {
+  it('reports a class-specific empty state', () => {
+    const view = buildModelPickerView({ models, tab: 'fly', query: 'llama' });
+
+    expect(view.sections).toEqual([]);
+    expect(view.empty).toBe('class');
+  });
+
+  it('reports an explicit empty state for a query that matches nothing', () => {
     const view = buildModelPickerView({ models, query: 'no-such-model' });
 
     expect(view.sections).toEqual([]);

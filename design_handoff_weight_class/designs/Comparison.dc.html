@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Space+Grotesk:wght@500&family=Space+Mono&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>
+:root{color-scheme:dark;--color-bg:#0a0c0b;--color-surface:#121513;--color-text:#e8ebe8;--color-accent:#a3e635;--color-accent-100:#ecfccb;--color-accent-200:#d9f99d;--color-accent-300:#bef264;--color-accent-400:#a3e635;--color-accent-500:#84cc16;--color-accent-600:#65a30d;--color-accent-700:#3f6212;--color-accent-800:#263c0f;--color-accent-900:#17240b;--color-neutral-100:#ececec;--color-neutral-200:#d4d6d4;--color-neutral-300:#a9ada9;--color-neutral-400:#858a86;--color-neutral-500:#646966;--color-neutral-600:#4a4f4c;--color-neutral-700:#2e3330;--color-neutral-800:#1d211f;--color-neutral-900:#141715;--code-bg:#141715;--code-fg:#d4d6d4;--on-accent:#0a0c0b;--r:2px;--r-lg:4px;--r-bubble:10px 10px 2px 10px;--shadow-md:0 0 0 1px #2e3330,0 8px 24px rgba(0,0,0,.5);--shadow-lg:0 0 0 1px #2e3330,0 16px 40px rgba(0,0,0,.6)}
+[data-theme="light"]{color-scheme:light;--color-bg:#ffffff;--color-surface:#f6f7f7;--color-text:#091a23;--color-accent:#dc382c;--color-accent-100:#5c130d;--color-accent-200:#a8241a;--color-accent-300:#c42e22;--color-accent-400:#dc382c;--color-accent-500:#e8574c;--color-accent-600:#f08a82;--color-accent-700:#f6bdb8;--color-accent-800:#fbdcd9;--color-accent-900:#fdeeec;--color-neutral-100:#091a23;--color-neutral-200:#2d3b43;--color-neutral-300:#4e5a61;--color-neutral-400:#6b757b;--color-neutral-500:#8a9297;--color-neutral-600:#b4babd;--color-neutral-700:#d9dddf;--color-neutral-800:#ebedee;--color-neutral-900:#f4f5f5;--code-bg:#091a23;--code-fg:#e6ebee;--on-accent:#ffffff;--r:6px;--r-lg:12px;--r-bubble:18px 18px 4px 18px;--shadow-md:0 0 0 1px #d9dddf,0 8px 24px rgba(9,26,35,.08);--shadow-lg:0 0 0 1px #d9dddf,0 16px 40px rgba(9,26,35,.12)}
+body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:Geist,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:var(--color-accent-300);text-decoration:none}a:hover{color:var(--color-accent-200)}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+input::placeholder,textarea::placeholder{color:var(--color-neutral-400)}
+::selection{background:var(--color-accent-700)}
+@keyframes pop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes shimmer{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</helmet>
+<div data-theme="{{ theme }}" style="min-height:100vh;display:flex;flex-direction:column;background:var(--color-bg);color:var(--color-text);font-family:Geist,system-ui,sans-serif;font-size:14.5px;line-height:1.55">
+  <header style="position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:20px;padding:10px 24px;height:53px;background:var(--color-bg);border-bottom:1px solid var(--color-neutral-800)">
+    <a href="Board.dc.html?theme={{ theme }}" style="display:flex;align-items:center;gap:10px;color:var(--color-text);flex-shrink:0">
+      <span style="width:22px;height:22px;border:1.5px solid var(--color-accent);border-radius:var(--r);display:flex;align-items:center;justify-content:center"><span style="width:1.5px;height:10px;background:var(--color-accent)"></span></span>
+      <span style="font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:14px">OpenWeightModels</span>
+    </a>
+    <a href="Board.dc.html?theme={{ theme }}" style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--color-neutral-400)" style-hover="color:var(--color-text)"><i class="ph ph-arrow-left" style="font-size:13px"></i>Board</a>
+    <div style="flex:1"></div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <a href="New%20Comparison.dc.html?theme={{ theme }}" style="display:flex;align-items:center;gap:8px;height:32px;padding:0 14px;background:var(--color-accent);color:var(--on-accent);border-radius:var(--r);font-size:13px;font-weight:500;white-space:nowrap;flex-shrink:0" style-hover="background:var(--color-accent-300);color:var(--on-accent)"><i class="ph ph-plus" style="font-size:14px"></i>New comparison</a>
+      <button type="button" aria-label="Notifications" style="position:relative;width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:transparent;border:0;border-radius:var(--r);color:var(--color-neutral-300);cursor:pointer" style-hover="background:var(--color-surface);color:var(--color-text)"><i class="ph ph-bell" style="font-size:17px"></i><sc-if value="{{ hasBell }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:3px;right:2px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--color-accent);color:var(--on-accent);font-size:10px;font-weight:600;line-height:15px;text-align:center">{{ bell }}</span></sc-if></button>
+      <button type="button" aria-label="Account menu" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:var(--color-neutral-700);border:0;border-radius:var(--r);font-family:'Space Mono',monospace;font-size:11px;color:var(--color-neutral-200);cursor:pointer">{{ meIni }}</button>
+    </div>
+  </header>
+
+  <main style="width:100%;max-width:1280px;margin:0 auto;padding:36px 32px 72px;display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;align-items:flex-end;gap:16px 24px;flex-wrap:wrap">
+      <div style="flex:1 1 480px;display:flex;flex-direction:column;gap:12px;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--color-neutral-400)">
+          <sc-for list="{{ cats }}" as="c" hint-placeholder-count="1"><span style="height:22px;padding:0 9px;display:flex;align-items:center;border-radius:var(--r);background:var(--color-neutral-800);color:var(--color-neutral-200);font-size:12.5px">{{ c }}</span></sc-for>
+          <span title="Effort" style="display:inline-flex;align-items:flex-end;gap:2px;height:10px"><span style="width:3px;height:4px;border-radius:1px;background:var(--color-accent)"></span><span style="width:3px;height:7px;border-radius:1px;background:{{ eff2 }}"></span><span style="width:3px;height:10px;border-radius:1px;background:{{ eff3 }}"></span></span>
+          <span>{{ effortLabel }}</span><span>·</span>
+          <span style="width:18px;height:18px;display:flex;align-items:center;justify-content:center;background:var(--color-neutral-700);border-radius:var(--r);font-family:'Space Mono',monospace;font-size:9px;color:var(--color-neutral-200)">{{ byIni }}</span>
+          <span style="color:var(--color-neutral-200)">{{ by }}</span><span>· {{ ago }}</span>
+        </div>
+        <h1 style="margin:0;font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:30px;line-height:1.15;letter-spacing:-.02em;text-wrap:pretty;max-width:900px">{{ title }}</h1>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button type="button" onClick="{{ toggleAnn }}" aria-pressed="{{ annOn }}" style="display:flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:var(--r);border:1px solid {{ annBd }};background:{{ annBg }};color:{{ annFg }};font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="background:var(--color-accent-900)"><i class="ph ph-highlighter" style="font-size:14px"></i>Annotations<span style="min-width:20px;height:18px;padding:0 6px;border-radius:var(--r);background:var(--color-neutral-800);color:var(--color-neutral-200);font-size:11px;line-height:18px;text-align:center">{{ annCount }}</span></button>
+        <button type="button" onClick="{{ copyLink }}" style="display:flex;align-items:center;gap:6px;height:32px;padding:0 10px;border:0;border-radius:var(--r);background:transparent;color:var(--color-neutral-300);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="background:var(--color-surface);color:var(--color-text)"><i class="{{ linkIcon }}" style="font-size:14px"></i>{{ linkLabel }}</button>
+      </div>
+    </div>
+
+    <sc-if value="{{ annOn }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:-4px">
+        <div style="display:flex;gap:2px;padding:3px;background:var(--color-surface);border:1px solid var(--color-neutral-800);border-radius:var(--r-lg)">
+          <sc-for list="{{ kindFilters }}" as="k" hint-placeholder-count="5">
+            <button type="button" onClick="{{ k.pick }}" style="display:flex;align-items:center;gap:6px;height:28px;padding:0 11px;border:0;border-radius:var(--r);background:{{ k.bg }};color:{{ k.fg }};font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="color:var(--color-text)"><i class="ph {{ k.icon }}" style="font-size:13px"></i>{{ k.n }}<span style="font-size:11px;color:var(--color-neutral-400)">{{ k.count }}</span></button>
+          </sc-for>
+        </div>
+        <span style="font-size:13px;color:var(--color-neutral-400)">Select any text in a response to annotate it</span>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ multi }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:6px 6px 6px 8px;background:var(--color-surface);border:1px solid var(--color-neutral-800);border-radius:var(--r-lg)">
+        <div style="display:flex;align-items:center;gap:6px">
+          <button type="button" aria-label="Previous turn" onClick="{{ prevTurn }}" disabled="{{ atFirst }}" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:0;border-radius:var(--r);background:transparent;color:var(--color-neutral-300);cursor:pointer;opacity:{{ prevOp }}" style-hover="background:var(--color-neutral-800);color:var(--color-text)"><i class="ph ph-caret-left" style="font-size:14px"></i></button>
+          <span style="font-size:13.5px;font-weight:500;min-width:84px;text-align:center">{{ turnLabel }}</span>
+          <button type="button" aria-label="Next turn" onClick="{{ nextTurn }}" disabled="{{ atLast }}" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:0;border-radius:var(--r);background:transparent;color:var(--color-neutral-300);cursor:pointer;opacity:{{ nextOp }}" style-hover="background:var(--color-neutral-800);color:var(--color-text)"><i class="ph ph-caret-right" style="font-size:14px"></i></button>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:12.5px;color:var(--color-neutral-400)">Jump to</span>
+          <div style="display:flex;gap:2px">
+            <sc-for list="{{ turnJumps }}" as="j" hint-placeholder-count="2">
+              <button type="button" onClick="{{ j.go }}" style="height:28px;padding:0 11px;border:0;border-radius:var(--r);background:{{ j.bg }};color:{{ j.fg }};font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="color:var(--color-text)">{{ j.n }}</button>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <div ref="{{ gridRef }}" onMouseUp="{{ onMouseUp }}" style="position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:16px;row-gap:0;align-items:stretch">
+      <div style="position:sticky;top:53px;z-index:14;align-self:start;display:flex;align-items:center;gap:10px;height:48px;padding:0 18px;background:var(--color-surface);border:1px solid var(--color-neutral-700);border-radius:var(--r-lg) var(--r-lg) 0 0;min-width:0">
+        <span style="font-size:9px;font-weight:600;line-height:1;letter-spacing:.08em;color:var(--color-accent-200);padding:4px 6px;border:1px solid var(--color-accent-700);border-radius:var(--r)">BASE</span>
+        <span style="font-size:14.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ base.name }}</span>
+        <div style="flex:1"></div>
+        <span style="font-size:12px;color:var(--color-neutral-400);white-space:nowrap">{{ base.meta }}</span>
+      </div>
+      <div style="position:sticky;top:53px;z-index:15;align-self:start;background:var(--color-surface);border:1px solid var(--color-neutral-700);border-radius:var(--r-lg) var(--r-lg) 0 0;min-width:0">
+        <div style="position:relative;display:flex;align-items:center;gap:10px;height:46px;padding:0 14px 0 8px;min-width:0">
+          <button type="button" onClick="{{ toggleMenu }}" aria-expanded="{{ menuOpen }}" style="display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;border:1px solid {{ menuBd }};border-radius:var(--r);background:{{ menuBg }};color:var(--color-text);font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap;min-width:0;overflow:hidden" style-hover="border-color:var(--color-neutral-500)"><span style="overflow:hidden;text-overflow:ellipsis">{{ active.name }}</span><i class="ph ph-circle-notch" style="font-size:12px;color:var(--color-accent-300);animation:spin 1s linear infinite;display:{{ activeSpin }}"></i><i class="ph ph-caret-down" style="font-size:12px;color:var(--color-neutral-400)"></i></button>
+          <span style="font-size:12px;color:var(--color-neutral-400);white-space:nowrap">{{ tabCount }}</span>
+          <div style="flex:1"></div>
+          <span style="font-size:12px;color:var(--color-neutral-400);white-space:nowrap">{{ active.meta }}</span>
+          <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;top:46px;left:8px;z-index:16;width:290px;padding:6px;border-radius:var(--r-lg);background:var(--color-bg);border:1px solid var(--color-neutral-700);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:2px;animation:pop .15s ease-out">
+              <span style="font-size:10.5px;font-weight:500;letter-spacing:.08em;color:var(--color-neutral-400);padding:6px 8px 4px">RESPONSES</span>
+              <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
+                <button type="button" onClick="{{ t.pick }}" style="display:flex;align-items:center;gap:10px;height:36px;padding:0 8px;border:0;border-radius:var(--r);background:{{ t.bg }};color:var(--color-text);font-size:13px;font-weight:500;cursor:pointer;text-align:left" style-hover="background:var(--color-neutral-800)"><span style="width:20px;height:20px;flex-shrink:0;border-radius:var(--r);background:var(--color-neutral-700);display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:9px;color:var(--color-neutral-100)">{{ t.mono }}</span><span style="flex:1">{{ t.name }}</span><i class="ph ph-circle-notch" style="font-size:12px;color:var(--color-accent-300);animation:spin 1s linear infinite;display:{{ t.spin }}"></i><i class="ph ph-check" style="font-size:14px;color:var(--color-accent-300);display:{{ t.check }}"></i></button>
+              </sc-for>
+              <sc-if value="{{ hasExtra }}" hint-placeholder-val="{{ true }}">
+                <div style="height:1px;background:var(--color-neutral-800);margin:4px 0"></div>
+                <span style="font-size:10.5px;font-weight:500;letter-spacing:.08em;color:var(--color-neutral-400);padding:6px 8px 4px">ADD A MODEL</span>
+                <sc-for list="{{ extra }}" as="x" hint-placeholder-count="3">
+                  <button type="button" onClick="{{ x.add }}" style="display:flex;align-items:center;gap:10px;height:36px;padding:0 8px;border:0;border-radius:var(--r);background:transparent;color:var(--color-text);font-size:13px;font-weight:500;cursor:pointer;text-align:left" style-hover="background:var(--color-neutral-800)"><i class="ph ph-plus" style="font-size:13px;width:20px;text-align:center;color:var(--color-accent-300)"></i><span style="flex:1">{{ x.name }}</span><span style="font-size:12px;font-weight:400;color:var(--color-neutral-400)">{{ x.eta }}</span></button>
+                </sc-for>
+              </sc-if>
+              <span style="font-size:12px;line-height:1.45;color:var(--color-neutral-400);padding:6px 8px">Runs the same prompt through the model's hosted API.</span>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+
+      <sc-for list="{{ turns }}" as="t" hint-placeholder-count="1">
+        <div id="owm-turn-{{ t.i }}" style="display:flex;flex-direction:column;gap:20px;padding:24px 24px 12px;background:var(--color-bg);border-left:1px solid var(--color-neutral-700);border-right:1px solid var(--color-neutral-700);min-width:0">
+          <sc-if value="{{ multi }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:10px;padding-top:{{ t.padTop }};border-top:{{ t.rule }}">
+              <span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:var(--color-neutral-400)">TURN {{ t.n }}</span>
+              <div style="flex:1"></div>
+              <span style="font-size:12px;color:var(--color-neutral-400)">{{ t.baseMeta }}</span>
+            </div>
+          </sc-if>
+          <div style="align-self:flex-end;max-width:85%;padding:12px 16px;background:var(--color-neutral-800);border-radius:var(--r-bubble);font-size:14.5px;line-height:1.55;color:var(--color-neutral-100);text-wrap:pretty">{{ t.prompt }}</div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;align-items:center;gap:8px"><span style="width:24px;height:24px;border-radius:var(--r);background:var(--color-accent-800);display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:9.5px;color:var(--color-accent-100)">{{ base.mono }}</span><span style="font-size:13px;font-weight:500;color:var(--color-neutral-300)">{{ base.name }}</span></div>
+            <sc-for list="{{ t.lb }}" as="b" hint-placeholder-count="3">
+              <sc-if value="{{ b.isP }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14.5px;line-height:1.7;color:var(--color-neutral-100);text-wrap:pretty"><sc-for list="{{ b.segs }}" as="s" hint-placeholder-count="1"><span data-seg="{{ s.key }}" onClick="{{ s.click }}" style="background:{{ s.bg }};box-shadow:{{ s.ul }};cursor:{{ s.cur }};font-weight:{{ s.fw }};border-radius:2px">{{ s.t }}</span></sc-for></p></sc-if>
+              <sc-if value="{{ b.isLi }}" hint-placeholder-val="{{ false }}"><div style="display:flex;gap:10px;padding-left:4px"><span style="flex-shrink:0;min-width:16px;font-size:14px;line-height:1.7;color:var(--color-neutral-400)">{{ b.marker }}</span><p style="margin:0;font-size:14.5px;line-height:1.7;color:var(--color-neutral-100);text-wrap:pretty"><sc-for list="{{ b.segs }}" as="s" hint-placeholder-count="1"><span data-seg="{{ s.key }}" onClick="{{ s.click }}" style="background:{{ s.bg }};box-shadow:{{ s.ul }};cursor:{{ s.cur }};font-weight:{{ s.fw }};border-radius:2px">{{ s.t }}</span></sc-for></p></div></sc-if>
+              <sc-if value="{{ b.isCode }}" hint-placeholder-val="{{ false }}"><pre style="margin:0;padding:14px 16px;border-radius:var(--r);background:var(--code-bg);font-family:'Space Mono',monospace;font-size:12px;line-height:1.65;color:var(--code-fg);overflow-x:auto;white-space:pre"><sc-for list="{{ b.segs }}" as="s" hint-placeholder-count="1"><span data-seg="{{ s.key }}" onClick="{{ s.click }}" style="background:{{ s.bg }};box-shadow:{{ s.ul }};cursor:{{ s.cur }};border-radius:2px">{{ s.t }}</span></sc-for></pre></sc-if>
+              <sc-if value="{{ b.isSrc }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:6px;padding-top:4px"><span style="font-size:12px;font-weight:500;letter-spacing:.04em;color:var(--color-neutral-400)">Sources</span><sc-for list="{{ b.items }}" as="it" hint-placeholder-count="3"><a href="{{ it.href }}" style="display:flex;align-items:center;gap:6px;font-size:13.5px"><i class="ph ph-arrow-up-right" style="font-size:12px"></i>{{ it.t }}</a></sc-for></div></sc-if>
+            </sc-for>
+            <div style="display:flex;margin-left:-6px"><button type="button" aria-label="Copy response" onClick="{{ t.copyL }}" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:0;border-radius:var(--r);background:transparent;color:var(--color-neutral-400);cursor:pointer" style-hover="background:var(--color-surface);color:var(--color-text)"><i class="{{ t.copyLIcon }}" style="font-size:15px"></i></button></div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:20px;padding:24px 24px 12px;background:var(--color-bg);border-left:1px solid var(--color-neutral-700);border-right:1px solid var(--color-neutral-700);min-width:0">
+          <sc-if value="{{ multi }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:10px;padding-top:{{ t.padTop }};border-top:{{ t.rule }}">
+              <span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:var(--color-neutral-400)">TURN {{ t.n }}</span>
+              <div style="flex:1"></div>
+              <span style="font-size:12px;color:var(--color-neutral-400)">{{ t.actMeta }}</span>
+            </div>
+          </sc-if>
+          <div style="align-self:flex-end;max-width:85%;padding:12px 16px;background:var(--color-neutral-800);border-radius:var(--r-bubble);font-size:14.5px;line-height:1.55;color:var(--color-neutral-100);text-wrap:pretty">{{ t.prompt }}</div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;align-items:center;gap:8px"><span style="width:24px;height:24px;border-radius:var(--r);background:var(--color-neutral-700);display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:9.5px;color:var(--color-neutral-100)">{{ active.mono }}</span><span style="font-size:13px;font-weight:500;color:var(--color-neutral-300)">{{ active.name }}</span></div>
+            <sc-if value="{{ active.ready }}" hint-placeholder-val="{{ true }}">
+              <sc-for list="{{ t.rb }}" as="b" hint-placeholder-count="3">
+                <sc-if value="{{ b.isP }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:14.5px;line-height:1.7;color:var(--color-neutral-100);text-wrap:pretty"><sc-for list="{{ b.segs }}" as="s" hint-placeholder-count="1"><span data-seg="{{ s.key }}" onClick="{{ s.click }}" style="background:{{ s.bg }};box-shadow:{{ s.ul }};cursor:{{ s.cur }};font-weight:{{ s.fw }};border-radius:2px">{{ s.t }}</span></sc-for></p></sc-if>
+                <sc-if value="{{ b.isLi }}" hint-placeholder-val="{{ false }}"><div style="display:flex;gap:10px;padding-left:4px"><span style="flex-shrink:0;min-width:16px;font-size:14px;line-height:1.7;color:var(--color-neutral-400)">{{ b.marker }}</span><p style="margin:0;font-size:14.5px;line-height:1.7;color:var(--color-neutral-100);text-wrap:pretty"><sc-for list="{{ b.segs }}" as="s" hint-placeholder-count="1"><span data-seg="{{ s.key }}" onClick="{{ s.click }}" style="background:{{ s.bg }};box-shadow:{{ s.ul }};cursor:{{ s.cur }};font-weight:{{ s.fw }};border-radius:2px">{{ s.t }}</span></sc-for></p></div></sc-if>
+                <sc-if value="{{ b.isCode }}" hint-placeholder-val="{{ false }}"><pre style="margin:0;padding:14px 16px;border-radius:var(--r);background:var(--code-bg);font-family:'Space Mono',monospace;font-size:12px;line-height:1.65;color:var(--code-fg);overflow-x:auto;white-space:pre"><sc-for list="{{ b.segs }}" as="s" hint-placeholder-count="1"><span data-seg="{{ s.key }}" onClick="{{ s.click }}" style="background:{{ s.bg }};box-shadow:{{ s.ul }};cursor:{{ s.cur }};border-radius:2px">{{ s.t }}</span></sc-for></pre></sc-if>
+                <sc-if value="{{ b.isSrc }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:6px;padding-top:4px"><span style="font-size:12px;font-weight:500;letter-spacing:.04em;color:var(--color-neutral-400)">Sources</span><sc-for list="{{ b.items }}" as="it" hint-placeholder-count="3"><a href="{{ it.href }}" style="display:flex;align-items:center;gap:6px;font-size:13.5px"><i class="ph ph-arrow-up-right" style="font-size:12px"></i>{{ it.t }}</a></sc-for></div></sc-if>
+              </sc-for>
+              <div style="display:flex;margin-left:-6px"><button type="button" aria-label="Copy response" onClick="{{ t.copyR }}" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:0;border-radius:var(--r);background:transparent;color:var(--color-neutral-400);cursor:pointer" style-hover="background:var(--color-surface);color:var(--color-text)"><i class="{{ t.copyRIcon }}" style="font-size:15px"></i></button></div>
+            </sc-if>
+            <sc-if value="{{ active.generating }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--color-accent-200)"><i class="ph ph-circle-notch" style="font-size:14px;animation:spin 1s linear infinite"></i>Calling {{ active.name }} hosted API…</div>
+                <div style="height:9px;width:92%;border-radius:var(--r);background:var(--color-neutral-800);animation:shimmer 1.2s infinite"></div>
+                <div style="height:9px;width:78%;border-radius:var(--r);background:var(--color-neutral-800);animation:shimmer 1.2s .15s infinite"></div>
+                <div style="height:72px;border-radius:var(--r);background:var(--color-neutral-900);animation:shimmer 1.2s .3s infinite"></div>
+                <div style="height:9px;width:64%;border-radius:var(--r);background:var(--color-neutral-800);animation:shimmer 1.2s .45s infinite"></div>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-for>
+      <div style="height:16px;background:var(--color-bg);border:1px solid var(--color-neutral-700);border-top:0;border-radius:0 0 var(--r-lg) var(--r-lg)"></div>
+      <div style="height:16px;background:var(--color-bg);border:1px solid var(--color-neutral-700);border-top:0;border-radius:0 0 var(--r-lg) var(--r-lg)"></div>
+
+      <sc-if value="{{ hasSelBtn }}" hint-placeholder-val="{{ false }}">
+        <button type="button" onMouseDown="{{ startNew }}" style="position:absolute;top:{{ selBtn.y }}px;left:{{ selBtn.x }}px;z-index:12;display:flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:var(--r);border:1px solid var(--color-accent);background:var(--color-bg);color:var(--color-accent-200);font-size:13px;font-weight:500;cursor:pointer;box-shadow:var(--shadow-md);white-space:nowrap;animation:pop .12s ease-out"><i class="ph ph-highlighter" style="font-size:13px"></i>Annotate</button>
+      </sc-if>
+
+      <sc-if value="{{ hasPop }}" hint-placeholder-val="{{ false }}">
+        <div onMouseUp="{{ stop }}" style="position:absolute;top:{{ pop.y }}px;left:{{ pop.x }}px;z-index:12;width:320px;border-radius:var(--r-lg);background:var(--color-bg);border:1px solid var(--color-neutral-700);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;animation:pop .15s ease-out">
+          <div style="display:flex;align-items:center;gap:8px;padding:12px 12px 0 14px">
+            <sc-if value="{{ pop.isThread }}" hint-placeholder-val="{{ true }}"><span style="display:flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:var(--r);border:1px solid var(--color-accent-700);color:var(--color-accent-200);font-size:12px;font-weight:500"><i class="ph {{ pop.icon }}" style="font-size:12px"></i>{{ pop.kind }}</span><span style="font-size:12px;color:var(--color-neutral-400)">{{ pop.people }}</span></sc-if>
+            <sc-if value="{{ pop.isNew }}" hint-placeholder-val="{{ false }}"><span style="font-size:13.5px;font-weight:500">New annotation</span></sc-if>
+            <div style="flex:1"></div>
+            <button type="button" aria-label="Close" onClick="{{ closePop }}" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:0;border-radius:var(--r);background:transparent;color:var(--color-neutral-400);cursor:pointer" style-hover="background:var(--color-neutral-800)"><i class="ph ph-x" style="font-size:13px"></i></button>
+          </div>
+          <div style="margin:10px 14px 0;padding-left:10px;border-left:2px solid var(--color-accent);font-family:'Space Mono',monospace;font-size:11.5px;line-height:1.5;color:var(--color-neutral-300);max-height:54px;overflow:hidden">{{ pop.quote }}</div>
+          <sc-if value="{{ pop.isThread }}" hint-placeholder-val="{{ true }}">
+            <div style="padding:14px 14px 0;display:flex;flex-direction:column;gap:12px;max-height:240px;overflow:auto">
+              <sc-for list="{{ pop.thread }}" as="m" hint-placeholder-count="2">
+                <div style="display:flex;gap:10px"><span style="width:22px;height:22px;border-radius:var(--r);background:var(--color-neutral-700);flex:none;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:8.5px;color:var(--color-neutral-200)">{{ m.ini }}</span><div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:12px;color:var(--color-neutral-400)"><span style="color:var(--color-neutral-100);font-weight:500">{{ m.by }}</span> · {{ m.ago }}</span><span style="font-size:13.5px;line-height:1.5;color:var(--color-neutral-100);text-wrap:pretty">{{ m.t }}</span></div></div>
+              </sc-for>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;padding:12px">
+              <button type="button" onClick="{{ votePop }}" style="display:flex;align-items:center;gap:5px;height:30px;padding:0 9px;border-radius:var(--r);border:1px solid var(--color-neutral-700);background:{{ pop.voteBg }};color:{{ pop.voteFg }};font-size:12px;font-weight:500;cursor:pointer"><i class="{{ pop.voteIcon }}" style="font-size:12px"></i>{{ pop.votes }}</button>
+              <input value="{{ replyDraft }}" onChange="{{ onReply }}" onKeyDown="{{ replyKey }}" placeholder="Reply…" style="flex:1;min-width:0;height:30px;padding:0 10px;border-radius:var(--r);border:1px solid var(--color-neutral-700);background:var(--color-surface);color:var(--color-text);font-size:13px;outline:0">
+              <button type="button" aria-label="Send reply" onClick="{{ sendReply }}" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:var(--r);border:1px solid var(--color-accent);background:transparent;color:var(--color-accent-200);cursor:pointer" style-hover="background:var(--color-accent-900)"><i class="ph ph-paper-plane-right" style="font-size:13px"></i></button>
+            </div>
+          </sc-if>
+          <sc-if value="{{ pop.isNew }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:12px 14px 14px;display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <sc-for list="{{ newKinds }}" as="k" hint-placeholder-count="4">
+                  <button type="button" onClick="{{ k.pick }}" style="display:flex;align-items:center;gap:5px;height:26px;padding:0 9px;border-radius:var(--r);border:1px solid {{ k.bd }};background:{{ k.bg }};color:{{ k.fg }};font-size:12px;font-weight:500;cursor:pointer"><i class="ph {{ k.icon }}" style="font-size:12px"></i>{{ k.n }}</button>
+                </sc-for>
+              </div>
+              <textarea value="{{ newDraft }}" onChange="{{ onNewDraft }}" placeholder="What stands out here?" rows="3" style="resize:none;padding:8px 10px;border-radius:var(--r);border:1px solid var(--color-neutral-700);background:var(--color-surface);color:var(--color-text);font-size:13px;line-height:1.5;outline:0"></textarea>
+              <button type="button" onClick="{{ saveNew }}" style="align-self:flex-start;height:30px;padding:0 12px;border-radius:var(--r);border:1px solid var(--color-accent);background:transparent;color:var(--color-accent-200);font-size:13px;font-weight:500;cursor:pointer" style-hover="background:var(--color-accent-900)">Add annotation</button>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+    </div>
+
+    <section style="display:flex;flex-direction:column;gap:18px;max-width:800px;padding-top:32px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <h2 style="margin:0;font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:20px;letter-spacing:-.01em">Discussion</h2>
+        <span style="font-size:13px;color:var(--color-neutral-400)">{{ commentCount }}</span>
+        <div style="flex:1"></div>
+        <div style="display:flex;flex-wrap:wrap;gap:2px;padding:3px;background:var(--color-surface);border:1px solid var(--color-neutral-800);border-radius:var(--r-lg)">
+          <sc-for list="{{ commentFilters }}" as="f" hint-placeholder-count="4">
+            <button type="button" onClick="{{ f.pick }}" style="height:28px;padding:0 11px;border:0;border-radius:var(--r);background:{{ f.bg }};color:{{ f.fg }};font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="color:var(--color-text)">{{ f.n }}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;padding:14px 14px 12px;border-radius:var(--r-lg);border:1px solid var(--color-neutral-700);background:var(--color-surface)">
+        <textarea ref="{{ draftRef }}" value="{{ draft }}" onChange="{{ onDraft }}" placeholder="Share what you noticed across the outputs…" rows="2" style="resize:vertical;padding:2px;border:0;background:transparent;color:var(--color-text);font-size:14px;line-height:1.55;outline:0"></textarea>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="font-size:12px;color:var(--color-neutral-400);margin-right:2px">About</span>
+          <sc-for list="{{ aboutOpts }}" as="o" hint-placeholder-count="3">
+            <button type="button" onClick="{{ o.pick }}" style="height:26px;padding:0 10px;border-radius:var(--r);border:1px solid {{ o.bd }};background:{{ o.bg }};color:{{ o.fg }};font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap">{{ o.n }}</button>
+          </sc-for>
+          <div style="flex:1"></div>
+          <button type="button" onClick="{{ post }}" style="height:32px;padding:0 16px;border-radius:var(--r);border:1px solid var(--color-accent);background:transparent;color:var(--color-accent-200);font-size:13px;font-weight:500;cursor:pointer" style-hover="background:var(--color-accent-900)">Post</button>
+        </div>
+      </div>
+
+      <sc-if value="{{ noComments }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:28px 0;font-size:14px;color:var(--color-neutral-400)">No comments yet. Be the first to share what you noticed.</div>
+      </sc-if>
+
+      <div style="display:flex;flex-direction:column">
+        <sc-for list="{{ comments }}" as="c" hint-placeholder-count="3">
+          <div style="display:flex;gap:14px;padding:20px 0;border-bottom:1px solid var(--color-neutral-800)">
+            <span style="width:28px;height:28px;border-radius:var(--r);background:var(--color-neutral-700);flex:none;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:10px;color:var(--color-neutral-200)">{{ c.ini }}</span>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">
+              <div style="position:relative;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--color-neutral-400)">
+                <span style="color:var(--color-neutral-100);font-weight:500">{{ c.by }}</span><span>{{ c.ago }}</span>
+                <sc-if value="{{ c.hasOn }}" hint-placeholder-val="{{ false }}"><span style="height:22px;padding:0 8px;display:flex;align-items:center;border-radius:var(--r);background:var(--color-neutral-800);font-size:11.5px;font-weight:500;color:var(--color-neutral-200)">on {{ c.on }}</span></sc-if>
+                <div style="flex:1"></div>
+                <sc-if value="{{ c.isOwn }}" hint-placeholder-val="{{ false }}"><button type="button" aria-label="More" onClick="{{ c.toggleMenu }}" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:0;border-radius:var(--r);background:transparent;color:var(--color-neutral-400);cursor:pointer" style-hover="background:var(--color-surface);color:var(--color-text)"><i class="ph ph-dots-three" style="font-size:16px"></i></button></sc-if>
+                <sc-if value="{{ c.menuOpen }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;top:30px;right:0;z-index:5;min-width:140px;padding:4px;border-radius:var(--r-lg);background:var(--color-bg);border:1px solid var(--color-neutral-700);box-shadow:var(--shadow-md);animation:pop .12s ease-out"><button type="button" onClick="{{ c.del }}" style="display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 8px;border:0;border-radius:var(--r);background:transparent;color:var(--color-text);font-size:13px;cursor:pointer;text-align:left" style-hover="background:var(--color-neutral-800)"><i class="ph ph-trash" style="font-size:14px"></i>Delete</button></div></sc-if>
+              </div>
+              <div style="font-size:14.5px;line-height:1.65;color:var(--color-neutral-100);text-wrap:pretty">{{ c.t }}</div>
+              <div style="display:flex;align-items:center;gap:16px;font-size:12.5px;font-weight:500;color:var(--color-neutral-400)">
+                <button type="button" onClick="{{ c.vote }}" style="display:flex;align-items:center;gap:5px;border:0;background:none;padding:0;color:{{ c.voteFg }};cursor:pointer"><i class="{{ c.voteIcon }}" style="font-size:14px"></i>{{ c.votes }}</button>
+                <button type="button" onClick="{{ c.reply }}" style="display:flex;align-items:center;gap:5px;border:0;background:none;padding:0;color:inherit;cursor:pointer" style-hover="color:var(--color-text)"><i class="ph ph-arrow-bend-up-left" style="font-size:14px"></i>Reply</button>
+                <sc-if value="{{ c.canReport }}" hint-placeholder-val="{{ true }}"><button type="button" onClick="{{ c.report }}" style="display:flex;align-items:center;gap:5px;border:0;background:none;padding:0;color:inherit;cursor:pointer" style-hover="color:var(--color-text)"><i class="{{ c.reportIcon }}" style="font-size:14px"></i>{{ c.reportLabel }}</button></sc-if>
+              </div>
+              <sc-for list="{{ c.replies }}" as="r" hint-placeholder-count="0">
+                <div style="position:relative;display:flex;gap:10px;margin-top:6px;padding:2px 0 2px 16px;border-left:1px solid var(--color-neutral-700)">
+                  <span style="width:22px;height:22px;border-radius:var(--r);background:var(--color-neutral-700);flex:none;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:8.5px;color:var(--color-neutral-200)">{{ r.ini }}</span>
+                  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+                    <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--color-neutral-400)"><span style="color:var(--color-neutral-100);font-weight:500">{{ r.by }}</span><span>· {{ r.ago }}</span><div style="flex:1"></div><sc-if value="{{ r.isOwn }}" hint-placeholder-val="{{ false }}"><button type="button" aria-label="Delete reply" title="Delete reply" onClick="{{ r.del }}" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;border:0;border-radius:var(--r);background:transparent;color:var(--color-neutral-400);cursor:pointer" style-hover="background:var(--color-surface);color:var(--color-text)"><i class="ph ph-trash" style="font-size:14px"></i></button></sc-if></div>
+                    <span style="font-size:14px;line-height:1.6;color:var(--color-neutral-100)">{{ r.t }}</span>
+                    <button type="button" onClick="{{ r.vote }}" style="align-self:flex-start;display:flex;align-items:center;gap:5px;border:0;background:none;padding:0;margin-top:2px;color:{{ r.voteFg }};font-size:12.5px;font-weight:500;cursor:pointer"><i class="{{ r.voteIcon }}" style="font-size:13px"></i>{{ r.votes }}</button>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </main>
+
+  <footer style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:24px;border-top:1px solid var(--color-neutral-800);font-size:12px;color:var(--color-neutral-400)">
+    <div style="display:flex;align-items:center;gap:16px"><span>OpenWeightModels</span><a href="#" style="color:var(--color-neutral-300)">Terms</a><a href="#" style="color:var(--color-neutral-300)">Privacy</a></div>
+    <span>Community comparisons of open-weight and frontier model outputs.</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark'|'light'&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;scenario&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;single&quot;,&quot;multi-turn&quot;],&quot;default&quot;:&quot;single&quot;,&quot;tsType&quot;:&quot;'single'|'multi-turn'&quot;,&quot;section&quot;:&quot;State&quot;},&quot;annotationsOn&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;State&quot;}}">
+const QS = new URLSearchParams(location.search);
+const KINDS = [['Bug','ph-bug'],['Hallucination','ph-ghost'],['Good','ph-thumbs-up'],['Question','ph-question']];
+const KI = Object.fromEntries(KINDS);
+const S = s => typeof s === 'string' ? { t: s } : { t: s[0], a: s[1] || undefined, b: !!s[2] };
+const P = (...x) => ({ k: 'p', segs: x.map(S) });
+const C = (...x) => ({ k: 'code', segs: x.map(S) });
+const L = (...x) => ({ k: 'li', m: '•', segs: x.map(S) });
+const O = (n, ...x) => ({ k: 'li', m: n + '.', segs: x.map(S) });
+const B = t => [t, null, true];
+const SRC = (...items) => ({ k: 'src', items: items.map(([t, href]) => ({ t, href })) });
+const ME = '@mira';
+const ini = by => by.replace('@', '').slice(0, 2).toUpperCase();
+const clone = o => JSON.parse(JSON.stringify(o));
+const EXTRA = { gemma: { name: 'Gemma 4 31B', mono: 'G4', eta: '~6s' }, phi: { name: 'Phi 4', mono: 'P4', eta: '~4s' }, kimi: { name: 'Kimi K3', mono: 'K3', eta: '~20s' } };
+
+const SINGLE = {
+  title: 'Rate limiter in Go with sliding windows', cats: ['Coding'], effort: 2, by: '@mira', ago: '7m ago', bell: 0,
+  prompts: ['Write a thread-safe sliding-window rate limiter in Go. It should allow N requests per window per key, and explain the trade-offs of your approach.'],
+  base: 'llama', tabs: ['qwen', 'deepseek', 'mistral'],
+  resp: {
+    llama: { name: 'Llama 3.3 70B', mono: 'L3', meta: '197 tok', turns: [[
+      P('Here’s a sliding-window rate limiter that tracks request timestamps per key. It’s safe for concurrent use and evicts old entries lazily on each call.'),
+      C('type Limiter struct {\n  mu     sync.Mutex\n  window time.Duration\n  limit  int\n  hits   map[string][]time.Time\n}\n\nfunc (l *Limiter) Allow(key string) bool {\n  l.mu.Lock()\n  defer l.mu.Unlock()\n  now, h := time.Now(), l.hits[key]\n  cut := 0\n  for cut < len(h) && ', ['now.Sub(h[cut]) > l.window', 'a1'], ' {\n    cut++\n  }\n  h = h[cut:]\n  if len(h) >= l.limit {\n    return false\n  }\n  l.hits[key] = append(h, now)\n  return true\n}'),
+      P('Memory grows with the number of distinct keys, so ', ['pair it with a periodic sweep', 'a2'], ' if keys are user-supplied.'),
+      P('For distributed setups, swap the map for Redis sorted sets using a ', ['ZREMRANGEBYSCORE plus ZCARD pipeline', 'a3'], '.'),
+    ]] },
+    qwen: { name: 'Qwen3.8 27B', mono: 'Q8', meta: '133 tok · 4.2s', turns: [[
+      P('A sliding-window log is exact but stores every timestamp. ', ['A ring buffer of size limit gives O(1) checks and bounded memory', 'a4'], ':'),
+      C('type Limiter struct {\n  mu  sync.Mutex\n  buf []time.Time\n  i   int\n  win time.Duration\n}\n\nfunc (l *Limiter) Allow() bool {\n  l.mu.Lock()\n  defer l.mu.Unlock()\n  now := time.Now()\n  if now.Sub(l.buf[l.i]) < l.win {\n    return false\n  }\n  l.buf[l.i] = now\n  l.i = (l.i + 1) % len(l.buf)\n  return true\n}'),
+      P('This version is per-limiter, not per-key — ', ['wrap it in a sync.Map if you need one per client', 'a5'], '.'),
+    ]] },
+    deepseek: { name: 'DeepSeek V4.1 Flash 1017', mono: 'D5', meta: '188 tok · 5.1s', turns: [[
+      P('Two common approaches: a sliding log (exact, O(n) memory) and a sliding window counter (approximate, O(1) memory). I’ll show the counter, which weights the previous window by how much of it still overlaps:'),
+      C('elapsed := now.Sub(windowStart)\nweight  := 1 - float64(elapsed)/float64(window)\nrate    := float64(prev)*weight + float64(curr)\nif rate >= float64(limit) {\n  return false\n}\ncurr++'),
+      P(['The approximation error stays small under uniform traffic', 'a6'], ', but bursts right at a boundary can briefly exceed the limit. Use the log version if you need hard guarantees.'),
+    ]] },
+    mistral: { name: 'Mistral Large 4', mono: 'M4', meta: '152 tok · 4.6s', turns: [[
+      P('The simplest correct approach is golang.org/x/time/rate, but that’s a token bucket, not a sliding window. Here’s a minimal sliding log:'),
+      C('func (l *Limiter) Allow() bool {\n  l.mu.Lock()\n  defer l.mu.Unlock()\n  cutoff := time.Now().Add(-l.window)\n  for len(l.log) > 0 && l.log[0].Before(cutoff) {\n    l.log = l.log[1:]\n  }\n  if len(l.log) >= l.limit {\n    return false\n  }\n  l.log = append(l.log, time.Now())\n  return true\n}'),
+      P('Reslicing keeps the backing array alive; copy periodically if the limiter is long-lived.'),
+    ]] },
+  },
+  anns: {
+    a1: { kind: 'Bug', votes: 9, thread: [{ by: '@kev', ago: '1h', t: 'Off-by-one: a hit exactly one window old is kept. Should be >= here.' }, { by: '@ana', ago: '52m', t: 'Confirmed — fails the boundary test at exactly 60s.' }] },
+    a2: { kind: 'Good', votes: 4, thread: [{ by: '@ana', ago: '40m', t: 'Nice that it calls out the unbounded-keys problem without being asked.' }] },
+    a3: { kind: 'Good', votes: 6, thread: [{ by: '@kev', ago: '38m', t: 'Correct pattern for Redis — trim then count in one round trip.' }] },
+    a4: { kind: 'Good', votes: 7, thread: [{ by: '@kev', ago: '58m', t: 'Cleanest answer here. Bounded memory and no edge bug.' }] },
+    a5: { kind: 'Question', votes: 2, thread: [{ by: '@ana', ago: '30m', t: 'Would sync.Map actually be the right choice, or a sharded map with mutexes?' }] },
+    a6: { kind: 'Question', votes: 3, thread: [{ by: '@mira', ago: '22m', t: 'How small? Would love a number or a source here.' }] },
+  },
+  comments: [
+    { id: 1, by: '@kev', ago: '1h', on: 'llama', votes: 1, voted: true, t: 'Llama has the classic edge bug — a request exactly at the window length still counts. Qwen’s ring buffer avoids it entirely.', replies: [{ by: '@mira', ago: '22m', votes: 0, t: 'Fair. I’ll note it as a known issue in the prompt.' }] },
+    { id: 2, by: '@ana', ago: '53m', on: 'deepseek', votes: 1, voted: true, t: 'Only one that explained the trade-off before writing code. That’s what I’d want in a review.', replies: [] },
+    { id: 3, by: '@mira', ago: '25m', on: null, votes: 1, voted: false, t: 'Would be great to rerun with a stricter prompt — “per-key, bounded memory”. Effort should probably be High.', replies: [] },
+  ],
+  gen: (name) => [[
+    P('A sliding window can be implemented as a log of timestamps per key. Each call drops entries older than the window and admits the request if the remaining count is under the limit.'),
+    C('func (l *Limiter) Allow(key string) bool {\n  l.mu.Lock()\n  defer l.mu.Unlock()\n  q := l.prune(key, time.Now())\n  if len(q) >= l.limit {\n    return false\n  }\n  l.m[key] = append(q, time.Now())\n  return true\n}'),
+    P('This is exact, but memory is O(limit) per active key.'),
+  ]],
+};
+
+const dsTurn = q => [
+  P('DeepSeek V4.1 Flash 1017 reads the task as: ', B(q)),
+  P('The useful answer is to separate the invariant from the implementation. First make the contract explicit, then choose the smallest mechanism that preserves it.'),
+  L('State the inputs, outputs and failure mode.'), L('Prefer a bounded structure over an unbounded log when the limit is known.'), L('Make the trade-off visible rather than hiding it behind a helper.'),
+  O(1, 'Define the contract.'), O(2, 'Pick the data structure.'), O(3, 'Test the boundary, not just the happy path.'),
+  P('If you want, I can turn this into a concrete implementation with tests.'),
+];
+const TQ = ['I am considering local AI. What’s an alternative set up that’s equivalent to M5 Ultra Mac Studio with 512GB unified memory?', 'Can you run deepseek v4 flash on the M5 ultra?'];
+const TURNS = {
+  title: TQ[0], cats: [], effort: 1, by: '@lei', ago: '23m ago', bell: 2,
+  prompts: TQ, base: 'opus', tabs: ['ds'],
+  resp: {
+    opus: { name: 'Claude Opus 5.5', mono: 'C6', meta: '1,581 tok', turnMeta: ['1,172 tok', '409 tok'], turns: [[
+      P('There’s no single non-Apple box that matches it. What makes the M5 Ultra unusual is up to 512GB of unified memory with 1.2TB/s of bandwidth in one quiet desktop. Every alternative gives up something: price, power, noise, simplicity, or speed.'),
+      P('These are the realistic alternatives, from closest match to furthest:'),
+      O(1, B('Four NVIDIA DGX Sparks, clustered.'), ' The closest like-for-like, with CUDA. Four units give a shared 512GB pool for roughly $20k including the switch — but it’s aggregate capacity, not unified memory.'),
+      O(2, B('Four AMD Strix Halo mini PCs.'), ' The cheapest way to reach 512GB, around $7–8k if you can still find them at that price. Slower, with rougher clustering software (ROCm, llama.cpp RPC).'),
+      O(3, B('An EPYC server running models on CPU RAM.'), ' Most memory per dollar, and slowest: about 4–5 tok/s on large MoE models. One GPU for hybrid offload helps prompt processing a lot.'),
+      O(4, B('Four or five RTX Pro 6000 Blackwell cards.'), ' Much faster, much pricier: 384–480GB of very fast memory, $70k+ all-in, and 2.5–3kW of power draw.'),
+      P(B('My take:'), ' for very large MoE models, one user, quietly, on one box, the 512GB M5 Ultra is probably the value option. If budget matters most, go with Strix Halo nodes; if speed matters most, the RTX Pro rig wins at several times the price.'),
+      SRC(['Mac Studio M5 Ultra specs', '#'], ['DGX Spark four-node linking', '#'], ['RTX Pro 6000 pricing', '#']),
+    ], [
+      P('Yes, easily. DeepSeek V4 Flash is a 284B MoE model with 13B active parameters and a 1M context window. Because only 13B parameters are active per token, it runs fast on Apple Silicon, and 512GB leaves plenty of headroom.'),
+      P(B('Memory needed at each quantization')),
+      L('4-bit: Q4_K_M is 161 GB, Q5_K_M is 188 GB, and Q6_K is 218 GB.'),
+      L('8-bit: roughly 300GB. That doesn’t fit on a 256GB machine, but fits on the 512GB one with room left for a long-context KV cache.'),
+      P(B('Expected speed.'), ' There are no M5 Ultra benchmarks yet. Scaling M3 Ultra numbers by memory bandwidth, my estimate is roughly 35–45 tok/s at 8-bit and 45+ tok/s at 4-bit.'),
+      P(B('Software.'), ' MLX — through mlx-lm, LM Studio, or oMLX — is the fastest option on a Mac today, and Ollama also works.'),
+    ]] },
+    ds: { name: 'DeepSeek V4.1 Flash 1017', mono: 'D5', meta: '335 tok', turnMeta: ['177 tok', '158 tok'], turns: [dsTurn(TQ[0]), dsTurn(TQ[1])] },
+  },
+  anns: {}, comments: [],
+  gen: (name) => TQ.map(q => [
+    P(name + ' answers: ', B(q)),
+    P('Start from what the M5 Ultra actually gives you — capacity, bandwidth and a single quiet box — and decide which of those you can trade away. Most alternatives win on one axis and lose on another.'),
+  ]),
+};
+
+class Component extends DCLogic {
+  gridRef = React.createRef();
+  draftRef = React.createRef();
+  state = this.init(this.scKey());
+
+  scKey() { const s = this._sw ? this.props.scenario : (QS.get('scenario') ?? this.props.scenario); return s === 'multi-turn' || s === 'turns' ? 'turns' : 'single'; }
+  data(k) { return (k || this.state.sc) === 'turns' ? TURNS : SINGLE; }
+  theme() { return this._tw ? (this.props.theme ?? 'dark') : (QS.get('theme') ?? this.props.theme ?? 'dark'); }
+  init(sc) {
+    const d = this.data(sc);
+    const cvoted = {}; d.comments.forEach(c => { if (c.voted) cvoted[c.id] = true; });
+    return { sc, resp: clone(d.resp), anns: clone(d.anns), comments: clone(d.comments), tabs: [...d.tabs], tab: d.tabs[0], gen: {},
+      annOn: QS.has('ann') && !this._aw ? QS.get('ann') === '1' : !!this.props.annotationsOn, kind: 'All', menuOpen: false, pop: null, selBtn: null,
+      replyDraft: '', newDraft: '', newKind: 'Bug', voted: {}, draft: '', about: null, filter: 'All', cvoted, rvoted: {}, reported: {},
+      menuFor: null, nextId: 100, copied: null, linkCopied: false, curTurn: 0 };
+  }
+  componentDidMount() {
+    document.documentElement.setAttribute('data-theme', this.theme());
+    this._scroll = () => this.trackTurn();
+    window.addEventListener('scroll', this._scroll, { passive: true });
+  }
+  componentDidUpdate(pp) {
+    if (pp.theme !== this.props.theme && !this._tw) { this._tw = true; this.forceUpdate(); }
+    if (pp.scenario !== this.props.scenario) this._sw = true;
+    if (pp.annotationsOn !== this.props.annotationsOn) this._aw = true;
+    document.documentElement.setAttribute('data-theme', this.theme());
+    if (pp.scenario !== this.props.scenario && this.scKey() !== this.state.sc) this.setState(this.init(this.scKey()));
+    if (pp.annotationsOn !== this.props.annotationsOn && this.props.annotationsOn !== undefined) this.setState({ annOn: this.props.annotationsOn, pop: null, selBtn: null });
+  }
+  componentWillUnmount() { window.removeEventListener('scroll', this._scroll); Object.values(this.timers || {}).forEach(clearTimeout); }
+
+  trackTurn() {
+    const n = this.data().prompts.length; if (n < 2) return;
+    let cur = 0;
+    for (let i = 0; i < n; i++) { const el = document.getElementById('owm-turn-' + i); if (el && el.getBoundingClientRect().top < 200) cur = i; }
+    if (cur !== this.state.curTurn) this.setState({ curTurn: cur });
+  }
+  goTurn(i) {
+    const el = document.getElementById('owm-turn-' + i); if (!el) return;
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 53 - 48 - 8, behavior: 'smooth' });
+    this.setState({ curTurn: i });
+  }
+  flash(key, patch) {
+    this.setState(patch);
+    clearTimeout(this._flash); this._flash = setTimeout(() => this.setState({ copied: null, linkCopied: false }), 1500);
+  }
+  copyText(rid, ti) {
+    const r = this.state.resp[rid]; if (!r) return;
+    const txt = r.turns[ti].map(b => b.segs ? b.segs.map(s => s.t).join('') : b.items.map(i => i.t).join('\n')).join('\n\n');
+    navigator.clipboard?.writeText(txt).catch(() => {});
+    this.flash(null, { copied: rid + '|' + ti });
+  }
+  rel(rect) {
+    const g = this.gridRef.current.getBoundingClientRect();
+    return { x: Math.max(0, Math.min(rect.left - g.left, g.width - 324)), y: rect.bottom - g.top + 6 };
+  }
+  openThread(id, e) {
+    e.stopPropagation();
+    this.setState({ pop: { mode: 'thread', id, ...this.rel(e.currentTarget.getBoundingClientRect()) }, selBtn: null, replyDraft: '', menuOpen: false });
+  }
+  onMouseUp = () => {
+    if (!this.state.annOn) return;
+    setTimeout(() => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) { if (this.state.selBtn) this.setState({ selBtn: null }); return; }
+      const an = sel.anchorNode;
+      if (an !== sel.focusNode || an.nodeType !== 3) return;
+      const key = an.parentElement && an.parentElement.getAttribute('data-seg');
+      if (!key) return;
+      const [rid, ti, bi, si] = key.split('|');
+      const seg = this.state.resp[rid].turns[+ti][+bi].segs[+si];
+      if (seg.a) return;
+      const start = Math.min(sel.anchorOffset, sel.focusOffset), end = Math.max(sel.anchorOffset, sel.focusOffset);
+      if (!seg.t.slice(start, end).trim()) return;
+      const r = sel.getRangeAt(0).getBoundingClientRect(), g = this.gridRef.current.getBoundingClientRect();
+      this.setState({ selBtn: { rid, ti: +ti, bi: +bi, si: +si, start, end, quote: seg.t.slice(start, end), x: Math.max(0, r.left - g.left), y: r.top - g.top - 38, r }, pop: null });
+    }, 0);
+  };
+  startNew = e => {
+    e.preventDefault();
+    const s = this.state.selBtn;
+    this.setState({ pop: { mode: 'new', ...s, ...this.rel(s.r) }, selBtn: null, newDraft: '' });
+    window.getSelection().removeAllRanges();
+  };
+  saveNew = () => {
+    const p = this.state.pop; if (!p) return;
+    const id = 'n' + this.state.nextId;
+    this.setState(st => {
+      const resp = clone(st.resp);
+      const segs = resp[p.rid].turns[p.ti][p.bi].segs, seg = segs[p.si];
+      const parts = [{ t: seg.t.slice(0, p.start), b: seg.b }, { t: seg.t.slice(p.start, p.end), a: id, b: seg.b }, { t: seg.t.slice(p.end), b: seg.b }].filter(x => x.t);
+      segs.splice(p.si, 1, ...parts);
+      const thread = st.newDraft.trim() ? [{ by: ME, ago: 'now', t: st.newDraft.trim() }] : [];
+      return { resp, anns: { ...st.anns, [id]: { kind: st.newKind, votes: 0, thread } }, nextId: st.nextId + 1, pop: { mode: 'thread', id, x: p.x, y: p.y }, newDraft: '', kind: 'All' };
+    });
+  };
+  sendReply = () => {
+    const t = this.state.replyDraft.trim(), p = this.state.pop; if (!t || !p) return;
+    this.setState(st => { const a = clone(st.anns); a[p.id].thread.push({ by: ME, ago: 'now', t }); return { anns: a, replyDraft: '' }; });
+  };
+  addModel(k) {
+    const d = this.data();
+    this.setState(st => ({ tabs: [...st.tabs, k], tab: k, gen: { ...st.gen, [k]: true }, menuOpen: false }));
+    this.timers = this.timers || {};
+    this.timers[k] = setTimeout(() => this.setState(st => {
+      const e = EXTRA[k];
+      return { gen: { ...st.gen, [k]: false }, resp: { ...st.resp, [k]: { name: e.name, mono: e.mono, meta: d.prompts.length > 1 ? '284 tok' : '141 tok · 3.6s', turnMeta: d.prompts.map(() => '142 tok'), turns: d.gen(e.name) } } };
+    }), 3600);
+  }
+  blocks(rid, ti) {
+    const st = this.state, r = st.resp[rid];
+    if (!r || !r.turns[ti]) return [];
+    return r.turns[ti].map((b, bi) => { const code = b.k === 'code'; return {
+      isP: b.k === 'p', isCode: b.k === 'code', isLi: b.k === 'li', isSrc: b.k === 'src', marker: b.m, items: b.items || [],
+      segs: (b.segs || []).map((s, si) => {
+        const a = s.a && st.anns[s.a];
+        const show = st.annOn && a && (st.kind === 'All' || a.kind === st.kind);
+        const open = show && st.pop && st.pop.id === s.a;
+        return { t: s.t, key: `${rid}|${ti}|${bi}|${si}`, fw: s.b ? 600 : 400,
+          bg: open ? (code ? 'color-mix(in oklab, var(--color-accent) 48%, transparent)' : 'var(--color-accent-800)') : show ? (code ? 'color-mix(in oklab, var(--color-accent) 30%, transparent)' : 'var(--color-accent-900)') : 'transparent',
+          ul: show ? 'inset 0 -1.5px 0 var(--color-accent)' : 'none', cur: show ? 'pointer' : 'auto',
+          click: show ? (e => this.openThread(s.a, e)) : undefined };
+      }),
+    }; });
+  }
+  renderVals() {
+    const st = this.state, d = this.data(), theme = this.theme();
+    const multi = d.prompts.length > 1;
+    const allModels = { ...st.resp, ...EXTRA };
+    const generating = !!st.gen[st.tab];
+    const actR = st.resp[st.tab];
+    const active = generating ? { name: EXTRA[st.tab].name, mono: EXTRA[st.tab].mono, meta: 'generating…' } : { name: actR.name, mono: actR.mono, meta: actR.meta };
+    const baseR = st.resp[d.base];
+    const turns = d.prompts.map((prompt, ti) => ({
+      i: ti, n: ti + 1, prompt, padTop: ti > 0 ? '20px' : '0', rule: ti > 0 ? '1px solid var(--color-neutral-800)' : '0',
+      baseMeta: (baseR.turnMeta || [])[ti] || '', actMeta: generating ? '' : ((actR && actR.turnMeta) || [])[ti] || '',
+      lb: this.blocks(d.base, ti), rb: generating ? [] : this.blocks(st.tab, ti),
+      copyL: () => this.copyText(d.base, ti), copyR: () => this.copyText(st.tab, ti),
+      copyLIcon: st.copied === d.base + '|' + ti ? 'ph ph-check' : 'ph ph-copy',
+      copyRIcon: st.copied === st.tab + '|' + ti ? 'ph ph-check' : 'ph ph-copy',
+    }));
+    const annIds = Object.keys(st.anns);
+    let pop = null;
+    if (st.pop) {
+      if (st.pop.mode === 'thread') {
+        const a = st.anns[st.pop.id];
+        let quote = '';
+        for (const r of Object.values(st.resp)) for (const tb of r.turns) for (const b of tb) for (const s of (b.segs || [])) if (s.a === st.pop.id) quote = s.t;
+        const people = new Set(a.thread.map(m => m.by)).size;
+        const v = !!st.voted[st.pop.id];
+        pop = { isThread: true, isNew: false, x: st.pop.x, y: st.pop.y, kind: a.kind, icon: KI[a.kind], quote,
+          people: people + (people === 1 ? ' person' : ' people'), votes: a.votes + (v ? 1 : 0),
+          voteBg: v ? 'var(--color-accent-900)' : 'transparent', voteFg: v ? 'var(--color-accent-200)' : 'var(--color-neutral-200)',
+          voteIcon: v ? 'ph-fill ph-arrow-fat-up' : 'ph ph-arrow-fat-up', thread: a.thread.map(m => ({ ...m, ini: ini(m.by) })) };
+      } else pop = { isThread: false, isNew: true, x: st.pop.x, y: st.pop.y, quote: st.pop.quote, thread: [] };
+    }
+    const extra = Object.keys(EXTRA).filter(k => !st.tabs.includes(k)).map(k => ({ ...EXTRA[k], add: () => this.addModel(k) }));
+    const ready = [d.base, ...st.tabs.filter(k => st.resp[k])];
+    const nameOf = k => allModels[k].name;
+    const shown = st.comments.filter(c => st.filter === 'All' || (st.filter === 'General' ? !c.on : c.on === st.filter));
+    const seg = (on, bdOn) => on ? { bg: 'var(--color-neutral-700)', fg: 'var(--color-text)' } : { bg: 'transparent', fg: 'var(--color-neutral-400)' };
+    return {
+      theme, multi, title: d.title, cats: d.cats, by: d.by, byIni: ini(d.by), ago: d.ago, meIni: ini(ME),
+      hasBell: d.bell > 0, bell: d.bell,
+      effortLabel: ['Low', 'Med', 'High'][d.effort - 1] + ' effort',
+      eff2: d.effort >= 2 ? 'var(--color-accent)' : 'var(--color-neutral-700)', eff3: d.effort >= 3 ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+      stop: e => e.stopPropagation(),
+      annOn: st.annOn, annCount: annIds.length,
+      annBd: st.annOn ? 'var(--color-accent)' : 'var(--color-neutral-700)', annBg: st.annOn ? 'var(--color-accent-900)' : 'transparent',
+      annFg: st.annOn ? 'var(--color-accent-200)' : 'var(--color-neutral-200)',
+      toggleAnn: () => this.setState({ annOn: !st.annOn, pop: null, selBtn: null }),
+      kindFilters: [['All', 'ph-stack'], ...KINDS].map(([n, icon]) => ({ n, icon, count: n === 'All' ? annIds.length : annIds.filter(id => st.anns[id].kind === n).length,
+        pick: () => this.setState({ kind: n, pop: null }), ...seg(st.kind === n) })),
+      linkLabel: st.linkCopied ? 'Copied' : 'Copy link', linkIcon: st.linkCopied ? 'ph ph-check' : 'ph ph-link',
+      copyLink: () => { navigator.clipboard?.writeText(location.href).catch(() => {}); this.flash(null, { linkCopied: true }); },
+      turnLabel: 'Turn ' + (st.curTurn + 1) + ' of ' + d.prompts.length,
+      atFirst: st.curTurn === 0, atLast: st.curTurn === d.prompts.length - 1,
+      prevOp: st.curTurn === 0 ? 0.35 : 1, nextOp: st.curTurn === d.prompts.length - 1 ? 0.35 : 1,
+      prevTurn: () => this.goTurn(Math.max(0, st.curTurn - 1)), nextTurn: () => this.goTurn(Math.min(d.prompts.length - 1, st.curTurn + 1)),
+      turnJumps: d.prompts.map((_, i) => ({ n: 'Turn ' + (i + 1), go: () => this.goTurn(i), ...seg(st.curTurn === i) })),
+      gridRef: this.gridRef, onMouseUp: this.onMouseUp,
+      base: { name: baseR.name, mono: baseR.mono, meta: baseR.meta }, turns,
+      tabs: st.tabs.map(k => ({ name: nameOf(k), mono: allModels[k].mono, pick: () => this.setState({ tab: k, pop: null, menuOpen: false }),
+        bg: st.tab === k ? 'var(--color-neutral-800)' : 'transparent', check: st.tab === k && !st.gen[k] ? 'inline-block' : 'none', spin: st.gen[k] ? 'inline-block' : 'none' })),
+      tabCount: st.tabs.length === 1 ? '1 response' : st.tabs.length + ' responses',
+      activeSpin: generating ? 'inline-block' : 'none',
+      active: { ...active, ready: !generating, generating },
+      menuOpen: st.menuOpen, toggleMenu: () => this.setState({ menuOpen: !st.menuOpen, pop: null }),
+      menuBd: st.menuOpen ? 'var(--color-accent)' : 'var(--color-neutral-700)', menuBg: st.menuOpen ? 'var(--color-accent-900)' : 'var(--color-bg)',
+      extra, hasExtra: extra.length > 0,
+      hasSelBtn: !!st.selBtn, selBtn: st.selBtn || { x: 0, y: 0 }, startNew: this.startNew,
+      hasPop: !!pop, pop: pop || { x: 0, y: 0, thread: [] }, closePop: () => this.setState({ pop: null }),
+      votePop: () => this.setState({ voted: { ...st.voted, [st.pop.id]: !st.voted[st.pop.id] } }),
+      replyDraft: st.replyDraft, onReply: e => this.setState({ replyDraft: e.target.value }),
+      replyKey: e => { if (e.key === 'Enter') this.sendReply(); }, sendReply: this.sendReply,
+      newKinds: KINDS.map(([n, icon]) => ({ n, icon, pick: () => this.setState({ newKind: n }),
+        bd: st.newKind === n ? 'var(--color-accent)' : 'var(--color-neutral-700)', bg: st.newKind === n ? 'var(--color-accent-900)' : 'transparent',
+        fg: st.newKind === n ? 'var(--color-accent-200)' : 'var(--color-neutral-300)' })),
+      newDraft: st.newDraft, onNewDraft: e => this.setState({ newDraft: e.target.value }), saveNew: this.saveNew,
+      commentCount: st.comments.length + st.comments.reduce((n, c) => n + c.replies.length, 0),
+      commentFilters: ['All', ...ready, 'General'].map(k => ({ n: k === 'All' || k === 'General' ? k : nameOf(k), pick: () => this.setState({ filter: k }), ...seg(st.filter === k) })),
+      draftRef: this.draftRef, draft: st.draft, onDraft: e => this.setState({ draft: e.target.value }),
+      aboutOpts: [null, ...ready].map(k => ({ n: k ? nameOf(k) : 'General', pick: () => this.setState({ about: k }),
+        bd: st.about === k ? 'var(--color-accent)' : 'var(--color-neutral-700)', bg: st.about === k ? 'var(--color-accent-900)' : 'transparent',
+        fg: st.about === k ? 'var(--color-accent-200)' : 'var(--color-neutral-300)' })),
+      post: () => { const t = st.draft.trim(); if (!t) return;
+        this.setState({ comments: [{ id: st.nextId, by: ME, ago: 'now', on: st.about, votes: 0, t, replies: [] }, ...st.comments], draft: '', nextId: st.nextId + 1, filter: 'All' }); },
+      noComments: shown.length === 0,
+      comments: shown.map(c => {
+        const v = !!st.cvoted[c.id], rep = !!st.reported[c.id];
+        return { ...c, ini: ini(c.by), hasOn: !!c.on, on: c.on ? nameOf(c.on) : '', isOwn: c.by === ME, canReport: c.by !== ME,
+          menuOpen: st.menuFor === c.id, toggleMenu: () => this.setState({ menuFor: st.menuFor === c.id ? null : c.id }),
+          del: () => this.setState({ comments: st.comments.filter(x => x.id !== c.id), menuFor: null }),
+          votes: c.votes + (v ? 1 : 0), voteIcon: v ? 'ph-fill ph-arrow-fat-up' : 'ph ph-arrow-fat-up',
+          voteFg: v ? 'var(--color-accent-300)' : 'var(--color-neutral-400)',
+          vote: () => this.setState({ cvoted: { ...st.cvoted, [c.id]: !v } }),
+          reply: () => { this.setState({ draft: c.by + ' ', about: c.on }); setTimeout(() => this.draftRef.current?.focus(), 0); },
+          report: () => this.setState({ reported: { ...st.reported, [c.id]: !rep } }),
+          reportLabel: rep ? 'Reported' : 'Report', reportIcon: rep ? 'ph-fill ph-flag' : 'ph ph-flag',
+          replies: c.replies.map((r, ri) => { const rk = c.id + '-' + ri, rv = !!st.rvoted[rk];
+            return { ...r, ini: ini(r.by), isOwn: r.by === ME, votes: r.votes + (rv ? 1 : 0),
+              voteIcon: rv ? 'ph-fill ph-arrow-fat-up' : 'ph ph-arrow-fat-up', voteFg: rv ? 'var(--color-accent-300)' : 'var(--color-neutral-400)',
+              vote: () => this.setState({ rvoted: { ...st.rvoted, [rk]: !rv } }),
+              del: () => this.setState({ comments: st.comments.map(x => x.id === c.id ? { ...x, replies: x.replies.filter((_, j) => j !== ri) } : x) }) }; }) };
+      }),
+    };
+  }
+}
+</script>
+</body>
+</html>

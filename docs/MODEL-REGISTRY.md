@@ -5,31 +5,39 @@ Models the platform can run. The development seed, `pnpm db:init` and
 production `pnpm db:bootstrap` all read it. None of them creates users,
 Comparisons or other content from it: `db:init` syncs the registry before it
 decides whether to seed, so a populated local database still picks up a new
-release. The sync inserts new slugs, disables rows that left the catalogue, and
+Model. The sync inserts new slugs, disables rows that left the catalogue, and
 preserves an Admin-disabled Model.
 
-Every entry records whether its weights are openly available (`openWeights`).
-The catalogue deliberately mixes open-weight families with closed frontier
+Every entry records whether its weights are openly available (`openWeights`)
+and, for open-weight entries, its **Weight class** and **Run size**. The
+catalogue deliberately mixes open-weight families with closed frontier
 families — see [ADR 0010](./adr/0010-frontier-models-are-first-class.md) — and
 the pickers label the difference as **Open weights** or **Frontier API**.
+Frontier Models have no Weight class and no Run size.
 
 ## What the catalogue keeps
 
-- **Two releases per family where both are callable.** Each family has one
-  `release: 'current'` entry and, while the vendor still serves it, one
-  `release: 'previous'` entry. Older releases are retired from the catalogue.
-- **One line per family.** For families with several sizes or specialisations,
-  the catalogue follows the flagship *open-weight* line (for example Qwen3.8
-  27B rather than the closed Qwen Max/Plus/Flash API, and Kimi K3 rather than
-  K3.1 Pro). Phi and GPT-OSS have a single callable generation, so they carry
-  only a current entry.
+- **One entry per Model the platform can serve.** Models are peers: there are
+  no `current`/`previous` slots, and older Models such as Llama 3.3 70B sit in
+  their class beside newer ones — see
+  [ADR 0013](./adr/0013-models-are-peers-with-no-release-slots.md). `family`
+  survives as metadata that search matches; nothing groups by it.
+- **A Weight class and Run size on every open-weight entry.** Both are
+  curated, never computed from parameter count, and source ranges are resolved
+  to one number before entry. `Previous_Weight_Class` stays a curation note in
+  the source data and is not carried by the app.
 - **Stable slugs.** A slug identifies a Model for the life of the catalogue.
-  A new release gets a new slug; renaming a Model keeps its slug so old
-  Comparisons and Responses continue to resolve.
+  Renaming a Model keeps its slug so old Comparisons and Responses continue to
+  resolve. A genuinely different Model is a new entry, not a rename.
 - **Verified IDs.** `apiModelId` is the exact provider ID. IDs are checked
   against OpenRouter's live `/api/v1/models` list when an entry is added, not
-  copied from another registry. The current catalogue was verified on
-  **2026-10-29**.
+  copied from another registry. The open-weight catalogue was verified on
+  **2026-11-23**: 29 of the 42 rows in the design's curated CSV resolved to a
+  replayable Model and were added; the remaining thirteen were not. The eleven
+  open-weight Models the CSV omits are hand-curated entries.
+- **Repeating monograms are fine.** The initials tile is decoration beside the
+  display name; identity is the slug. Only duplicate slugs and duplicate
+  provider IDs are rejected.
 
 Run the registry tests after any edit:
 
@@ -37,50 +45,51 @@ Run the registry tests after any edit:
 pnpm --filter @owm/core test model-registry
 ```
 
-They reject duplicate slugs, duplicate provider model IDs, missing monograms,
-an unparseable ETA, a family with no current release and duplicate releases.
+They reject duplicate slugs, duplicate provider model IDs, a missing monogram
+or publisher, an unparseable ETA, an open-weight entry with no Weight class,
+Run size or parameter count, and a frontier entry that claims any of them.
+Repeat monograms are allowed.
 
 ## How the pickers present the catalogue
 
-- **Current releases lead.** Step 2 groups them into **Open weights** and
-  **Frontier API**; the Base picker uses four optgroups: Open weights · current,
-  Open weights · previous, Frontier API · current, Frontier API · previous.
-- **Previous releases stay available but out of the way.** Step 2 keeps them
-  behind a `Show previous releases` disclosure and labels their tiles
-  **Previous**. The Base picker marks previous options with `(previous)` so
-  native type-ahead still finds them.
-- **Search spans every release.** Typing in Step 2 or the Add model menu
-  matches display name, slug or family across current and previous entries, so
-  a collapsed release is never unreachable. Selected Challengers stay pinned in
-  a **Selected** strip while filters change.
+- **Weight class is the browsing axis.** Step 2 opens with an **All sizes**
+  tab and one tab per populated Weight class, with Frontier as its own tab.
+  Models are grouped into one section per class, each with a size glyph, a
+  Memory bar on one global 3 GB–2 TB log scale and its Run size in GB.
+- **The Base picker groups by Weight class too.** Its menu has one optgroup
+  per class, labelled `Open weights · Fly` through `Open weights · Super
+  Heavy`, then Frontier API. There is no current/previous split, so no release
+  marker and no disclosure in any picker.
+- **Search spans the catalogue.** Typing matches display name, publisher,
+  family, slug and class label. Search applies within the active tab, and every
+  tab count follows the query so a reader can see where matches live.
 - **Long menus scroll.** The Add model popover has its own search field and a
   capped, scrollable list; Base and existing Challengers remain excluded.
 
 ## Disabling versus removing
 
-- **Disable** an entry from the Admin surface when it is temporarily unavailable
-  or the platform should stop offering it. `enabled = false` removes it from
-  pickers and blocks new Runs, but existing Comparisons keep their Responses.
-  A registry release never re-enables a disabled Model.
-- **Retire** an entry by removing it from the catalogue. Production sync upserts
-  the current entries and disables rows whose slug is no longer in the
-  catalogue; it never deletes rows. Old Comparisons keep rendering, while the
-  retired Model disappears from pickers and new Runs are rejected. Do not delete
-  the row manually.
-- **Rename** a display name or monogram in place. Keep the slug. A genuine
-  model change (a new provider ID) is a new entry, not a rename.
+- **Disable** an entry from the Admin surface when it is temporarily
+  unavailable or the platform should stop offering it. `enabled = false`
+  removes it from pickers and blocks new Runs, but existing Comparisons keep
+  their Responses. A registry sync never re-enables a disabled Model.
+- **Retire** an entry by removing it from the catalogue when the vendor stops
+  serving it. Production sync upserts the current entries and disables rows
+  whose slug is no longer in the catalogue; it never deletes rows. Old
+  Comparisons keep rendering, while the retired Model disappears from pickers
+  and new Runs are rejected. Do not delete the row manually.
+- **Rename** a display name or monogram in place. Keep the slug.
 
-## Adding a new release
+## Adding a Model
 
 1. Confirm the provider ID and availability against
-   <https://openrouter.ai/api/v1/models>.
-2. Add the new entry with the next slug, `release: 'current'`, the correct
-   `openWeights` flag, family, display name, monogram, provider and ETA.
-3. Change the family's former current entry to `release: 'previous'`, or remove
-   it if the vendor no longer serves it.
-4. Keep monograms unique and ETAs positive integers; the registry tests fail on
-   duplicate or missing monograms and unusable ETAs.
-5. Run `pnpm --filter @owm/core test model-registry` and `pnpm typecheck`.
-6. Release with `pnpm db:init` locally, or `pnpm db:bootstrap` (the staging
+   <https://openrouter.ai/api/v1/models>. A Model the platform cannot replay
+   does not enter the catalogue.
+2. Add the entry with the next slug, the correct `openWeights` flag, family,
+   display name, monogram, provider and ETA.
+3. For an open-weight Model, add its Weight class and Run size, and the
+   parameter counts used for display. Resolve any range in the source data to
+   one number.
+4. Run `pnpm --filter @owm/core test model-registry` and `pnpm typecheck`.
+5. Release with `pnpm db:init` locally, or `pnpm db:bootstrap` (the staging
    deploy runs it) in production. The new entries appear in every picker;
    disabled state is preserved.

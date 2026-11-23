@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -5,5 +6,10 @@ export default defineConfig({
     // `next build` copies the workspace into `.next/standalone`; never run the
     // copied test files there.
     exclude: ['**/node_modules/**', '**/.next/**', '**/dist/**'],
+  },
+  resolve: {
+    alias: {
+      '@': path.resolve(import.meta.dirname, 'src'),
+    },
   },
 });

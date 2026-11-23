@@ -73,11 +73,11 @@ async function screens(page: Page) {
       assert: async () => {
         await expect(page.getByRole('button', { name: /Drop a \.md file/ })).toBeVisible();
         await expect(page.getByRole('button', { name: 'Schedule comparison' })).toBeVisible();
-        // Exercise the new picker controls at this width: search, filters,
-        // disclosure, previous tiles and the pinned Selected strip.
-        await page.getByRole('button', { name: /Show previous releases/ }).click();
+        // Exercise the new picker controls at this width: the class tab bar,
+        // a selected card and the pinned Selected strip.
+        await page.getByRole('tab', { name: /Light/ }).click();
         await page
-          .locator('[data-model-section="previous"] button')
+          .locator('[data-model-section="light"] button')
           .first()
           .click();
         await expect(page.locator('[data-selected-models]')).toBeVisible();

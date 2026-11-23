@@ -22,5 +22,10 @@ export const serverEnv: Record<string, string> = {
   MAX_CHALLENGERS: '4',
   JOBS_PER_HOUR: '50',
   RUNS_PER_DAY: '200',
+  // The suite signs several tests in as the same seed users in quick
+  // succession; keep the production rate limits but wide enough that the
+  // fixtures do not collide within one minute.
+  RUN_RATE_LIMIT_PER_USER: '50',
+  RUN_RATE_LIMIT_PER_IP: '200',
   PROVIDER_CONCURRENCY: '4',
 };

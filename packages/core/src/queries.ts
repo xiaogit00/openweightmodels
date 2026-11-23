@@ -32,6 +32,7 @@ import { decodeCursor, encodeCursor, CursorError } from './domain/cursor';
 import { BOARD_PAGE_SIZE, emptyBoardFacets } from './domain/filters';
 import { summariseMarkdown } from './domain/upload';
 import { DELETED_AUTHOR_HANDLE, runProgress } from './domain/types';
+import type { WeightClassKey } from './domain/weight-class';
 import type {
   AnnotationThreadMessage,
   AnnotationView,
@@ -42,7 +43,6 @@ import type {
   ComparisonCard,
   ComparisonStatus,
   JobRunState,
-  ModelRelease,
   PublicUser,
   Sort,
 } from './domain/types';
@@ -50,14 +50,18 @@ import type {
 export type ModelRow = typeof models.$inferSelect;
 
 /**
- * A Model row with its registry slot attached. `family` and `release` stay out
- * of the database so the curated registry remains the single source of truth;
- * rows that predate the registry (or test fixtures) fall back to a current
- * release of their own family.
+ * A Model row with its curated registry metadata attached. `family`,
+ * `publisher`, `weightClass`, `runSizeGb` and the parameter counts stay out of
+ * the database so the registry remains the single source of truth; rows that
+ * predate the registry fall back to sensible empty metadata.
  */
-export type ModelRowWithRelease = ModelRow & {
+export type ModelRowWithMetadata = ModelRow & {
   family: string;
-  release: ModelRelease;
+  publisher: string;
+  weightClass: WeightClassKey | null;
+  runSizeGb: number | null;
+  totalParams: string | null;
+  activeParams: string | null;
 };
 export type ResponseRow = typeof responses.$inferSelect;
 export type ComparisonRow = typeof comparisons.$inferSelect;
@@ -860,25 +864,35 @@ export async function getCardById(id: string): Promise<ComparisonCard | null> {
   return cardFromRows(comparison, author[0], cardData);
 }
 
-const MODEL_RELEASE_BY_SLUG = new Map(
+const MODEL_METADATA_BY_SLUG = new Map(
   MODEL_REGISTRY.map((entry) => [entry.slug, entry] as const),
 );
 
-export async function getModels(): Promise<ModelRowWithRelease[]> {
+/**
+ * Attach curated registry metadata to a Model row. The class and Run size are
+ * never inferred from the slug or the parameter count.
+ */
+export function attachModelMetadata(row: ModelRow): ModelRowWithMetadata {
+  const entry = MODEL_METADATA_BY_SLUG.get(row.slug);
+  return {
+    ...row,
+    family: entry?.family ?? row.slug,
+    publisher: entry?.publisher ?? 'Unknown',
+    weightClass: entry?.weightClass ?? null,
+    runSizeGb: entry?.runSizeGb ?? null,
+    totalParams: entry?.totalParams ?? null,
+    activeParams: entry?.activeParams ?? null,
+  };
+}
+
+export async function getModels(): Promise<ModelRowWithMetadata[]> {
   const rows = await getDb()
     .select()
     .from(models)
     .where(eq(models.enabled, true))
     .orderBy(models.displayName);
 
-  return rows.map((row) => {
-    const entry = MODEL_RELEASE_BY_SLUG.get(row.slug);
-    return {
-      ...row,
-      family: entry?.family ?? row.slug,
-      release: entry?.release ?? 'current',
-    };
-  });
+  return rows.map(attachModelMetadata);
 }
 
 export async function getUserByHandle(handle: string): Promise<UserRow | null> {

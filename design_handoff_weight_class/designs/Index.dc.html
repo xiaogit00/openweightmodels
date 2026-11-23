@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Space+Grotesk:wght@500&display=swap">
+<style>
+body{margin:0;background:#0a0c0b;color:#e8ebe8;font-family:Geist,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#bef264;text-decoration:none}a:hover{color:#d9f99d}
+</style>
+</helmet>
+<div style="min-height:100vh;padding:56px 32px;display:flex;justify-content:center">
+  <div style="width:100%;max-width:820px;display:flex;flex-direction:column;gap:32px">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span style="display:flex;align-items:center;gap:10px"><span style="width:22px;height:22px;border:1.5px solid #a3e635;border-radius:2px;display:flex;align-items:center;justify-content:center"><span style="width:1.5px;height:10px;background:#a3e635"></span></span><span style="font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:14px">OpenWeightModels</span></span>
+      <h1 style="margin:0;font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:30px;letter-spacing:-.02em">Redesign · every screen</h1>
+      <p style="margin:0;font-size:14.5px;line-height:1.6;color:#a9ada9;max-width:560px">Each screen in the current handoff, rebuilt in the calmer chat-style direction. Open any state in dark or light.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;border-top:1px solid #1d211f">
+      <sc-for list="{{ rows }}" as="r" hint-placeholder-count="6">
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:18px 0;border-bottom:1px solid #1d211f">
+          <div style="flex:1 1 320px;display:flex;flex-direction:column;gap:2px">
+            <span style="font-size:15px;font-weight:500">{{ r.screen }}</span>
+            <span style="font-size:13px;color:#858a86">{{ r.state }}</span>
+          </div>
+          <div style="display:flex;gap:8px">
+            <a href="{{ r.dark }}" style="display:flex;align-items:center;height:32px;padding:0 14px;border:1px solid #2e3330;border-radius:2px;color:#e8ebe8;font-size:13px;font-weight:500" style-hover="border-color:#65a30d;background:#17240b;color:#e8ebe8">Dark</a>
+            <a href="{{ r.light }}" style="display:flex;align-items:center;height:32px;padding:0 14px;border:1px solid #2e3330;border-radius:2px;color:#e8ebe8;font-size:13px;font-weight:500" style-hover="border-color:#65a30d;background:#17240b;color:#e8ebe8">Light</a>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <p style="margin:0;font-size:13px;color:#858a86">Theme and state can also be switched from each page's Tweaks panel.</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const ROWS = [
+  ['Board', 'Live sort, all filters cleared', 'Board.dc.html', ''],
+  ['New comparison', 'Filled: uploaded base output, 3 challengers, category + effort set', 'New%20Comparison.dc.html', 'state=filled'],
+  ['New comparison', 'First run: empty dropzone and disabled submit', 'New%20Comparison.dc.html', 'state=empty'],
+  ['Comparison', 'Reading state, annotations off', 'Comparison.dc.html', ''],
+  ['Comparison', 'Annotation overlay on (6 annotations)', 'Comparison.dc.html', 'ann=1'],
+  ['Comparison (multi-turn)', 'Two-turn conversation with turn rail', 'Comparison.dc.html', 'scenario=turns'],
+];
+class Component extends DCLogic {
+  renderVals() {
+    const u = (f, q, t) => f + '?' + (q ? q + '&' : '') + 'theme=' + t;
+    return { rows: ROWS.map(([screen, state, f, q]) => ({ screen, state, dark: u(f, q, 'dark'), light: u(f, q, 'light') })) };
+  }
+}
+</script>
+</body>
+</html>
