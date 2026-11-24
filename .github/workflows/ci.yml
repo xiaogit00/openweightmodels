@@ -53,27 +53,27 @@ jobs:
       OWM_STACK_PREFIX: ${{ vars.OWM_STACK_PREFIX }}
       OWM_NAME_PREFIX: ${{ vars.OWM_NAME_PREFIX }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Require the OIDC deploy role
         run: |
           if [ -z "$AWS_DEPLOY_ROLE_ARN" ] || [ -z "$OWM_DOMAIN_NAME" ]; then
             echo "Set AWS_DEPLOY_ROLE_ARN and OWM_DOMAIN_NAME in the staging environment." >&2
             exit 1
           fi
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           role-session-name: owm-staging-${{ github.run_id }}
           aws-region: ${{ vars.AWS_REGION }}
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
       # The images are linux/arm64 (Fargate Graviton); an amd64 runner needs
       # QEMU and Buildx to build them.
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
       - run: pnpm install --frozen-lockfile
       # deploy.sh runs the migration task before rolling either service; see
       # docs/DEPLOYMENT.md §7 for the rollback path.

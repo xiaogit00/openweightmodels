@@ -72,7 +72,7 @@ jobs:
       OWM_CACHE_NODE_TYPE: ${{ vars.OWM_CACHE_NODE_TYPE }}
       OWM_NAT_GATEWAYS: ${{ vars.OWM_NAT_GATEWAYS }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # The tag guard needs the commit graph, not a shallow clone.
           fetch-depth: 0
@@ -94,22 +94,22 @@ jobs:
             exit 1
           fi
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           role-session-name: owm-prod-${{ github.run_id }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
 
       # The images are linux/arm64 (Fargate Graviton); an amd64 runner needs
       # QEMU and Buildx to build them.
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
 
       - run: pnpm install --frozen-lockfile
 
