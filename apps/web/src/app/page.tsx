@@ -63,6 +63,8 @@ export default async function BoardPage({
         displayName: model.displayName,
         monogram: model.monogram,
         etaSeconds: model.etaSeconds,
+        weightClass: model.weightClass,
+        runSizeGb: model.runSizeGb,
       }))}
       events={events.map((event) => ({
         id: event.id,

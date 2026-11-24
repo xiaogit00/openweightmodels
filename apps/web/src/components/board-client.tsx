@@ -17,7 +17,12 @@ import {
   MagnifyingGlass,
   X,
 } from '@phosphor-icons/react';
-import type { BoardFacets, BoardPage, ComparisonCard } from '@owm/core/client';
+import type {
+  BoardFacets,
+  BoardPage,
+  ComparisonCard,
+  WeightClassMetadata,
+} from '@owm/core/client';
 import {
   EFFORT_LEVELS,
   addCardToFacets,
@@ -42,7 +47,7 @@ type BoardModel = {
   displayName: string;
   monogram: string;
   etaSeconds: number;
-};
+} & WeightClassMetadata;
 
 type BoardCategory = {
   slug: string;

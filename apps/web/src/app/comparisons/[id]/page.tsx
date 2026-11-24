@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import {
+  cardModelFromRow,
   getAnnotationViews,
   getCommentViews,
   getComparisonForViewer,
@@ -54,11 +55,7 @@ export default async function ComparisonPage({
         authorId: bundle.comparison.authorId,
       }}
       author={bundle.author}
-      baseModel={{
-        slug: bundle.baseModel.slug,
-        name: bundle.baseModel.displayName,
-        monogram: bundle.baseModel.monogram,
-      }}
+      baseModel={cardModelFromRow(bundle.baseModel)}
       responses={toComparisonResponseViews(bundle)}
       annotations={annotations}
       comments={comments}
@@ -72,6 +69,7 @@ export default async function ComparisonPage({
         openWeights: model.openWeights,
         family: model.family,
         weightClass: model.weightClass,
+        runSizeGb: model.runSizeGb,
       }))}
       maxChallengers={resolveMaxChallengers(process.env.MAX_CHALLENGERS)}
       currentUserId={user?.handle ? user.id : null}

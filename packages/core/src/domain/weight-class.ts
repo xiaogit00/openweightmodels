@@ -18,6 +18,12 @@ export const WEIGHT_CLASS_KEYS = [
 
 export type WeightClassKey = (typeof WEIGHT_CLASS_KEYS)[number];
 
+/** The curated class and Run size every Model-shaped payload carries. */
+export type WeightClassMetadata = {
+  weightClass: WeightClassKey | null;
+  runSizeGb: number | null;
+};
+
 export type WeightClassDefinition = {
   key: WeightClassKey;
   /** Short name for a tab, a chip and a card tooltip. */
@@ -88,8 +94,13 @@ export function isWeightClassKey(value: unknown): value is WeightClassKey {
 
 /** `Light weight`, or `Frontier API` when the Model has no class. */
 export function weightClassLabel(key: WeightClassKey | null | undefined): string {
-  const definition = weightClassDefinition(key);
-  return definition ? `${definition.label} weight` : 'Frontier API';
+  const short = weightClassShortLabel(key);
+  return weightClassDefinition(key) ? `${short} weight` : short;
+}
+
+/** The compact class name for a chip, a menu row or a card: `Light`, `Frontier API`. */
+export function weightClassShortLabel(key: WeightClassKey | null | undefined): string {
+  return weightClassDefinition(key)?.label ?? 'Frontier API';
 }
 
 /** The class section a Model belongs to; frontier Models share one bucket. */
@@ -107,7 +118,9 @@ export function parseModelClassTab(value: string | null | undefined): ModelClass
 
 /** `4 GB`, or `1.5 TB` once the Run size passes a thousand gigabytes. */
 export function formatRunSize(gb: number): string {
-  return gb >= 1000 ? `${(gb / 1000).toFixed(1)} TB` : `${gb} GB`;
+  if (gb < 1000) return `${gb} GB`;
+  // One decimal place, with a trailing `.0` stripped: 1 TB, not 1.0 TB.
+  return `${Number((gb / 1000).toFixed(1))} TB`;
 }
 
 /**

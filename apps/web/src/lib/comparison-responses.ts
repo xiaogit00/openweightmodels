@@ -3,6 +3,7 @@ import {
   buildBlocks,
   type Block,
   type ResponseStatus,
+  type WeightClassMetadata,
 } from '@owm/core/client';
 
 /**
@@ -19,7 +20,7 @@ export type ComparisonResponseView = {
   latencyMs: number | null;
   status: ResponseStatus;
   error: string | null;
-  model: { slug: string; name: string; monogram: string };
+  model: { slug: string; name: string; monogram: string } & WeightClassMetadata;
   turn: { id: string; position: number; prompt: string };
   blocks: Block[];
 };
@@ -55,6 +56,26 @@ export function modelsWithReplayInProgress(
 }
 
 /**
+ * The browser's Model shape for a response header or menu row. Shared by the
+ * server projection and the optimistic queue added after "Add model".
+ */
+export function toResponseViewModel(
+  model: {
+    slug: string;
+    displayName: string;
+    monogram: string;
+  } & WeightClassMetadata,
+): ComparisonResponseView['model'] {
+  return {
+    slug: model.slug,
+    name: model.displayName,
+    monogram: model.monogram,
+    weightClass: model.weightClass,
+    runSizeGb: model.runSizeGb,
+  };
+}
+
+/**
  * Server-side projection of a Comparison response for the browser view. Used by
  * both the page render and the author-only resync after a Run settles, so a tab
  * never has to trust partial SSE payloads for its body.
@@ -74,11 +95,7 @@ export function toComparisonResponseViews(
       latencyMs: response.latencyMs,
       status: response.status,
       error: response.error,
-      model: {
-        slug: model.slug,
-        name: model.displayName,
-        monogram: model.monogram,
-      },
+      model: toResponseViewModel(model),
       turn: {
         id: response.turnId,
         position: turn?.position ?? 0,

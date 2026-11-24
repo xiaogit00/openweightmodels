@@ -185,6 +185,19 @@ async function loadCardData(
   };
 }
 
+/** The card projection of a Model: identity plus its curated class and Run size. */
+export function cardModelFromRow(row: ModelRow): CardModel {
+  const model = attachModelMetadata(row);
+  return {
+    id: model.id,
+    slug: model.slug,
+    name: model.displayName,
+    monogram: model.monogram,
+    weightClass: model.weightClass,
+    runSizeGb: model.runSizeGb,
+  };
+}
+
 function cardFromRows(
   comparison: ComparisonRow,
   author: UserRow | undefined,
@@ -212,12 +225,7 @@ function cardFromRows(
     const model = cardData.modelMap.get(response.modelId);
     if (!model) continue;
     seenModels.add(response.modelId);
-    cardModels.push({
-      id: model.id,
-      slug: model.slug,
-      name: model.displayName,
-      monogram: model.monogram,
-    });
+    cardModels.push(cardModelFromRow(model));
   }
 
   return {
@@ -452,10 +460,10 @@ export async function getBoardFacets(): Promise<BoardFacets> {
 export type ComparisonBundle = {
   comparison: ComparisonRow;
   author: PublicUser;
-  baseModel: ModelRow;
+  baseModel: ModelRowWithMetadata;
   categories: CategoryRef[];
   turns: Array<{ id: string; position: number; prompt: string }>;
-  responses: Array<{ response: ResponseRow; model: ModelRow }>;
+  responses: Array<{ response: ResponseRow; model: ModelRowWithMetadata }>;
 };
 
 export async function getComparisonForViewer(
@@ -521,7 +529,7 @@ export async function getComparisonForViewer(
   const modelRows = modelIds.length
     ? await db.select().from(models).where(inArray(models.id, modelIds))
     : [];
-  const modelMap = new Map(modelRows.map((row) => [row.id, row]));
+  const modelMap = new Map(modelRows.map((row) => [row.id, attachModelMetadata(row)]));
 
   // Responses are written in one transaction, so `created_at` ties and the
   // database is free to return them in any order. The reader expects Turn
@@ -539,7 +547,7 @@ export async function getComparisonForViewer(
   return {
     comparison,
     author: toPublicUser(author),
-    baseModel,
+    baseModel: attachModelMetadata(baseModel),
     categories,
     turns: turnRows,
     responses: orderedResponses
@@ -547,7 +555,10 @@ export async function getComparisonForViewer(
         const model = modelMap.get(response.modelId);
         return model ? { response, model } : null;
       })
-      .filter((entry): entry is { response: ResponseRow; model: ModelRow } => Boolean(entry)),
+      .filter(
+        (entry): entry is { response: ResponseRow; model: ModelRowWithMetadata } =>
+          Boolean(entry),
+      ),
   };
 }
 
@@ -749,7 +760,8 @@ export type JobBundle = {
   job: JobRow;
   comparison: ComparisonRow;
   author: PublicUser;
-  baseModel: CardModel | null;
+  /** Identity only; the Job page does not show class or Run size. */
+  baseModel: Pick<CardModel, 'id' | 'slug' | 'name' | 'monogram'> | null;
   categories: CategoryRef[];
   baseSnippet: string;
   challengerSnippet: string;

@@ -1,0 +1,43 @@
+Model,Publisher,Total_Params,Active_Params,Architecture,Q4_Size_GB,Min_VRAM_GB,Min_System_RAM_GB,Combined_Min_GB,Run_Method,Weight_Class,Previous_Weight_Class,Notes
+LFM2.5-1.2B,LiquidAI,1.2B,1.2B,Dense hybrid: short-convolution blocks + GQA attention layers,~1,2,2,4,Standard Q4,Fly Weight,Fly Weight,Thinking+vision+audio
+Qwen3.5-2B,Alibaba,2B,2B,Dense hybrid: 3:1 Gated DeltaNet (linear attn) + Gated Attention; vision,~1.1 (Q3_K_M),3,2,5,Standard Q4,Fly Weight,Fly Weight,Best default for 16GB laptop per GGUF eval; vision-capable
+Llama 3.2 1B/3B,Meta,1-3B,1-3B,Dense Transformer (GQA),<2,3,2,5,Standard Q4,Fly Weight,Fly Weight,EU OK
+SmolLM3-3B,HuggingFaceTB,3B,3B,Dense Transformer (GQA; NoPE on every 4th layer),~2,4,2,6,Standard Q4,Fly Weight,Fly Weight,Best 3B
+Phi-4-mini,Microsoft,3.8B,3.8B,Dense Transformer (GQA),~2,4,2,6,Standard Q4,Fly Weight,Fly Weight,MATH-500 92.5%
+Ministral 3B,Mistral,3B,3B,Dense Transformer (GQA) + vision encoder,~2,4,2,6,Standard Q4,Fly Weight,Fly Weight,Vision; 256K
+DeepSeek-OCR-2,DeepSeek,3.4B,3.4B,Vision encoder (DeepEncoder) + DeepSeek-3B MoE decoder (~0.6B active),~2,4,2,6,Standard Q4,Fly Weight,Fly Weight,Apache 2.0
+Qwen3.5-4B,Alibaba,4B,4B,Dense hybrid: 3:1 Gated DeltaNet (linear attn) + Gated Attention; vision,~2.3 (Q3_K_M),4,2,6,Standard Q4,Fly Weight,Fly Weight,Competitive with Gemma-4-E4B at lower memory
+Granite 4.0,IBM,3-9B,3-9B,Hybrid Mamba-2 + Transformer (~9:1); dense and MoE variants,~2-6,4-8,2-4,6-12,Standard Q4,Fly Weight,Fly Weight,70% memory reduction; 7B H-Tiny variant sits at Feather
+Gemma 4 E2B,Google,2.3B,2.3B,Dense; per-layer embeddings (2.3B effective / 5.1B total); sliding-window/global attention; vision+audio encoders,~4,6,4,10,Standard Q4,Fly Weight,Fly Weight,Edge multimodal
+Qwen3.5-9B,Alibaba,9B,9B,Dense hybrid: 3:1 Gated DeltaNet (linear attn) + Gated Attention; vision,~5.5,8,4,12,Standard Q4,Feather Weight,Feather Weight,GPQA 81.7
+Ministral 8B,Mistral,8B,8B,Dense Transformer (GQA) + vision encoder,~5,8,4,12,Standard Q4,Feather Weight,Feather Weight,AIME 78.7
+Gemma 4 E4B,Google,4.5B,4.5B,Dense; per-layer embeddings (4.5B effective / 8B total); sliding-window/global attention; vision+audio encoders,~6,8,4,12,Standard Q4,Feather Weight,Fly Weight,Edge multimodal
+Gemma 4 12B Unified,Google,11.95B,11.95B,Dense; encoder-free multimodal (image/audio projected straight into decoder); 5:1 sliding-window/global attention,~7,12,8,20,Standard Q4,Feather Weight,Feather Weight,Multimodal+audio
+Ministral 14B,Mistral,14B,14B,Dense Transformer (GQA) + vision encoder,~8,12,8,20,Standard Q4,Feather Weight,Feather Weight,AIME 85
+GPT-OSS-20B,OpenAI,21B,3.6B,MoE (32 experts / 4 active); alternating full + sliding-window attention; native MXFP4,~12,16,8,24,Standard Q4 (MoE),Feather Weight,Feather Weight,Fits 16GB
+Devstral Small 2,Mistral,24B,24B,Dense Transformer (GQA),~14,24,8,32,Standard Q4,Light Weight,Light Weight,SWE-bench 68.0
+Qwen3.8-27B,Alibaba,27B,27B,Dense hybrid: 3:1 Gated DeltaNet (linear attn) + Gated Attention; vision; MTP,~16,24,8,32,Standard Q4,Light Weight,Light Weight,GPQA 89.2; supersedes Qwen3.5-27B
+Nemotron 3.5 Lightning,NVIDIA,30B,3B,MoE hybrid Mamba-2 + Transformer; MTP,~16,24,8,32,Standard Q4 (MoE),Light Weight,Light Weight,1M ctx; supersedes Nemotron 3 Nano
+GLM-4.7-Flash,Zhipu AI,30B,3B,MoE with MLA attention,~17,24,8,32,Standard Q4 (MoE),Light Weight,Light Weight,RTX 4090
+Muse-Glimmer-30B,Meta (MSL),29.6B,29.6B,Dense Transformer; Gemma-style sliding-window/global attention; multimodal,~18,24,8,32,Standard Q4,Light Weight,Light Weight,4-bit fits 24/32GB
+Gemma 4 31B,Google,31B,31B,Dense; 5:1 sliding-window/global attention; vision encoder,~18,24,8,32,Standard Q4,Light Weight,Light Weight,24GB desktop
+Llama 3.3 70B,Meta,70B,70B,Dense Transformer (GQA),~42,48,16,64,Standard Q4,Middle Weight,Middle Weight,EU OK
+Qwen3-Coder-Next 80B-A3B,Alibaba,80B,3B,MoE (512 experts / 10 active); 3:1 Gated DeltaNet + Gated Attention,~45,48,16,64,Standard Q4 (MoE),Middle Weight,Middle Weight,SWE-bench 70.6
+GLM-4.5-Air,Zhipu AI,106B,12B,MoE (GQA full attention; MTP),~60,80,16,96,Standard Q4 (MoE),Middle Weight,Light Weight,MIT
+GPT-OSS-120B,OpenAI,117B,5.1B,MoE (128 experts / 4 active); alternating full + sliding-window attention; native MXFP4,~68,80,16,96,Standard Q4 (MoE),Middle Weight,Light Weight,Single 80GB GPU
+Mistral Small 4,Mistral,119B,6B,MoE (128 experts / 4 active + 1 shared); MLA attention; vision,~68,80,16,96,Standard Q4 (MoE),Middle Weight,Light Weight,Unified modes
+Nemotron 3.5 Super-VL,NVIDIA,120B,12B,MoE hybrid Mamba-2 + Transformer (Nemotron-H); RADIO vision encoder,~68,80,16,96,Standard Q4 (MoE),Middle Weight,Light Weight,1M ctx; supersedes Nemotron 3 Super
+Qwen3.5-122B-A10B,Alibaba,122B,10B,MoE; 3:1 Gated DeltaNet + Gated Attention; vision,~70,80,16,96,Standard Q4 (MoE),Middle Weight,Light Weight,Single 80GB GPU
+Qwen3.8-Flash-Next,Qwen,125B,6B,MoE; 3:1 Gated DeltaNet + Qwen Sparse Attention; gated residuals; +51B off-GPU n-gram embeddings,~72,80,16,96,Standard Q4 (MoE),Middle Weight,Light Weight,Qwen4 preview
+Mistral Medium 3.5 128B,Mistral AI,128B,128B,Dense Transformer (GQA) + Pixtral vision encoder,~75,80,24,104,Standard Q4,Middle Weight,Middle Weight,Modified MIT
+MiniMax M2.7,MiniMax AI,230B,10B,MoE; full GQA attention with QK-norm,~108,48,96,144,Offload (Maya/Strata),Heavy Weight,Heavy Weight,IQ1_M 60.7GB; 2×24GB + 96GB RAM
+Step-3.5-Flash,StepFun,196B,11B,MoE (288 experts / top-8 + shared); 3:1 sliding-window/full attention; MTP-3,~110,128,24,152,Standard Q4 (MoE),Heavy Weight,Middle Weight,350 tok/s
+Inkling-Small,Thinking Machines,276B,12B,Multimodal MoE (native text/image/audio),~150,48,152,200,Offload (Maya/Strata),Heavy Weight,Heavy Weight,SWE-bench V 80.2
+DeepSeek-V4-Flash,DeepSeek,284B,13B,MoE (256 experts / 6+1 shared); hybrid CSA/HCA compressed attention; mHC residuals; MTP,~156,48,160,208,Offload (Maya/Strata),Heavy Weight,Heavy Weight,1M native
+Hy3,Tencent,295B,21B,MoE (192 experts / top-8); GQA with QK-norm; MTP,~160,48,160,208,Offload (Maya/Strata),Heavy Weight,Heavy Weight,Apache 2.0
+GLM-5.3-Flash,Zhipu AI,320B,18B,Multimodal MoE; hybrid sparse + linear attention,~162-210,48,96,144,Strata/Maya offload,Heavy Weight,Heavy Weight,Strata: ~96GB RAM @ 32GB card; 4×3090 = ~65 tok/s
+MiMo-V2.6-Flash,Xiaomi,309B,15B,Omnimodal MoE; hybrid sliding-window/global attention,~170,48,168,216,Offload (Maya/Strata),Heavy Weight,Heavy Weight,Omnimodal
+MiniMax-M3.1-Flash,MiniMax,428B,23B,Multimodal MoE; MiniMax sparse attention,~235,48,224,272,Offload (Maya/Strata),Heavy Weight,Heavy Weight,Q4 ≈ 235 GB
+GLM-5.3,Zhipu AI,744B,40B,MoE; DeepSeek-style sparse attention (DSA + IndexShare); MTP,~756 (FP8); ~210-250 (IQ2_M est),48,256,304,Strata/Maya offload,Super Heavy Weight,Heavy Weight,Q4 ≈ 420 GB so classed above Heavy; UD-IQ2_M runs on 24GB VRAM + 256GB RAM per Unsloth; custom license >$10B revenue review; same base as GLM-5.2
+DeepSeek-V4-Pro,DeepSeek,1.6T,49B,MoE; hybrid CSA/HCA compressed attention; mHC residuals; MTP,~960 (Q4_K_M),48,960,1008,Offload (Strata/Maya),Super Heavy Weight,Heavy Weight,Q4_K_M needs ~8×H200; MIT; not consumer-feasible even with offload on 480GB
+Kimi K3,Moonshot AI,2.8T,unknown,MoE (Stable LatentMoE; 16 of 896 experts); Kimi Delta Attention (linear) + Gated MLA; Attention Residuals; native MXFP4,~1.5TB weights (MXFP4),48,1500,1548,Offload (Strata/Maya),Super Heavy Weight,Heavy Weight,Largest open-weight model; custom license with revenue/MAU caps; ~1.5TB weights

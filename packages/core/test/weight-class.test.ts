@@ -6,6 +6,7 @@ import {
   parseModelClassTab,
   weightClassDefinition,
   weightClassLabel,
+  weightClassShortLabel,
 } from '../src/domain/weight-class';
 
 describe('Weight class definitions', () => {
@@ -18,13 +19,19 @@ describe('Weight class definitions', () => {
   it('labels a classless Model as Frontier API', () => {
     expect(weightClassLabel(null)).toBe('Frontier API');
   });
+
+  it('exposes a short label for dense surfaces', () => {
+    expect(weightClassShortLabel('light')).toBe('Light');
+    expect(weightClassShortLabel('super-heavy')).toBe('Super Heavy');
+    expect(weightClassShortLabel(null)).toBe('Frontier API');
+  });
 });
 
 describe('Run size formatting', () => {
   it('shows gigabytes below a thousand and terabytes above', () => {
     expect(formatRunSize(4)).toBe('4 GB');
     expect(formatRunSize(104)).toBe('104 GB');
-    expect(formatRunSize(1008)).toBe('1.0 TB');
+    expect(formatRunSize(1008)).toBe('1 TB');
     expect(formatRunSize(1548)).toBe('1.5 TB');
   });
 

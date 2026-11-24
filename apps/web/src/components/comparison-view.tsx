@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AnnotationKind, AnnotationView } from '@owm/core/client';
 import { isPendingResponse } from '@owm/core/client';
 import { signInPath } from '@/lib/next-path';
-import { modelsWithReplayInProgress } from '@/lib/comparison-responses';
+import { modelsWithReplayInProgress, toResponseViewModel } from '@/lib/comparison-responses';
 import {
   isResponseStatus,
   responseErrorMessage,
@@ -802,7 +802,7 @@ export function ComparisonView(props: ComparisonPageData) {
         latencyMs: null,
         status: 'queued',
         error: null,
-        model: { slug: model.slug, name: model.displayName, monogram: model.monogram },
+        model: toResponseViewModel(model),
         turn: turnByPosition.get(entry.position) ?? {
           id: entry.turnId,
           position: entry.position,

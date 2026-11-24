@@ -163,11 +163,16 @@ describe.skipIf(!available)('Board listing', () => {
       expect(card.turnCount).toBe(2);
       expect(card.baseSnippet).toContain('FIRST BASE');
       expect(card.baseSnippet).not.toContain('SECOND BASE');
-      // One entry per Model, not one per Response.
+      // One entry per Model, not one per Response. Every Model carries its
+      // curated class and Run size, including the extra Challengers.
       expect(card.models.map((model) => model.slug)).toEqual([
         conversation.baseModelSlug,
         ...conversation.challengerSlugs,
       ]);
+      for (const model of card.models) {
+        expect(model).toHaveProperty('weightClass');
+        expect(model).toHaveProperty('runSizeGb');
+      }
 
       // The live publish event fetches its card through the same projection.
       const published = await getCardById(conversation.comparisonId);
@@ -175,6 +180,10 @@ describe.skipIf(!available)('Board listing', () => {
       expect(published?.turnCount).toBe(2);
       expect(published?.baseSnippet).toContain('FIRST BASE');
       expect(published?.models).toHaveLength(3);
+      for (const model of published?.models ?? []) {
+        expect(model).toHaveProperty('weightClass');
+        expect(model).toHaveProperty('runSizeGb');
+      }
     } finally {
       await cleanupAll([conversation]);
     }

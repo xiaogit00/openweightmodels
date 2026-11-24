@@ -3,7 +3,7 @@ import type {
   CategoryRef,
   CommentView,
   PublicUser,
-  WeightClassKey,
+  WeightClassMetadata,
 } from '@owm/core/client';
 import type { ComparisonResponseView } from '@/lib/comparison-responses';
 
@@ -22,21 +22,22 @@ export type ComparisonPageData = {
     authorId: string;
   };
   author: PublicUser;
-  baseModel: { slug: string; name: string; monogram: string };
+  baseModel: { slug: string; name: string; monogram: string } & WeightClassMetadata;
   responses: ComparisonResponseView[];
   annotations: AnnotationView[];
   comments: CommentView[];
-  models: Array<{
-    id: string;
-    slug: string;
-    displayName: string;
-    monogram: string;
-    etaSeconds: number;
-    publisher: string;
-    openWeights: boolean;
-    family: string;
-    weightClass: WeightClassKey | null;
-  }>;
+  models: Array<
+    {
+      id: string;
+      slug: string;
+      displayName: string;
+      monogram: string;
+      etaSeconds: number;
+      publisher: string;
+      openWeights: boolean;
+      family: string;
+    } & WeightClassMetadata
+  >;
   maxChallengers: number;
   currentUserId: string | null;
   viewerSignedIn: boolean;

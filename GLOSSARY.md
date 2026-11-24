@@ -111,7 +111,7 @@ A Model whose weights are published, so it can be run by a provider or self-host
 _Avoid_: open model, open-source model
 
 **Weight class**:
-The hardware tier of an open-weight Model. The tiers are defined by Run size, but the registry stores the curated class rather than recomputing it, so reclassifying is a curation change. It is a fixed property of the Model, not of a Comparison, and frontier Models have none.
+The hardware tier of an open-weight Model. The tiers are defined by Run size, but the registry stores the curated class rather than recomputing it, so reclassifying is a curation change. It is a fixed property of the Model, not of a Comparison, and frontier Models have none. The UI presents frontier Models as a separate *Frontier API* group; that grouping is display, not a Weight class.
 _Avoid_: size class, tier, size bucket
 
 **Run size**:

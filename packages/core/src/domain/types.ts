@@ -1,4 +1,5 @@
 import type { CategoryRef } from './categories';
+import type { WeightClassMetadata } from './weight-class';
 
 export const EFFORT_LEVELS = [
   { value: 1, label: 'Low', sub: 'Quick prompt' },
@@ -115,7 +116,7 @@ export type CardModel = {
   slug: string;
   name: string;
   monogram: string;
-};
+} & WeightClassMetadata;
 
 export type ComparisonCard = {
   id: string;

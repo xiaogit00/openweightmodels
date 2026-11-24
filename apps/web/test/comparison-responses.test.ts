@@ -10,7 +10,11 @@ function response(
   status: ResponseStatus,
   isBase = false,
 ): Pick<ComparisonResponseView, 'isBase' | 'status' | 'model'> {
-  return { isBase, status, model: { slug, name: slug, monogram: 'MM' } };
+  return {
+    isBase,
+    status,
+    model: { slug, name: slug, monogram: 'MM', weightClass: null, runSizeGb: null },
+  };
 }
 
 describe('modelsWithReplayInProgress', () => {

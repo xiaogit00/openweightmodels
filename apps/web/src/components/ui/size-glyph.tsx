@@ -5,7 +5,8 @@ import {
 import { cn } from '@/lib/utils';
 
 const TAB_HEIGHTS = [3, 5, 7, 9, 11, 13];
-const MINI_HEIGHTS = TAB_HEIGHTS.map((height) => Math.round(height * 0.75));
+/** The handoff's 10px variant: six bars at 2/4/5/7/8/10px with a 1px gap. */
+const MINI_HEIGHTS = [2, 4, 5, 7, 8, 10];
 
 /**
  * Six bars rising with the Weight class, extending the effort glyph. The
@@ -35,7 +36,7 @@ export function SizeGlyph({
       className={cn('inline-flex items-end', className)}
       style={{
         height: variant === 'mini' ? 10 : 13,
-        gap: variant === 'mini' ? 1.5 : 2,
+        gap: variant === 'mini' ? 1 : 2,
       }}
     >
       {heights.map((height, bar) => (
