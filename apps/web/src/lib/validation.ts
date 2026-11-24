@@ -1,7 +1,7 @@
 import {
   ANNOTATION_KINDS,
-  CATEGORIES,
   HANDLE_MAX_LENGTH,
+  MAX_CATEGORIES_PER_COMPARISON,
   REPORT_REASONS,
   REPORT_TARGETS,
 } from '@owm/core';
@@ -41,7 +41,8 @@ export const voteSchema = z.object({
 
 export const comparisonPatchSchema = z.object({
   title: z.string().min(1).max(200).optional(),
-  categories: z.array(z.enum(CATEGORIES)).optional(),
+  // Names, not presets: a community Category or a new name is valid here.
+  categories: z.array(z.string()).max(MAX_CATEGORIES_PER_COMPARISON).optional(),
   effort: z.number().int().min(1).max(3).optional(),
 });
 
@@ -65,6 +66,10 @@ export const deleteAccountSchema = z.object({
 
 export const adminModelPatchSchema = z.object({
   enabled: z.boolean(),
+});
+
+export const adminCategoryPatchSchema = z.object({
+  displayName: z.string().max(24),
 });
 
 export const reportCreateSchema = z.object({

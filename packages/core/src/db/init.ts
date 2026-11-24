@@ -8,6 +8,7 @@ import { count } from 'drizzle-orm';
 import { loadEnv } from '../load-env';
 import { seedDatabase } from '../seed';
 import { syncModelRegistry } from '../services/model-registry';
+import { syncPresetCategories } from '../services/categories';
 import { getDb } from './client';
 import { runMigrations } from './migrate';
 import { runAsScript } from './run-script';
@@ -22,6 +23,7 @@ export async function initDatabase() {
   // populated database otherwise keeps the demo Models it was seeded with
   // forever. The sync is idempotent and preserves an Admin's disabled state.
   await syncModelRegistry();
+  await syncPresetCategories();
 
   const db = getDb();
   // Users and Comparisons are the roots of all content; seed only when both

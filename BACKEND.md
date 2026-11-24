@@ -80,7 +80,7 @@ Provider API keys live in environment variables / AWS Secrets Manager, never in 
 | `author_id` | uuid FK users | |
 | `title` | text | 1–200 characters |
 | `prompt` | text | the first Turn's Prompt, kept as the headline for Board search and the Job page; immutable after scheduling |
-| `categories` | text[] | subset of the fixed Category list |
+| `pending_categories` | text[] | a never-published Comparison's Category names in click order; materialised into `categories` and `comparison_categories` on publish, so an abandoned draft leaves nothing behind |
 | `effort` | smallint | 1–3 |
 | `base_model_id` | uuid FK models | |
 | `status` | text | `draft`, `generating`, `ready`, `published`, `failed` |
@@ -96,6 +96,20 @@ Provider API keys live in environment variables / AWS Secrets Manager, never in 
 **Visibility invariant**: a Comparison is readable when `status = 'published' AND deleted_at IS NULL AND takedown_at IS NULL`. Its Author can also read a non-deleted draft or ready Comparison. An Admin can read a non-deleted Comparison only while it is taken down, so they can review and restore it. Everyone else gets `404`, not `403`, for a draft, deleted or taken-down Comparison. A deleted Comparison is hidden from everyone; a taken-down Comparison keeps its Responses and Discussion but is hidden from its Author and the public.
 
 **Mutability invariant**: `prompt` and the Base output freeze at scheduling. `title`, `categories` and `effort` remain editable by the Author.
+
+### `categories` and `comparison_categories`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid PK | |
+| `slug` | text unique not null | stable, case- and punctuation-insensitive identity, e.g. `front-end` |
+| `display_name` | text | the Author's casing |
+| `featured` | boolean | true for the twelve curated presets, which Admin cannot rename or delete |
+| `created_by` | uuid FK users null | the Author who first used the name; stored for moderation, never display |
+| `created_at` | timestamptz | |
+| `updated_at` | timestamptz | |
+
+`comparison_categories` joins a published Comparison to its Categories with a `position`, so "the first Category" is the Author's first click rather than an alphabetical accident. Categories are created when a Comparison is published, at most three new names and six selected per request. Presets live in code and sync additively at bootstrap; a community Category that loses its last Comparison remains with a count of zero.
 
 ### `turns`
 
@@ -242,8 +256,8 @@ Append-only audit trail for the minimal Admin surface. Unlike `activity_events`,
 |---|---|---|
 | `id` | uuid PK | |
 | `actor_id` | uuid FK users null | the Admin who acted; null only if the account is later removed |
-| `action` | text | `model.enabled`, `model.disabled`, `comparison.takedown`, `comparison.restored`, `comment.hidden`, `comment.restored`, `annotation.hidden`, `annotation.restored`, `user.suspended`, `user.reinstated`, `report.resolved`, `report.dismissed` |
-| `target_type` | text | `model`, `comparison`, `comment`, `annotation`, `user` or `report` |
+| `action` | text | `model.enabled`, `model.disabled`, `comparison.takedown`, `comparison.restored`, `comment.hidden`, `comment.restored`, `annotation.hidden`, `annotation.restored`, `user.suspended`, `user.reinstated`, `report.resolved`, `report.dismissed`, `category.renamed`, `category.deleted` |
+| `target_type` | text | `model`, `comparison`, `comment`, `annotation`, `user`, `report` or `category` |
 | `target_id` | uuid | target row; intentionally not a foreign key so the record outlives its target |
 | `reason` | text null | required for a hide or suspension |
 | `created_at` | timestamptz | |
@@ -392,6 +406,8 @@ Page routes: `/sign-in` requests a link, `/auth/complete` decides between onboar
 | `POST` | `/admin/moderation/restore` | admin-only `{ targetType, targetId, reason? }`; restores a hidden comment or Annotation |
 | `POST` | `/admin/users/:id/suspend` | admin-only `{ reason }`; blocks every write but keeps reads and sessions |
 | `POST` | `/admin/users/:id/reinstate` | admin-only `{ reason? }`; clears a suspension |
+| `PATCH` | `/admin/categories/:id` | admin-only `{ displayName }`; renames a community Category, rejects presets |
+| `DELETE` | `/admin/categories/:id` | admin-only; deletes a community Category and clears every reference, rejects presets |
 
 Suspension policy: a suspended member keeps read access and their sessions. Their existing Comparisons, comments and Annotations stay public unless an Admin hides each one, so every removal is attributable and reversible. Hiding content decrements `comment_count`/`annotation_count`, removes its ticker lines and emits a summary-less `comment.hidden`/`annotation.hidden` event; restoring increments the counts again.
 
@@ -410,7 +426,7 @@ Suspension policy: a suspended member keeps read access and their sessions. Thei
 | `POST` | `/comparisons/:id/responses` | author; `{ modelId }`; queues one Response per stored Turn and a Job; returns `{ jobId, responseId, turnCount, estimatedCalls, responses }` |
 | `GET` | `/comparisons/:id/responses` | author-only; current Responses for resync after an added Run settles |
 
-List query parameters: `cat`, `models` (comma-separated slugs), `effort`, `q`, `sort=live|top|new`, `cursor`, `limit` (default 48, max 100).
+List query parameters: `category` (a Category slug, e.g. `front-end`), `models` (comma-separated slugs), `effort`, `q`, `sort=live|top|new`, `cursor`, `limit` (default 48, max 100).
 
 Response:
 
@@ -430,10 +446,10 @@ Ordering:
 
 Cursors are opaque base64url JSON containing the sort, ID, score and timestamps. A cursor minted for one sort is rejected by another. The Board requests the next page with the returned cursor and appends it; the first and subsequent pages both default to 48 items.
 
-`GET /comparisons/facets` returns counts over every published, non-deleted Comparison, independent of `cat`/`models`/`effort`/`q`:
+`GET /comparisons/facets` returns counts over every published, non-deleted Comparison, independent of `category`/`models`/`effort`/`q`. Category counts are keyed by stable slug and every known Category appears, including those at zero:
 
 ```json
-{ "categories": { "Coding": 12, "Reasoning": 8 }, "models": { "llama-3-3-70b": 9 }, "total": 80 }
+{ "categories": { "coding": 12, "reasoning": 8 }, "models": { "llama-3-3-70b": 9 }, "total": 80 }
 ```
 
 The Board loads facets once per page, patches them from `comparison.published` SSE events, and refetches after a reconnect so the sidebar never counts only the loaded page.
@@ -449,7 +465,7 @@ Exactly one of `file`, `base_output` or `turns` supplies the Conversation; sendi
 - `prompt` — fills the first Turn when the source did not carry one; ≤10,000 chars
 - `model_ids` / `model_ids[]` — 1–4 enabled challengers, unique, excludes the base
 - `title` — required after filename or first-Prompt-summary fallback, ≤200 chars
-- `categories` — zero or more values from the fixed Category list
+- `categories` — 0–6 Category names, unique after normalising case and punctuation. Names that do not exist yet are stored as pending and become community Categories on publish; at most 3 new names per request. Presets are seeded from code
 - `effort` — 1, 2 or 3
 
 Creation enforces the 6-Turn, 0.5 MB and 100,000-character limits before writing anything, so an oversized Conversation never leaves a queued Job behind.

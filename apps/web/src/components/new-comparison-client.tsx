@@ -18,12 +18,12 @@ import {
   X,
 } from '@phosphor-icons/react';
 import {
-  CATEGORIES,
   EFFORT_LEVELS,
   MAX_BASE_OUTPUT_CHARS,
   MAX_PROMPT_CHARS,
   UploadValidationError,
   buildModelPickerView,
+  categorySlug,
   challengerDisabled,
   decodeUtf8,
   defaultTitleForImport,
@@ -43,13 +43,16 @@ import {
   vendorLabel,
   weightClassLabel,
   type BaseSource,
+  type CategoryOption,
   type ConversationImport,
   type ConversationTurnInput,
   type ModelClassTab,
   type SelectableModel,
+  type SelectedCategory,
   type WeightClassKey,
 } from '@owm/core/client';
 import { SiteHeader } from './site-header';
+import { CategoryPicker, categorySelection } from './category-picker';
 import { ComparisonPreview } from './comparison-preview';
 import { HowToGetThisFile } from './how-to-get-this-file';
 import { EffortGlyph } from './ui/effort-glyph';
@@ -760,11 +763,13 @@ function ChallengerPicker({
 
 export function NewComparisonClient({
   models,
+  categoryLibrary,
   handle,
   maxChallengers,
   initialClass = 'all',
 }: {
   models: FormModel[];
+  categoryLibrary: CategoryOption[];
   handle: string;
   maxChallengers: number;
   initialClass?: ModelClassTab;
@@ -779,7 +784,7 @@ export function NewComparisonClient({
   const [prompt, setPrompt] = useState('');
   const [title, setTitle] = useState('');
   const [picked, setPicked] = useState<string[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<SelectedCategory[]>([]);
   const [effort, setEffort] = useState(2);
   const [dragging, setDragging] = useState(false);
   const [fileError, setFileError] = useState<FormError | null>(null);
@@ -856,7 +861,17 @@ export function NewComparisonClient({
       setPrompt(imported.turns[0]?.prompt ?? imported.prompt ?? '');
       setTitle(overrides?.title ?? defaultTitleForImport(imported));
       titleTouched.current = Boolean(overrides?.title);
-      if (overrides?.categories) setCategories(overrides.categories);
+      if (overrides?.categories) {
+        setSelectedCategories(
+          categorySelection(
+            overrides.categories.map((name) => ({
+              slug: categorySlug(name),
+              name,
+            })),
+            categoryLibrary,
+          ),
+        );
+      }
 
       if (matched) {
         setBaseModelId(matched.id);
@@ -916,14 +931,6 @@ export function NewComparisonClient({
     setPicked((current) => current.filter((id) => id !== next));
   }
 
-  function toggleCategory(category: string) {
-    setCategories((current) =>
-      current.includes(category)
-        ? current.filter((value) => value !== category)
-        : [...current, category],
-    );
-  }
-
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!schedule.ready || submitting) return;
@@ -942,7 +949,7 @@ export function NewComparisonClient({
       body.set('prompt', prompt);
       body.set('title', title);
       body.set('effort', String(effort));
-      for (const category of categories) body.append('categories', category);
+      for (const category of selectedCategories) body.append('categories', category.name);
       for (const modelId of picked) body.append('model_ids', modelId);
 
       const response = await fetch('/api/comparisons', { method: 'POST', body });
@@ -1282,7 +1289,7 @@ export function NewComparisonClient({
             <StepHeader
               number={3}
               title="Details"
-              done={Boolean(title.trim() && categories.length)}
+              done={Boolean(title.trim() && selectedCategories.length)}
             />
 
             <label className="flex flex-col gap-2">
@@ -1302,30 +1309,11 @@ export function NewComparisonClient({
               />
             </label>
 
-            <div className="flex flex-col gap-2.5">
-              <span className={FIELD_LABEL}>Categories</span>
-              <div className="flex flex-wrap gap-2">
-                {CATEGORIES.map((category) => {
-                  const selected = categories.includes(category);
-                  return (
-                    <button
-                      key={category}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() => toggleCategory(category)}
-                      className={cn(
-                        'h-8 rounded-xs border px-3.5 text-[13px] font-medium transition-colors',
-                        selected
-                          ? 'border-accent-600 bg-accent-900 text-accent-200'
-                          : 'border-neutral-700 bg-transparent text-neutral-300 hover:border-accent-600',
-                      )}
-                    >
-                      {category}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <CategoryPicker
+              library={categoryLibrary}
+              value={selectedCategories}
+              onChange={setSelectedCategories}
+            />
 
             <div className="flex flex-col gap-2.5" role="group" aria-label="Effort level">
               <span className={FIELD_LABEL}>Effort level</span>
@@ -1412,7 +1400,7 @@ export function NewComparisonClient({
             monogram: model.monogram,
           }))}
           title={title}
-          categories={categories}
+          categories={selectedCategories}
           effort={effort}
           turnCount={turnCount}
           baseSnippet={baseSnippet}

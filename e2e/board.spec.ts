@@ -60,14 +60,14 @@ test('sidebar counts cover the whole Board, not the loaded page', async ({ page 
   };
 
   await page.goto('/');
-  await expect(page.locator('aside').getByRole('button', { name: /^All/ })).toContainText(
+  await expect(page.locator('aside [data-category-option="all"]')).toContainText(
     String(facets.total),
   );
   expect(facets.total).toBeGreaterThan(48);
 
   await expect(
     page.locator('aside').getByRole('button', { name: /^Coding/ }),
-  ).toContainText(String(facets.categories.Coding));
+  ).toContainText(String(facets.categories.coding));
 
   await expect(
     page.locator('aside').getByRole('button', { name: /Llama 3\.3 70B/ }),
@@ -149,7 +149,7 @@ test('filters live in the URL, survive reload and back/forward, and keep one SSE
   await expect(page).toHaveURL(/sort=top/);
 
   await page.locator('aside').getByRole('button', { name: /^Reasoning/ }).click();
-  await expect(page).toHaveURL(/cat=Reasoning/);
+  await expect(page).toHaveURL(/category=reasoning/);
 
   await page.locator('aside').getByRole('button', { name: /Llama 3\.3 70B/ }).click();
   await expect(page).toHaveURL(/models=llama-3-3-70b/);
@@ -210,7 +210,7 @@ test('loading and error states are explicit and retryable', async ({ page }) => 
 
   // Returning to the view that is already on screen must not keep the stale
   // error banner above a perfectly valid grid.
-  await page.locator('aside').getByRole('button', { name: /^All/ }).click();
+  await page.locator('aside [data-category-option="all"]').click();
   await expect(errorBanner).toHaveCount(0);
   await expect(page.locator(CARD).first()).toBeVisible();
 

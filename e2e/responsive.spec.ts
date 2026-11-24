@@ -47,7 +47,7 @@ async function screens(page: Page) {
       path: '/',
       assert: async () => {
         await expect(page.getByRole('link', { name: 'New comparison' })).toBeVisible();
-        await expect(page.locator('aside').getByRole('button', { name: /^All/ })).toBeVisible();
+        await expect(page.locator('aside [data-category-option="all"]')).toBeVisible();
       },
     },
     {

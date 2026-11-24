@@ -1,0 +1,1 @@
+ALTER TABLE "comparisons" ADD COLUMN "pending_categories" text[] DEFAULT ARRAY[]::text[] NOT NULL;

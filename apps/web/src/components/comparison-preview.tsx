@@ -1,3 +1,4 @@
+import type { CategoryRef } from '@owm/core/client';
 import { Chip } from './ui/chip';
 import { EffortGlyph } from './ui/effort-glyph';
 import { InitialsBadge } from './ui/initials-badge';
@@ -32,7 +33,7 @@ export function ComparisonPreview({
   base?: PreviewModel | null;
   challengers: PreviewModel[];
   title: string;
-  categories: string[];
+  categories: CategoryRef[];
   effort: number;
   turnCount?: number;
   baseSnippet?: string;
@@ -44,7 +45,7 @@ export function ComparisonPreview({
 }) {
   const [first, ...rest] = challengers;
   const effortLabel = ['Low', 'Med', 'High'][Math.max(0, Math.min(2, effort - 1))];
-  const category = categories[0];
+  const category = categories[0]?.name;
   const generating = status.tone === 'generating';
   const ready = status.tone === 'ready';
 

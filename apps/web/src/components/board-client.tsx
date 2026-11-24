@@ -19,7 +19,6 @@ import {
 } from '@phosphor-icons/react';
 import type { BoardFacets, BoardPage, ComparisonCard } from '@owm/core/client';
 import {
-  CATEGORIES,
   EFFORT_LEVELS,
   addCardToFacets,
   appendUniqueCards,
@@ -45,6 +44,12 @@ type BoardModel = {
   etaSeconds: number;
 };
 
+type BoardCategory = {
+  slug: string;
+  name: string;
+  featured: boolean;
+};
+
 type TickerEvent = {
   id: number;
   kind: string;
@@ -65,6 +70,7 @@ type BoardEvent = {
 type Props = {
   initialPage: BoardPage;
   initialFacets: BoardFacets;
+  categories: BoardCategory[];
   models: BoardModel[];
   events: TickerEvent[];
   handle: string | null;
@@ -126,6 +132,7 @@ function retractTickerEvents(events: TickerEvent[], key: string, value: string) 
 export function BoardClient({
   initialPage,
   initialFacets,
+  categories: initialCategories,
   models,
   events: initialEvents,
   handle,
@@ -137,6 +144,7 @@ export function BoardClient({
   const [total, setTotal] = useState(initialPage.total);
   const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
   const [facets, setFacets] = useState(initialFacets);
+  const [categories, setCategories] = useState(initialCategories);
   const [phase, setPhase] = useState<'idle' | 'first' | 'more'>('idle');
   const [error, setError] = useState<{ kind: 'first' | 'more'; message: string } | null>(
     null,
@@ -149,6 +157,9 @@ export function BoardClient({
   // The sidebar hides models with no comparisons by default. A selected model
   // always stays visible, even when its count drops to zero.
   const [showAllModels, setShowAllModels] = useState(false);
+  // Community Categories follow the same rule: used ones by default, every one
+  // behind a ghost toggle.
+  const [showAllCategories, setShowAllCategories] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [reducedMotion, setReducedMotion] = useState(false);
 
@@ -377,6 +388,15 @@ export function BoardClient({
             // Sidebar counts are global, so every publish counts even when the
             // card does not match the reader's current filters.
             setFacets((current) => addCardToFacets(current, card));
+            // A brand-new community Category becomes browsable without a
+            // reload; its count comes from the facet patch above.
+            setCategories((current) => {
+              const known = new Set(current.map((entry) => entry.slug));
+              const additions = card.categories
+                .filter((entry) => !known.has(entry.slug))
+                .map((entry) => ({ ...entry, featured: false }));
+              return additions.length ? [...current, ...additions] : current;
+            });
 
             if (matchesFilters(card, activeFilters)) {
               setTotal((current) => current + 1);
@@ -585,11 +605,14 @@ export function BoardClient({
       remove: () => patchFilters({ q: '' }),
     });
   }
-  if (filters.cat !== 'All') {
+  if (filters.category !== null) {
+    const label =
+      categories.find((entry) => entry.slug === filters.category)?.name ??
+      filters.category;
     chips.push({
-      key: `cat:${filters.cat}`,
-      label: filters.cat,
-      remove: () => patchFilters({ cat: 'All' }),
+      key: `category:${filters.category}`,
+      label,
+      remove: () => patchFilters({ category: null }),
     });
   }
   for (const model of filters.models) {
@@ -677,7 +700,7 @@ export function BoardClient({
     : [];
 
   const filtered =
-    filters.cat !== 'All' ||
+    filters.category !== null ||
     filters.models.length > 0 ||
     filters.effort !== null ||
     query.length > 0;
@@ -692,6 +715,18 @@ export function BoardClient({
   );
   const visibleModels = showAllModels ? models : modelsWithComparisons;
   const canToggleModels = showAllModels || modelsWithComparisons.length < models.length;
+
+  // Presets keep their curated order; community Categories follow, by use.
+  const presets = categories.filter((category) => category.featured);
+  const community = categories.filter((category) => !category.featured);
+  const usedCommunity = community.filter(
+    (category) =>
+      (facets.categories[category.slug] ?? 0) > 0 ||
+      filters.category === category.slug,
+  );
+  const visibleCommunity = showAllCategories ? community : usedCommunity;
+  const canToggleCategories =
+    community.length > 0 && (showAllCategories || usedCommunity.length < community.length);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -768,16 +803,19 @@ export function BoardClient({
             <MicroLabel className="col-span-2 px-[10px] pb-2 lg:col-span-1">
               CATEGORIES
             </MicroLabel>
-            {['All', ...CATEGORIES].map((category) => {
-              const active = filters.cat === category;
+            {[{ slug: null, name: 'All' }, ...presets].map((category) => {
+              const active = filters.category === category.slug;
               const count =
-                category === 'All' ? facets.total : (facets.categories[category] ?? 0);
+                category.slug === null
+                  ? facets.total
+                  : (facets.categories[category.slug] ?? 0);
               return (
                 <button
-                  key={category}
+                  key={category.slug ?? 'all'}
                   type="button"
+                  data-category-option={category.slug ?? 'all'}
                   aria-pressed={active}
-                  onClick={() => patchFilters({ cat: category })}
+                  onClick={() => patchFilters({ category: category.slug })}
                   className={cn(
                     'flex h-[34px] min-w-0 items-center justify-between gap-2 rounded-[var(--r)] px-[10px] text-left text-[13.5px] transition-colors',
                     active
@@ -785,8 +823,9 @@ export function BoardClient({
                       : 'text-neutral-300 hover:bg-surface hover:text-text',
                   )}
                 >
-                  <span className="min-w-0 truncate">{category}</span>
+                  <span className="min-w-0 truncate">{category.name}</span>
                   <span
+                    data-category-count
                     className={cn(
                       'flex-none text-[12px]',
                       active ? 'text-accent-300' : 'text-neutral-400',
@@ -797,6 +836,55 @@ export function BoardClient({
                 </button>
               );
             })}
+
+            {(visibleCommunity.length > 0 || canToggleCategories) && (
+              <div className="col-span-2 mt-3 flex flex-col gap-[2px] lg:col-span-1">
+                <MicroLabel className="px-[10px] pb-2">COMMUNITY</MicroLabel>
+                {visibleCommunity.map((category) => {
+                  const active = filters.category === category.slug;
+                  const count = facets.categories[category.slug] ?? 0;
+                  return (
+                    <button
+                      key={category.slug}
+                      type="button"
+                      data-category-option={category.slug}
+                      aria-pressed={active}
+                      onClick={() => patchFilters({ category: category.slug })}
+                      className={cn(
+                        'flex h-[34px] min-w-0 items-center justify-between gap-2 rounded-[var(--r)] px-[10px] text-left text-[13.5px] transition-colors',
+                        active
+                          ? 'bg-neutral-800 text-text'
+                          : count > 0
+                            ? 'text-neutral-300 hover:bg-surface hover:text-text'
+                            : 'text-neutral-500 hover:bg-surface hover:text-text',
+                      )}
+                    >
+                      <span className="min-w-0 truncate">{category.name}</span>
+                      <span data-category-count className="flex-none text-[12px] text-neutral-400">
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+                {canToggleCategories && (
+                  <button
+                    type="button"
+                    data-category-toggle
+                    onClick={() => setShowAllCategories((value) => !value)}
+                    className="col-span-2 mt-1 flex h-8 items-center gap-2 rounded-[var(--r)] px-[10px] text-[13px] text-neutral-300 transition-colors hover:bg-surface hover:text-text lg:col-span-1"
+                  >
+                    {showAllCategories ? (
+                      <CaretUp size={13} aria-hidden />
+                    ) : (
+                      <CaretDown size={13} aria-hidden />
+                    )}
+                    {showAllCategories
+                      ? 'Show fewer'
+                      : `All ${community.length} community categories`}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-x-3 gap-y-[2px] lg:flex lg:flex-col">

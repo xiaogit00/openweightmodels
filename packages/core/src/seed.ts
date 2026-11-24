@@ -6,7 +6,9 @@ import {
   activityEvents,
   annotationMessages,
   annotations,
+  categories,
   comments,
+  comparisonCategories,
   comparisons,
   models,
   responses,
@@ -16,6 +18,7 @@ import {
 } from './db/schema';
 import { estimateTokens } from './domain/upload';
 import { modelRegistryRows } from './model-registry';
+import { syncPresetCategories } from './services/categories';
 
 loadEnv();
 
@@ -340,7 +343,8 @@ export async function seedDatabase() {
 
   await sql.unsafe(`truncate table
     votes, annotation_messages, annotations, comments, job_events, activity_events,
-    notifications, turns, responses, jobs, comparisons, models, reports, users
+    notifications, turns, responses, jobs, comparisons, comparison_categories,
+    categories, models, reports, admin_actions, users
     restart identity cascade`);
 
   // One transaction so a failed seed rolls back to an empty database, which
@@ -365,6 +369,10 @@ export async function seedDatabase() {
   const modelRows = await db.insert(models).values(modelRegistryRows()).returning();
   const modelMap = new Map(modelRows.map((model) => [model.slug, model]));
 
+  await syncPresetCategories(db);
+  const categoryRows = await db.select().from(categories);
+  const categoryByName = new Map(categoryRows.map((row) => [row.displayName, row]));
+
   const comparisonIds: string[] = [];
 
   for (const row of SEED) {
@@ -386,12 +394,14 @@ export async function seedDatabase() {
     const annotationCount = isFirst ? 6 : row.notes;
     const commentCount = isFirst ? 4 : row.comments;
 
+    const category = categoryByName.get(row.cat);
+    if (!category) throw new Error(`seed Category ${row.cat} is missing`);
+
     await db.insert(comparisons).values({
       id: comparisonId,
       authorId: author.id,
       title: row.title,
       prompt: headline,
-      categories: [row.cat],
       effort: row.effort,
       baseModelId: baseModel.id,
       status: 'published',
@@ -399,6 +409,12 @@ export async function seedDatabase() {
       publishedAt,
       commentCount,
       annotationCount,
+    });
+
+    await db.insert(comparisonCategories).values({
+      comparisonId,
+      categoryId: category.id,
+      position: 0,
     });
 
     await db.insert(turns).values({

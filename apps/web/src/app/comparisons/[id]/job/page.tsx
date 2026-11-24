@@ -29,7 +29,7 @@ export default async function ComparisonJobPage({
     comparison: {
       id: bundle.comparison.id,
       title: bundle.comparison.title,
-      categories: bundle.comparison.categories,
+      categories: bundle.categories,
       effort: bundle.comparison.effort,
       status: bundle.comparison.status,
     },

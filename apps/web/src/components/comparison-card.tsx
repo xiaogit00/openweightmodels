@@ -101,8 +101,12 @@ export function ComparisonCardView({
   const content = (
     <>
       <div className="flex min-w-0 items-center gap-[10px] text-[12px] text-neutral-300">
-        <span className="inline-flex h-[22px] flex-none items-center rounded-[var(--r)] bg-neutral-800 px-2 text-neutral-200">
-          {card.categories[0] ?? 'Uncategorised'}
+        <span
+          data-card-category
+          data-card-category-slug={card.categories[0]?.slug ?? ''}
+          className="inline-flex h-[22px] flex-none items-center rounded-[var(--r)] bg-neutral-800 px-2 text-neutral-200"
+        >
+          {card.categories[0]?.name ?? 'Uncategorised'}
         </span>
         <EffortGlyph effort={card.effort} title="Effort" />
         <span className="whitespace-nowrap">{effortLabel} effort</span>

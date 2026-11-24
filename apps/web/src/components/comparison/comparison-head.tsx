@@ -88,8 +88,8 @@ export function ComparisonHead({
         <div className="flex min-w-0 flex-1 basis-[480px] flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2 text-[13px] text-neutral-400">
             {comparison.categories.map((category) => (
-              <Chip key={category} className="h-[22px] px-[9px] text-[12.5px]">
-                {category}
+              <Chip key={category.slug} className="h-[22px] px-[9px] text-[12.5px]">
+                {category.name}
               </Chip>
             ))}
             <span className="flex items-center gap-2">
@@ -138,6 +138,12 @@ export function ComparisonHead({
                 className="btn-ghost h-8 px-2.5"
               />
             </span>
+          )}
+
+          {isAuthor && !viewerSuspended && (
+            <Link href={`/comparisons/${comparison.id}/edit`} className="btn-ghost h-8">
+              Edit details
+            </Link>
           )}
 
           <button type="button" onClick={onCopyLink} className="btn-ghost h-8">

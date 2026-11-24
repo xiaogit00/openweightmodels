@@ -1,6 +1,7 @@
 import {
   getBoardFacets,
   getModels,
+  listCategories,
   listComparisons,
   parseBoardFilters,
   recentActivity,
@@ -32,10 +33,10 @@ export default async function BoardPage({
   const record = await searchParams;
   const initialFilters = parseBoardFilters(searchParamsFromRecord(record));
 
-  const [user, page, facets, models, events] = await Promise.all([
+  const [user, page, facets, models, categories, events] = await Promise.all([
     getCurrentUser(),
     listComparisons({
-      cat: initialFilters.cat,
+      category: initialFilters.category,
       models: initialFilters.models,
       effort: initialFilters.effort,
       q: initialFilters.q,
@@ -43,6 +44,7 @@ export default async function BoardPage({
     }),
     getBoardFacets(),
     getModels(),
+    listCategories(),
     recentActivity(24),
   ]);
 
@@ -50,6 +52,11 @@ export default async function BoardPage({
     <BoardClient
       initialPage={page}
       initialFacets={facets}
+      categories={categories.map((category) => ({
+        slug: category.slug,
+        name: category.name,
+        featured: category.featured,
+      }))}
       models={models.map((model) => ({
         id: model.id,
         slug: model.slug,

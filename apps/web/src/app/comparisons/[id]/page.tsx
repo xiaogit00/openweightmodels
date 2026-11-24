@@ -46,7 +46,7 @@ export default async function ComparisonPage({
         id: bundle.comparison.id,
         title: bundle.comparison.title,
         prompt: bundle.comparison.prompt,
-        categories: bundle.comparison.categories,
+        categories: bundle.categories,
         effort: bundle.comparison.effort,
         status: bundle.comparison.status,
         createdAt: bundle.comparison.createdAt.toISOString(),

@@ -7,6 +7,7 @@ import {
   jsonb,
   numeric,
   pgTable,
+  primaryKey,
   smallint,
   text,
   timestamp,
@@ -91,6 +92,28 @@ export const models = pgTable(
   (t) => [uniqueIndex('models_slug_unique').on(t.slug)],
 );
 
+/**
+ * A Category is an entity with a stable slug (ADR 0012). `featured` marks the
+ * curated presets; every other row is a community Category created by an
+ * Author and is renamable or deletable from Admin.
+ */
+export const categories = pgTable(
+  'categories',
+  {
+    id: id(),
+    slug: text('slug').notNull(),
+    displayName: text('display_name').notNull(),
+    featured: boolean('featured').notNull().default(false),
+    // Kept for moderation and never displayed.
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex('categories_slug_unique').on(t.slug)],
+);
+
 export const comparisons = pgTable(
   'comparisons',
   {
@@ -100,7 +123,12 @@ export const comparisons = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     title: text('title').notNull(),
     prompt: text('prompt').notNull(),
-    categories: text('categories')
+    /**
+     * A never-published Comparison stores its selected Category names here, in
+     * click order. They become rows in `categories` and join rows only when the
+     * Comparison is published, so abandoning a draft leaves no trace.
+     */
+    pendingCategories: text('pending_categories')
       .array()
       .notNull()
       .default(sql`ARRAY[]::text[]`),
@@ -125,6 +153,29 @@ export const comparisons = pgTable(
     index('comparisons_created_at_idx').on(t.createdAt),
     index('comparisons_status_idx').on(t.status),
     index('comparisons_takedown_idx').on(t.takedownAt),
+  ],
+);
+
+/**
+ * The selected Categories of a published Comparison, in click order. `position`
+ * is what makes "the first selected Category" mean the Author's first choice
+ * rather than an alphabetical accident.
+ */
+export const comparisonCategories = pgTable(
+  'comparison_categories',
+  {
+    comparisonId: uuid('comparison_id')
+      .notNull()
+      .references(() => comparisons.id, { onDelete: 'cascade' }),
+    categoryId: uuid('category_id')
+      .notNull()
+      .references(() => categories.id, { onDelete: 'cascade' }),
+    position: smallint('position').notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.comparisonId, t.categoryId] }),
+    index('comparison_categories_comparison_idx').on(t.comparisonId),
+    index('comparison_categories_category_idx').on(t.categoryId),
   ],
 );
 
@@ -485,7 +536,9 @@ export const authVerifications = pgTable(
 export const schema = {
   users,
   models,
+  categories,
   comparisons,
+  comparisonCategories,
   turns,
   jobs,
   responses,

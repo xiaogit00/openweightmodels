@@ -5,6 +5,7 @@
  */
 import { loadEnv } from '../load-env';
 import { syncModelRegistry } from '../services/model-registry';
+import { syncPresetCategories } from '../services/categories';
 import { runAsScript } from './run-script';
 import { runMigrations } from './migrate';
 
@@ -13,7 +14,9 @@ loadEnv();
 export async function bootstrapDatabase() {
   await runMigrations();
   const models = await syncModelRegistry();
+  const categories = await syncPresetCategories();
   console.log(`[db:bootstrap] model registry synced (${models} models)`);
+  console.log(`[db:bootstrap] preset categories synced (${categories} categories)`);
 }
 
 runAsScript(import.meta.url, bootstrapDatabase);

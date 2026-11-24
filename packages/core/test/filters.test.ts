@@ -23,7 +23,7 @@ function card(overrides: Partial<ComparisonCard> & { id: string }): ComparisonCa
     title: `Comparison ${overrides.id}`,
     headline: `Headline ${overrides.id}`,
     turnCount: 1,
-    categories: ['Coding'],
+    categories: [{ slug: 'coding', name: 'Coding' }],
     effort: 1,
     models: [
       { id: 'm-llama', slug: 'llama-3-3-70b', name: 'Llama 3.3 70B', monogram: 'L3' },
@@ -40,7 +40,7 @@ function card(overrides: Partial<ComparisonCard> & { id: string }): ComparisonCa
 }
 
 const noFilters: BoardFilters = {
-  cat: 'All',
+  category: null,
   models: [],
   effort: null,
   q: '',
@@ -51,7 +51,7 @@ const cards = [
   card({
     id: 'a',
     title: 'Rate limiter in Go',
-    categories: ['Coding'],
+    categories: [{ slug: 'coding', name: 'Coding' }],
     effort: 2,
     models: [
       { id: 'm-llama', slug: 'llama-3-3-70b', name: 'Llama 3.3 70B', monogram: 'L3' },
@@ -65,7 +65,7 @@ const cards = [
   card({
     id: 'b',
     title: 'Rewrite the Monty Hall explanation',
-    categories: ['Reasoning'],
+    categories: [{ slug: 'reasoning', name: 'Reasoning' }],
     effort: 1,
     models: [
       { id: 'm-qwen', slug: 'qwen-2-5-72b', name: 'Qwen2.5 72B', monogram: 'Q2' },
@@ -78,7 +78,10 @@ const cards = [
   card({
     id: 'c',
     title: 'A haiku about tides',
-    categories: ['Creative', 'Language'],
+    categories: [
+      { slug: 'creative', name: 'Creative' },
+      { slug: 'language', name: 'Language' },
+    ],
     effort: 3,
     models: [
       { id: 'm-gemma', slug: 'gemma-2-27b', name: 'Gemma 2 27B', monogram: 'G2' },
@@ -97,10 +100,10 @@ describe('filterCards', () => {
 
   it('filters by Category', () => {
     expect(
-      filterCards(cards, { ...noFilters, cat: 'Reasoning' }).map((item) => item.id),
+      filterCards(cards, { ...noFilters, category: 'reasoning' }).map((item) => item.id),
     ).toEqual(['b']);
     expect(
-      filterCards(cards, { ...noFilters, cat: 'Creative' }).map((item) => item.id),
+      filterCards(cards, { ...noFilters, category: 'creative' }).map((item) => item.id),
     ).toEqual(['c']);
   });
 
@@ -138,14 +141,14 @@ describe('filterCards', () => {
     expect(
       filterCards(cards, {
         ...noFilters,
-        cat: 'Coding',
+        category: 'coding',
         effort: 2,
         models: ['qwen-2-5-72b'],
         q: 'limiter',
       }).map((item) => item.id),
     ).toEqual(['a']);
     expect(
-      filterCards(cards, { ...noFilters, cat: 'Coding', effort: 3 }).map((item) => item.id),
+      filterCards(cards, { ...noFilters, category: 'coding', effort: 3 }).map((item) => item.id),
     ).toEqual([]);
   });
 });
@@ -182,10 +185,10 @@ describe('sortCards', () => {
 describe('sidebar counts', () => {
   it('counts every Category on a card', () => {
     expect(Object.fromEntries(categoryCounts(cards))).toEqual({
-      Coding: 1,
-      Reasoning: 1,
-      Creative: 1,
-      Language: 1,
+      coding: 1,
+      reasoning: 1,
+      creative: 1,
+      language: 1,
     });
   });
 
@@ -201,7 +204,7 @@ describe('sidebar counts', () => {
 describe('matchesFilters', () => {
   it('matches one card exactly as filterCards does', () => {
     expect(matchesFilters(cards[0]!, noFilters)).toBe(true);
-    expect(matchesFilters(cards[0]!, { ...noFilters, cat: 'Reasoning' })).toBe(false);
+    expect(matchesFilters(cards[0]!, { ...noFilters, category: 'reasoning' })).toBe(false);
     expect(matchesFilters(cards[0]!, { ...noFilters, q: 'RATE' })).toBe(true);
   });
 });
@@ -210,11 +213,11 @@ describe('board URL state', () => {
   it('parses valid filter state', () => {
     const filters = parseBoardFilters(
       new URLSearchParams(
-        'cat=Coding&models=qwen-2-5-72b,llama-3-3-70b&effort=3&sort=top&q=rate',
+        'category=coding&models=qwen-2-5-72b,llama-3-3-70b&effort=3&sort=top&q=rate',
       ),
     );
     expect(filters).toEqual({
-      cat: 'Coding',
+      category: 'coding',
       models: ['qwen-2-5-72b', 'llama-3-3-70b'],
       effort: 3,
       sort: 'top',
@@ -224,7 +227,7 @@ describe('board URL state', () => {
 
   it('falls back to defaults for unknown values', () => {
     expect(
-      parseBoardFilters(new URLSearchParams('cat=Unknown&effort=9&sort=oldest')),
+      parseBoardFilters(new URLSearchParams('category=Not A Slug&effort=9&sort=oldest')),
     ).toEqual(noFilters);
   });
 
@@ -236,7 +239,7 @@ describe('board URL state', () => {
 
   it('round-trips through the URL and omits defaults', () => {
     const filters: BoardFilters = {
-      cat: 'Creative',
+      category: 'creative',
       models: ['gemma-2-27b'],
       effort: 2,
       q: 'tides',
@@ -292,12 +295,12 @@ describe('global facets', () => {
   it('starts with a zero for every Category', () => {
     const facets = emptyBoardFacets();
     expect(facets.categories).toMatchObject({
-      Coding: 0,
-      Reasoning: 0,
-      Creative: 0,
-      Math: 0,
-      'Long-context': 0,
-      Language: 0,
+      coding: 0,
+      reasoning: 0,
+      creative: 0,
+      math: 0,
+      'long-context': 0,
+      language: 0,
     });
     expect(facets.total).toBe(0);
   });
@@ -305,14 +308,14 @@ describe('global facets', () => {
   it('counts every Category and distinct Model on a new card once', () => {
     const facets = addCardToFacets(
       {
-        categories: { Coding: 1, Creative: 1 },
+        categories: { coding: 1, creative: 1 },
         models: { 'llama-3-3-70b': 1 },
         total: 1,
       },
       cards[2]!,
     );
     expect(facets).toEqual({
-      categories: { Coding: 1, Creative: 2, Language: 1 },
+      categories: { coding: 1, creative: 2, language: 1 },
       models: { 'llama-3-3-70b': 1, 'gemma-2-27b': 1 },
       total: 2,
     });

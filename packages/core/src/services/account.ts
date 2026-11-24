@@ -17,6 +17,8 @@ import {
   votes,
 } from '../db/schema';
 import { logActivity } from '../events';
+import type { CategoryRef } from '../domain/categories';
+import { getComparisonCategories } from './categories';
 import { DomainError, conflict, notFound } from './errors';
 
 /** The word a member types to confirm deletion. Case-insensitive. */
@@ -157,6 +159,9 @@ export async function exportAccountData(userId: string): Promise<AccountExport> 
     .where(eq(comparisons.authorId, userId))
     .orderBy(comparisons.createdAt);
   const comparisonIds = comparisonRows.map((row) => row.id);
+  const categoryMap: Map<string, CategoryRef[]> = comparisonIds.length
+    ? await getComparisonCategories(comparisonIds, db)
+    : new Map();
 
   const responseRows = comparisonIds.length
     ? await db
@@ -246,7 +251,9 @@ export async function exportAccountData(userId: string): Promise<AccountExport> 
         id: comparison.id,
         title: comparison.title,
         prompt: comparison.prompt,
-        categories: comparison.categories,
+        categories: comparison.pendingCategories.length
+          ? comparison.pendingCategories
+          : (categoryMap.get(comparison.id) ?? []).map((category) => category.name),
         effort: comparison.effort,
         status: comparison.status,
         createdAt: comparison.createdAt.toISOString(),

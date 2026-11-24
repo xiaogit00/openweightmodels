@@ -16,6 +16,7 @@ import {
 } from '@phosphor-icons/react';
 import {
   runProgress,
+  type CategoryRef,
   type ComparisonStatus,
   type JobRunState,
   type JobStatus,
@@ -49,7 +50,7 @@ export type JobView = {
   comparison: {
     id: string;
     title: string;
-    categories: string[];
+    categories: CategoryRef[];
     effort: number;
     status: ComparisonStatus;
   };

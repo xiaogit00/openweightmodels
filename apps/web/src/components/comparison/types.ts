@@ -1,5 +1,6 @@
 import type {
   AnnotationView,
+  CategoryRef,
   CommentView,
   PublicUser,
   WeightClassKey,
@@ -13,7 +14,7 @@ export type ComparisonPageData = {
     id: string;
     title: string;
     prompt: string;
-    categories: string[];
+    categories: CategoryRef[];
     effort: number;
     status: string;
     createdAt: string;

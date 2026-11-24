@@ -1,6 +1,5 @@
 import {
   BOARD_PAGE_SIZE,
-  CATEGORIES,
   createComparison,
   decodeUtf8,
   listComparisons,
@@ -128,10 +127,7 @@ export async function POST(request: Request) {
       ...form.getAll('model_ids'),
       ...form.getAll('model_ids[]'),
     ].map(String);
-    const categories = form
-      .getAll('categories')
-      .map(String)
-      .filter((value) => (CATEGORIES as readonly string[]).includes(value));
+    const categories = form.getAll('categories').map(String);
 
     const result = await createComparison({
       authorId: user.id,

@@ -1,4 +1,5 @@
-import { CATEGORIES, EFFORT_LEVELS, SORTS } from './types';
+import { PRESET_CATEGORIES } from './categories';
+import { EFFORT_LEVELS, SORTS } from './types';
 import type { BoardFacets, BoardFilters, ComparisonCard } from './types';
 
 /**
@@ -30,7 +31,12 @@ export function topScore(card: Pick<ComparisonCard, 'commentCount' | 'annotation
 export function matchesFilters(card: ComparisonCard, filters: BoardFilters) {
   const query = filters.q.trim().toLowerCase();
 
-  if (filters.cat !== 'All' && !card.categories.includes(filters.cat)) return false;
+  if (
+    filters.category !== null &&
+    !card.categories.some((category) => category.slug === filters.category)
+  ) {
+    return false;
+  }
   if (filters.models.length) {
     const slugs = new Set(card.models.map((model) => model.slug));
     if (!filters.models.some((slug) => slugs.has(slug))) return false;
@@ -72,7 +78,7 @@ export function appendUniqueCards(
 
 export function emptyBoardFacets(): BoardFacets {
   return {
-    categories: Object.fromEntries(CATEGORIES.map((category) => [category, 0])),
+    categories: Object.fromEntries(PRESET_CATEGORIES.map((category) => [category.slug, 0])),
     models: {},
     total: 0,
   };
@@ -81,7 +87,7 @@ export function emptyBoardFacets(): BoardFacets {
 /** Applies one newly published card to the global sidebar counts. */
 export function addCardToFacets(facets: BoardFacets, card: ComparisonCard): BoardFacets {
   const categories = { ...facets.categories };
-  for (const category of new Set(card.categories)) {
+  for (const category of new Set(card.categories.map((entry) => entry.slug))) {
     categories[category] = (categories[category] ?? 0) + 1;
   }
 
@@ -93,12 +99,12 @@ export function addCardToFacets(facets: BoardFacets, card: ComparisonCard): Boar
   return { categories, models, total: facets.total + 1 };
 }
 
-const knownCategories = new Set<string>(CATEGORIES);
 const knownSorts = new Set<string>(SORTS);
+const CATEGORY_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /** Turns a URL (or the API query string) into validated Board state. */
 export function parseBoardFilters(params: URLSearchParams): BoardFilters {
-  const category = params.get('cat') ?? 'All';
+  const category = params.get('category') ?? '';
   const models = [
     ...new Set(
       (params.get('models') ?? '')
@@ -111,7 +117,8 @@ export function parseBoardFilters(params: URLSearchParams): BoardFilters {
   const sortValue = params.get('sort') ?? 'live';
 
   return {
-    cat: knownCategories.has(category) ? category : 'All',
+    category:
+      category.length <= 64 && CATEGORY_SLUG_PATTERN.test(category) ? category : null,
     models,
     effort: EFFORT_LEVELS.some((level) => level.value === effortValue) ? effortValue : null,
     q: params.get('q') ?? '',
@@ -122,7 +129,7 @@ export function parseBoardFilters(params: URLSearchParams): BoardFilters {
 /** Defaults are omitted so a pristine Board has a clean URL. */
 export function boardFiltersToSearchParams(filters: BoardFilters): URLSearchParams {
   const params = new URLSearchParams();
-  if (filters.cat !== 'All') params.set('cat', filters.cat);
+  if (filters.category !== null) params.set('category', filters.category);
   if (filters.models.length) params.set('models', filters.models.join(','));
   if (filters.effort !== null) params.set('effort', String(filters.effort));
   if (filters.sort !== 'live') params.set('sort', filters.sort);
@@ -163,7 +170,7 @@ export function categoryCounts(cards: ComparisonCard[]) {
   const counts = new Map<string, number>();
   for (const card of cards) {
     for (const category of card.categories) {
-      counts.set(category, (counts.get(category) ?? 0) + 1);
+      counts.set(category.slug, (counts.get(category.slug) ?? 0) + 1);
     }
   }
   return counts;

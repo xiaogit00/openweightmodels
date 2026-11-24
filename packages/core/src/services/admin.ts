@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, isNotNull, isNull, ne } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { uuidv7 } from 'uuidv7';
 import { getDb } from '../db/client';
@@ -6,7 +6,9 @@ import {
   activityEvents,
   adminActions,
   annotations,
+  categories,
   comments,
+  comparisonCategories,
   comparisons,
   models,
   reports,
@@ -22,6 +24,7 @@ import {
   type ReportStatus,
   type ReportTarget,
 } from '../domain/types';
+import { categoryNameError, categorySlug, normaliseCategoryName } from '../domain/categories';
 import { logActivity } from '../events';
 import { getCardById } from '../queries';
 import { DomainError, conflict, notFound } from './errors';
@@ -96,8 +99,18 @@ export type AdminSuspendedUser = {
   suspendedByHandle: string | null;
 };
 
+export type AdminCategory = {
+  id: string;
+  slug: string;
+  displayName: string;
+  featured: boolean;
+  /** Comparisons carrying it, published or not. */
+  comparisonCount: number;
+};
+
 export type AdminOverview = {
   models: AdminModel[];
+  categories: AdminCategory[];
   publishedComparisons: AdminPublishedComparison[];
   hiddenComparisons: AdminHiddenComparison[];
   reports: AdminReportView[];
@@ -156,6 +169,140 @@ export async function setModelEnabled(
     etaSeconds: model.etaSeconds,
     enabled,
     responseCount: Number(usage?.total ?? 0),
+  };
+}
+
+export async function renameCategory(
+  actorId: string,
+  categoryId: string,
+  displayName: string,
+): Promise<AdminCategory> {
+  await assertAdmin(actorId);
+  const db = getDb();
+  const [row] = await db
+    .select()
+    .from(categories)
+    .where(eq(categories.id, categoryId))
+    .limit(1);
+  if (!row) throw notFound('Category not found.');
+  if (row.featured) {
+    throw conflict('preset_protected', 'Preset Categories cannot be renamed.');
+  }
+
+  const name = normaliseCategoryName(displayName);
+  const error = categoryNameError(name);
+  if (error) throw new DomainError('invalid_category_name', error, 400);
+  const slug = categorySlug(name);
+  const [clash] = await db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(and(eq(categories.slug, slug), ne(categories.id, categoryId)))
+    .limit(1);
+  if (clash) {
+    throw conflict('category_exists', 'Another Category already uses that name.');
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(categories)
+      .set({ displayName: name, updatedAt: new Date() })
+      .where(eq(categories.id, categoryId));
+    await tx.insert(adminActions).values({
+      id: uuidv7(),
+      actorId,
+      action: 'category.renamed',
+      targetType: 'category',
+      targetId: categoryId,
+      reason: `${row.displayName} → ${name}`,
+    });
+  });
+
+  return categoryWithCount(categoryId);
+}
+
+/**
+ * Removes a community Category and every reference to it. Presets are
+ * protected so a deploy never fights an Admin's change (ADR 0012).
+ */
+export async function deleteCategory(actorId: string, categoryId: string): Promise<void> {
+  await assertAdmin(actorId);
+  const db = getDb();
+  const [row] = await db
+    .select()
+    .from(categories)
+    .where(eq(categories.id, categoryId))
+    .limit(1);
+  if (!row) throw notFound('Category not found.');
+  if (row.featured) {
+    throw conflict('preset_protected', 'Preset Categories cannot be deleted.');
+  }
+
+  await db.transaction(async (tx) => {
+    // Drafts store names, not ids, so clear both the current name and anything
+    // that slugs to this Category before the row disappears.
+    const drafts = await tx
+      .select({
+        id: comparisons.id,
+        pending: comparisons.pendingCategories,
+      })
+      .from(comparisons)
+      .where(sql`array_length(${comparisons.pendingCategories}, 1) > 0`);
+    for (const draft of drafts) {
+      const next = draft.pending.filter(
+        (name) =>
+          categorySlug(name) !== row.slug &&
+          name.toLowerCase() !== row.displayName.toLowerCase(),
+      );
+      if (next.length !== draft.pending.length) {
+        await tx
+          .update(comparisons)
+          .set({ pendingCategories: next })
+          .where(eq(comparisons.id, draft.id));
+      }
+    }
+
+    await tx.delete(categories).where(eq(categories.id, categoryId));
+    await tx.insert(adminActions).values({
+      id: uuidv7(),
+      actorId,
+      action: 'category.deleted',
+      targetType: 'category',
+      targetId: categoryId,
+      reason: row.displayName,
+    });
+  });
+}
+
+async function categoryWithCount(categoryId: string): Promise<AdminCategory> {
+  const db = getDb();
+  const [row] = await db
+    .select({
+      id: categories.id,
+      slug: categories.slug,
+      displayName: categories.displayName,
+      featured: categories.featured,
+      comparisonCount: count(comparisonCategories.comparisonId),
+    })
+    .from(categories)
+    .leftJoin(
+      comparisonCategories,
+      eq(comparisonCategories.categoryId, categories.id),
+    )
+    .where(eq(categories.id, categoryId))
+    .groupBy(
+      categories.id,
+      categories.slug,
+      categories.displayName,
+      categories.featured,
+    )
+    .limit(1);
+  if (!row) throw notFound('Category not found.');
+  return {
+    id: row.id,
+    slug: row.slug,
+    displayName: row.displayName,
+    featured: row.featured,
+    comparisonCount: Number(row.comparisonCount),
   };
 }
 
@@ -294,9 +441,29 @@ export async function getAdminOverview(actorId: string): Promise<AdminOverview> 
   const resolver = alias(users, 'report_resolver');
   const suspendedBy = alias(users, 'suspended_actor');
 
-  const [modelRows, usageRows, publishedRows, hiddenRows, actionRows, openReportRows, closedReportRows, suspendedRows] =
+  const [modelRows, categoryRows, usageRows, publishedRows, hiddenRows, actionRows, openReportRows, closedReportRows, suspendedRows] =
     await Promise.all([
       db.select().from(models).orderBy(models.displayName),
+      db
+        .select({
+          id: categories.id,
+          slug: categories.slug,
+          displayName: categories.displayName,
+          featured: categories.featured,
+          comparisonCount: count(comparisonCategories.comparisonId),
+        })
+        .from(categories)
+        .leftJoin(
+          comparisonCategories,
+          eq(comparisonCategories.categoryId, categories.id),
+        )
+        .groupBy(
+          categories.id,
+          categories.slug,
+          categories.displayName,
+          categories.featured,
+        )
+        .orderBy(desc(categories.featured), categories.displayName),
       db
         .select({ modelId: responses.modelId, total: count() })
         .from(responses)
@@ -552,6 +719,13 @@ export async function getAdminOverview(actorId: string): Promise<AdminOverview> 
       enabled: model.enabled,
       responseCount: usage.get(model.id) ?? 0,
     })),
+    categories: categoryRows.map((row) => ({
+      id: row.id,
+      slug: row.slug,
+      displayName: row.displayName,
+      featured: row.featured,
+      comparisonCount: Number(row.comparisonCount),
+    })),
     publishedComparisons: publishedRows.map((row) => ({
       id: row.id,
       title: row.title,
@@ -590,6 +764,9 @@ export async function getAdminOverview(actorId: string): Promise<AdminOverview> 
         commentTargetById,
         annotationTargetById,
         actionUserById,
+        categoryById: new Map(
+          categoryRows.map((category) => [category.id, category.displayName]),
+        ),
       }),
       reason: row.reason,
       createdAt: row.createdAt.toISOString(),
@@ -607,6 +784,7 @@ function actionTargetLabel(
     commentTargetById: Map<string, { body: string }>;
     annotationTargetById: Map<string, { quote: string }>;
     actionUserById: Map<string, string>;
+    categoryById: Map<string, string>;
   },
 ): string {
   switch (row.targetType) {
@@ -633,5 +811,7 @@ function actionTargetLabel(
         : 'Member account';
     case 'report':
       return 'Report';
+    case 'category':
+      return maps.categoryById.get(row.targetId) ?? 'Deleted Category';
   }
 }

@@ -247,7 +247,7 @@ test.describe('keyboard operation', () => {
     await coding.focus();
     await page.keyboard.press('Enter');
     await expect(coding).toHaveAttribute('aria-pressed', 'true');
-    await expect(page).toHaveURL(/[?&]cat=Coding/);
+    await expect(page).toHaveURL(/[?&]category=coding/);
 
     const top = page
       .getByRole('group', { name: 'Sort' })

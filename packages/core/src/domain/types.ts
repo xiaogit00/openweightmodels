@@ -1,13 +1,4 @@
-export const CATEGORIES = [
-  'Coding',
-  'Reasoning',
-  'Creative',
-  'Math',
-  'Long-context',
-  'Language',
-] as const;
-
-export type Category = (typeof CATEGORIES)[number];
+import type { CategoryRef } from './categories';
 
 export const EFFORT_LEVELS = [
   { value: 1, label: 'Low', sub: 'Quick prompt' },
@@ -74,6 +65,8 @@ export const ADMIN_ACTION_KINDS = [
   'user.reinstated',
   'report.resolved',
   'report.dismissed',
+  'category.renamed',
+  'category.deleted',
 ] as const;
 export type AdminActionKind = (typeof ADMIN_ACTION_KINDS)[number];
 
@@ -85,6 +78,7 @@ export const ADMIN_TARGET_TYPES = [
   'annotation',
   'user',
   'report',
+  'category',
 ] as const;
 export type AdminTargetType = (typeof ADMIN_TARGET_TYPES)[number];
 
@@ -131,7 +125,8 @@ export type ComparisonCard = {
   headline: string;
   /** Number of Turns in the Conversation. A one-Turn Comparison is `1`. */
   turnCount: number;
-  categories: string[];
+  /** Selected Categories in click order; the first one labels the card. */
+  categories: CategoryRef[];
   effort: number;
   models: CardModel[];
   baseSnippet: string;
@@ -144,7 +139,8 @@ export type ComparisonCard = {
 };
 
 export type BoardFilters = {
-  cat: string;
+  /** A Category slug, or `null` for every Category. */
+  category: string | null;
   models: string[];
   effort: number | null;
   q: string;
@@ -161,6 +157,7 @@ export type BoardPage = {
 /**
  * Sidebar counts for the whole published Board, deliberately ignoring the
  * reader's active filters. `total` is the number of published Comparisons.
+ * Category counts are keyed by stable slug.
  */
 export type BoardFacets = {
   categories: Record<string, number>;

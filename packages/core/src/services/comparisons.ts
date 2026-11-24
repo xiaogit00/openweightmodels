@@ -8,9 +8,14 @@ import {
   responses,
   turns,
 } from '../db/schema';
-import { CATEGORIES, type ComparisonCard } from '../domain/types';
+import type { ComparisonCard } from '../domain/types';
 import { resolveMaxChallengers } from '../domain/new-comparison';
 import { parseConversationUpload } from '../domain/conversation-import';
+import {
+  materialisePendingCategories,
+  replaceComparisonCategories,
+  resolveCategorySelection,
+} from './categories';
 import {
   estimateTokens,
   summariseMarkdown,
@@ -33,15 +38,6 @@ function clampEffort(value: number) {
     throw conflict('invalid_effort', 'Effort must be 1, 2 or 3.');
   }
   return value;
-}
-
-function normaliseCategories(input: string[]) {
-  const allowed = new Set<string>(CATEGORIES);
-  const unique = [...new Set(input.filter((value) => allowed.has(value)))];
-  if (unique.length !== input.length) {
-    throw conflict('invalid_category', 'One of those categories is not recognised.');
-  }
-  return unique;
 }
 
 async function assertQuota(userId: string) {
@@ -192,7 +188,7 @@ export async function createComparison(
       conversation.titleFromFile ||
       'Untitled comparison',
   );
-  const categories = normaliseCategories(input.categories);
+  const selection = await resolveCategorySelection(input.categories);
   const effort = clampEffort(input.effort);
   const challengerIds = [...new Set(input.modelIds)];
   const maxChallengers = resolveMaxChallengers(process.env.MAX_CHALLENGERS);
@@ -240,7 +236,7 @@ export async function createComparison(
       title,
       // The first Turn's Prompt is the headline; Turns hold the script.
       prompt,
-      categories,
+      pendingCategories: selection.refs.map((category) => category.name),
       effort,
       baseModelId: input.baseModelId,
       status: 'generating',
@@ -339,11 +335,21 @@ export async function publishComparison(id: string, userId: string): Promise<Com
     throw conflict('no_done_responses', 'At least one challenger response is required.');
   }
 
-  const [published] = await db
-    .update(comparisons)
-    .set({ status: 'published', publishedAt: new Date() })
-    .where(and(eq(comparisons.id, id), eq(comparisons.status, 'ready')))
-    .returning({ id: comparisons.id });
+  const published = await db.transaction(async (tx) => {
+    const [updated] = await tx
+      .update(comparisons)
+      .set({ status: 'published', publishedAt: new Date() })
+      .where(and(eq(comparisons.id, id), eq(comparisons.status, 'ready')))
+      .returning({ id: comparisons.id });
+    if (!updated) return null;
+    // Creation happens on publish, so a draft's pending names become rows only
+    // after this transition succeeds. A failed race below rolls this back too.
+    await materialisePendingCategories(tx, {
+      comparisonId: id,
+      authorId: row.authorId,
+    });
+    return updated;
+  });
 
   if (!published) {
     // Another publish won the race. Treat it as success only if it really
@@ -402,13 +408,37 @@ export async function updateComparison(
 ) {
   await assertCanWrite(userId);
   const db = getDb();
-  await requireOwnedComparison(id, userId);
+  const row = await requireOwnedComparison(id, userId);
   const values: Partial<typeof comparisons.$inferInsert> = {};
   if (patch.title !== undefined) values.title = validateTitle(patch.title);
-  if (patch.categories !== undefined) values.categories = normaliseCategories(patch.categories);
   if (patch.effort !== undefined) values.effort = clampEffort(patch.effort);
-  if (!Object.keys(values).length) return;
-  await db.update(comparisons).set(values).where(eq(comparisons.id, id));
+
+  if (patch.categories === undefined) {
+    if (!Object.keys(values).length) return;
+    await db.update(comparisons).set(values).where(eq(comparisons.id, id));
+    return;
+  }
+
+  const selection = await resolveCategorySelection(patch.categories);
+  // Only a published Comparison creates Categories immediately. A ready or
+  // unpublished draft keeps the selection pending until publish, so an
+  // abandoned edit leaves no new community rows behind.
+  const live = row.status === 'published';
+
+  await db.transaction(async (tx) => {
+    if (live) {
+      await replaceComparisonCategories(tx, {
+        comparisonId: id,
+        authorId: userId,
+        refs: selection.refs,
+      });
+    } else {
+      values.pendingCategories = selection.refs.map((category) => category.name);
+    }
+    if (Object.keys(values).length) {
+      await tx.update(comparisons).set(values).where(eq(comparisons.id, id));
+    }
+  });
 }
 
 export type AddModelResult = {

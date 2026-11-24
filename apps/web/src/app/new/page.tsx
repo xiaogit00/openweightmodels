@@ -1,5 +1,10 @@
 import { redirect } from 'next/navigation';
-import { getModels, parseModelClassTab, resolveMaxChallengers } from '@owm/core';
+import {
+  getModels,
+  listCategories,
+  parseModelClassTab,
+  resolveMaxChallengers,
+} from '@owm/core';
 import { getCurrentUser } from '@/lib/auth';
 import { signInPath } from '@/lib/next-path';
 import { NewComparisonClient } from '@/components/new-comparison-client';
@@ -15,9 +20,10 @@ export default async function NewComparisonPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [user, models, query] = await Promise.all([
+  const [user, models, categories, query] = await Promise.all([
     getCurrentUser(),
     getModels(),
+    listCategories(),
     searchParams,
   ]);
 
@@ -31,6 +37,7 @@ export default async function NewComparisonPage({
       handle={user.handle}
       maxChallengers={resolveMaxChallengers(process.env.MAX_CHALLENGERS)}
       initialClass={parseModelClassTab(classParam)}
+      categoryLibrary={categories}
       models={models.map((model) => ({
         id: model.id,
         slug: model.slug,

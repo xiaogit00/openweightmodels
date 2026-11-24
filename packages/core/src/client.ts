@@ -1,5 +1,6 @@
 // Client-safe exports only. Never import database, Redis or queue modules here.
 export * from './domain/types';
+export * from './domain/categories';
 export * from './domain/filters';
 export * from './domain/upload';
 export * from './domain/conversation-import';

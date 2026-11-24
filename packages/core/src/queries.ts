@@ -1,6 +1,5 @@
 import {
   and,
-  arrayContains,
   count,
   countDistinct,
   desc,
@@ -17,7 +16,9 @@ import { getDb } from './db/client';
 import {
   annotationMessages,
   annotations,
+  categories,
   comments,
+  comparisonCategories,
   comparisons,
   jobs,
   models,
@@ -30,8 +31,14 @@ import {
 import { MODEL_REGISTRY } from './model-registry';
 import { decodeCursor, encodeCursor, CursorError } from './domain/cursor';
 import { BOARD_PAGE_SIZE, emptyBoardFacets } from './domain/filters';
+import {
+  getComparisonCategories,
+  resolvePendingCategories,
+  type ComparisonCategoryMap,
+} from './services/categories';
 import { summariseMarkdown } from './domain/upload';
 import { DELETED_AUTHOR_HANDLE, runProgress } from './domain/types';
+import type { CategoryRef } from './domain/categories';
 import type { WeightClassKey } from './domain/weight-class';
 import type {
   AnnotationThreadMessage,
@@ -69,7 +76,8 @@ export type UserRow = typeof users.$inferSelect;
 export type JobRow = typeof jobs.$inferSelect;
 
 export type ListOptions = {
-  cat?: string | null;
+  /** A Category slug. */
+  category?: string | null;
   models?: string[];
   effort?: number | null;
   q?: string | null;
@@ -111,6 +119,7 @@ type CardData = {
   responsesByComparison: Map<string, CardResponse[]>;
   turnCounts: Map<string, number>;
   modelMap: Map<string, ModelRow>;
+  categoriesByComparison: ComparisonCategoryMap;
 };
 
 /**
@@ -126,11 +135,12 @@ async function loadCardData(
     responsesByComparison: new Map(),
     turnCounts: new Map(),
     modelMap: new Map(),
+    categoriesByComparison: new Map(),
   };
   if (!comparisonIds.length) return empty;
 
   const db = getDb();
-  const [responseRows, turnRows] = await Promise.all([
+  const [responseRows, turnRows, categoriesByComparison] = await Promise.all([
     db
       .select({ response: responses, turnPosition: turns.position })
       .from(responses)
@@ -143,6 +153,7 @@ async function loadCardData(
       .select({ comparisonId: turns.comparisonId })
       .from(turns)
       .where(inArray(turns.comparisonId, comparisonIds)),
+    getComparisonCategories(comparisonIds, db),
   ]);
 
   const modelIds = [
@@ -170,6 +181,7 @@ async function loadCardData(
     responsesByComparison,
     turnCounts,
     modelMap: new Map(modelRows.map((row) => [row.id, row])),
+    categoriesByComparison,
   };
 }
 
@@ -214,7 +226,7 @@ function cardFromRows(
     // The denormalised first Turn's Prompt, which Board search also reads.
     headline: comparison.prompt,
     turnCount: Math.max(1, cardData.turnCounts.get(comparison.id) ?? 0),
-    categories: comparison.categories,
+    categories: cardData.categoriesByComparison.get(comparison.id) ?? [],
     effort: comparison.effort,
     models: cardModels,
     baseSnippet: base ? snippet(base.contentMd) : '',
@@ -243,8 +255,21 @@ export async function listComparisons(options: ListOptions = {}): Promise<ListRe
     isNull(comparisons.takedownAt),
   ];
 
-  if (options.cat && options.cat !== 'All') {
-    baseConditions.push(arrayContains(comparisons.categories, [options.cat]));
+  if (options.category) {
+    baseConditions.push(
+      exists(
+        db
+          .select({ one: sql`1` })
+          .from(comparisonCategories)
+          .innerJoin(categories, eq(categories.id, comparisonCategories.categoryId))
+          .where(
+            and(
+              eq(comparisonCategories.comparisonId, comparisons.id),
+              eq(categories.slug, options.category),
+            ),
+          ),
+      ),
+    );
   }
   if (options.effort) {
     baseConditions.push(eq(comparisons.effort, options.effort));
@@ -385,13 +410,18 @@ export async function getBoardFacets(): Promise<BoardFacets> {
   );
 
   const [categoryRows, modelRows, totalRow] = await Promise.all([
-    db.execute<{ category: string; total: number }>(sql`
-      select c.category as category, count(*)::int as total
-      from ${comparisons}
-      cross join lateral unnest(${comparisons.categories}) as c(category)
-      where ${published}
-      group by c.category
-    `),
+    db
+      .select({ slug: categories.slug, total: count(comparisons.id) })
+      .from(categories)
+      .leftJoin(
+        comparisonCategories,
+        eq(comparisonCategories.categoryId, categories.id),
+      )
+      .leftJoin(
+        comparisons,
+        and(eq(comparisons.id, comparisonCategories.comparisonId), published),
+      )
+      .groupBy(categories.slug),
     db
       .select({ slug: models.slug, total: countDistinct(comparisons.id) })
       .from(comparisons)
@@ -402,9 +432,9 @@ export async function getBoardFacets(): Promise<BoardFacets> {
     db.select({ total: count() }).from(comparisons).where(published),
   ]);
 
-  const categories = emptyBoardFacets().categories;
+  const categoriesFacet = emptyBoardFacets().categories;
   for (const row of categoryRows) {
-    categories[row.category] = Number(row.total);
+    categoriesFacet[row.slug] = Number(row.total);
   }
 
   const modelCounts: Record<string, number> = {};
@@ -413,7 +443,7 @@ export async function getBoardFacets(): Promise<BoardFacets> {
   }
 
   return {
-    categories,
+    categories: categoriesFacet,
     models: modelCounts,
     total: Number(totalRow[0]?.total ?? 0),
   };
@@ -423,6 +453,7 @@ export type ComparisonBundle = {
   comparison: ComparisonRow;
   author: PublicUser;
   baseModel: ModelRow;
+  categories: CategoryRef[];
   turns: Array<{ id: string; position: number; prompt: string }>;
   responses: Array<{ response: ResponseRow; model: ModelRow }>;
 };
@@ -501,11 +532,15 @@ export async function getComparisonForViewer(
     if (byTurn !== 0) return byTurn;
     return a.createdAt.getTime() - b.createdAt.getTime() || a.modelId.localeCompare(b.modelId);
   });
+  const categories = comparison.pendingCategories.length
+    ? await resolvePendingCategories(comparison.pendingCategories, db)
+    : ((await getComparisonCategories([id], db)).get(id) ?? []);
 
   return {
     comparison,
     author: toPublicUser(author),
     baseModel,
+    categories,
     turns: turnRows,
     responses: orderedResponses
       .map((response) => {
@@ -715,6 +750,7 @@ export type JobBundle = {
   comparison: ComparisonRow;
   author: PublicUser;
   baseModel: CardModel | null;
+  categories: CategoryRef[];
   baseSnippet: string;
   challengerSnippet: string;
   runs: JobRunState[];
@@ -781,6 +817,9 @@ export async function getJobForAuthor(
         )
         .limit(1)
     : [];
+  const categories = comparison.pendingCategories.length
+    ? await resolvePendingCategories(comparison.pendingCategories, db)
+    : ((await getComparisonCategories([comparison.id], db)).get(comparison.id) ?? []);
 
   return {
     job,
@@ -799,6 +838,7 @@ export async function getJobForAuthor(
           monogram: baseModelRow.monogram,
         }
       : null,
+    categories,
     baseSnippet: baseResponse ? snippet(baseResponse.contentMd) : '',
     challengerSnippet: (() => {
       const firstDone = orderedRuns.find((row) => row.status === 'done');

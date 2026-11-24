@@ -211,10 +211,10 @@ describe.skipIf(!available)('Board listing', () => {
 
     try {
       expect(
-        ids((await listComparisons({ q: prefix, cat: 'Coding' })).items),
+        ids((await listComparisons({ q: prefix, category: 'coding' })).items),
       ).toEqual([coding.comparisonId]);
       expect(
-        ids((await listComparisons({ q: prefix, cat: 'Reasoning' })).items),
+        ids((await listComparisons({ q: prefix, category: 'reasoning' })).items),
       ).toEqual([reasoning.comparisonId]);
       expect(ids((await listComparisons({ q: prefix, effort: 3 })).items)).toEqual([
         reasoning.comparisonId,
@@ -303,7 +303,7 @@ describe.skipIf(!available)('Board listing', () => {
     try {
       const after = await getBoardFacets();
       expect(after.total).toBe(before.total + 1);
-      expect(after.categories.Coding).toBe((before.categories.Coding ?? 0) + 1);
+      expect(after.categories.coding).toBe((before.categories.coding ?? 0) + 1);
       expect(after.models[published.baseModelSlug]).toBe(1);
       for (const slug of published.challengerSlugs) {
         expect(after.models[slug]).toBe(1);

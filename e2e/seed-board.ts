@@ -4,8 +4,10 @@
  */
 import { uuidv7 } from 'uuidv7';
 import {
-  CATEGORIES,
+  PRESET_CATEGORIES,
+  categories,
   closeDb,
+  comparisonCategories,
   comparisons,
   getDb,
   jobs,
@@ -21,16 +23,28 @@ async function main() {
   const db = getDb();
   const userRows = await db.select({ id: users.id }).from(users);
   const modelRows = await db.select({ id: models.id, slug: models.slug }).from(models);
+  const categoryRows = await db
+    .select({ id: categories.id, slug: categories.slug })
+    .from(categories);
 
   if (!userRows.length || modelRows.length < 2) {
     throw new Error('[e2e] seed the database before adding Board pagination fixtures');
   }
+  const presetSlugs = new Set(categoryRows.map((row) => row.slug));
+  const presetCatalog = new Set<string>(
+    PRESET_CATEGORIES.map((preset) => preset.slug),
+  );
+  if (![...presetCatalog].every((slug) => presetSlugs.has(slug))) {
+    throw new Error('[e2e] the preset Categories are missing from the database');
+  }
+  const presetRows = categoryRows.filter((row) => presetCatalog.has(row.slug));
 
   const now = Date.now();
   const comparisonRows: Array<typeof comparisons.$inferInsert> = [];
   const turnRows: Array<typeof turns.$inferInsert> = [];
   const jobRows: Array<typeof jobs.$inferInsert> = [];
   const responseRows: Array<typeof responses.$inferInsert> = [];
+  const categoryJoinRows: Array<typeof comparisonCategories.$inferInsert> = [];
 
   for (let index = 0; index < COUNT; index += 1) {
     const comparisonId = uuidv7();
@@ -40,7 +54,7 @@ async function main() {
     const baseModel = modelRows[index % modelRows.length]!;
     const challengerModel = modelRows[(index + 1) % modelRows.length]!;
     const publishedAt = new Date(now - index * 60_000);
-    const category = CATEGORIES[index % CATEGORIES.length]!;
+    const category = presetRows[index % presetRows.length]!;
     const title = `Board fixture ${String(index + 1).padStart(2, '0')}`;
 
     comparisonRows.push({
@@ -48,7 +62,6 @@ async function main() {
       authorId: author.id,
       title,
       prompt: `${title}: explain the trade-offs of a bounded queue.`,
-      categories: [category],
       effort: ((index % 3) + 1) as 1 | 2 | 3,
       baseModelId: baseModel.id,
       status: 'published',
@@ -56,6 +69,11 @@ async function main() {
       createdAt: publishedAt,
       commentCount: index % 7,
       annotationCount: index % 4,
+    });
+    categoryJoinRows.push({
+      comparisonId,
+      categoryId: category.id,
+      position: 0,
     });
     turnRows.push({
       id: turnId,
@@ -96,6 +114,7 @@ async function main() {
 
   await db.transaction(async (tx) => {
     await tx.insert(comparisons).values(comparisonRows);
+    await tx.insert(comparisonCategories).values(categoryJoinRows);
     await tx.insert(turns).values(turnRows);
     await tx.insert(jobs).values(jobRows);
     await tx.insert(responses).values(responseRows);

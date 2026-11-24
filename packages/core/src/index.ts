@@ -1,6 +1,7 @@
 export * from './load-env';
 
 export * from './domain/types';
+export * from './domain/categories';
 export * from './domain/filters';
 export * from './domain/cursor';
 export * from './domain/upload';
@@ -36,3 +37,4 @@ export * from './services/account';
 export * from './services/admin';
 export * from './services/moderation';
 export * from './services/model-registry';
+export * from './services/categories';

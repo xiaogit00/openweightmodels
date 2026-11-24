@@ -1,8 +1,18 @@
 import { eq, inArray } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 import { getDb } from '../src/db/client';
-import { comparisons, jobs, models, responses, turns, users } from '../src/db/schema';
-import type { Category, ComparisonStatus, ResponseStatus } from '../src/domain/types';
+import {
+  categories,
+  comparisonCategories,
+  comparisons,
+  jobs,
+  models,
+  responses,
+  turns,
+  users,
+} from '../src/db/schema';
+import { categorySlug } from '../src/domain/categories';
+import type { ComparisonStatus, ResponseStatus } from '../src/domain/types';
 
 export type FixtureTurn = {
   prompt: string;
@@ -25,7 +35,7 @@ export type FixtureOptions = {
   createdAt?: Date;
   commentCount?: number;
   annotationCount?: number;
-  categories?: Category[];
+  categories?: string[];
   effort?: 1 | 2 | 3;
   /** Provider registered on the fixture Models. Defaults to the mock provider. */
   provider?: string;
@@ -137,7 +147,6 @@ export async function createJobFixture(options: FixtureOptions = {}) {
     authorId: userId,
     title: `${options.titlePrefix ?? 'Fixture comparison'} ${tag}`,
     prompt: turnInputs[0]!.prompt,
-    categories: options.categories ?? ['Coding'],
     effort: options.effort ?? 1,
     baseModelId: baseModel.id,
     status,
@@ -147,6 +156,41 @@ export async function createJobFixture(options: FixtureOptions = {}) {
     commentCount: options.commentCount ?? 0,
     annotationCount: options.annotationCount ?? 0,
   });
+
+  for (const [position, name] of (options.categories ?? ['Coding']).entries()) {
+    const slug = categorySlug(name);
+    let [category] = await db
+      .select({ id: categories.id })
+      .from(categories)
+      .where(eq(categories.slug, slug))
+      .limit(1);
+    if (!category) {
+      [category] = await db
+        .insert(categories)
+        .values({
+          id: uuidv7(),
+          slug,
+          displayName: name,
+          featured: false,
+          createdBy: userId,
+        })
+        .onConflictDoNothing({ target: categories.slug })
+        .returning({ id: categories.id });
+      if (!category) {
+        [category] = await db
+          .select({ id: categories.id })
+          .from(categories)
+          .where(eq(categories.slug, slug))
+          .limit(1);
+      }
+    }
+    if (!category) throw new Error(`fixture Category ${name} was not inserted`);
+    await db.insert(comparisonCategories).values({
+      comparisonId,
+      categoryId: category.id,
+      position,
+    });
+  }
   await db.insert(jobs).values({ id: jobId, comparisonId, status: 'scheduled' });
   await db.insert(turns).values(
     turnInputs.map((turn, position) => ({

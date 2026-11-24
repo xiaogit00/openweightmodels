@@ -29,6 +29,14 @@ type AdminModel = {
   responseCount: number;
 };
 
+type AdminCategory = {
+  id: string;
+  slug: string;
+  displayName: string;
+  featured: boolean;
+  comparisonCount: number;
+};
+
 type HiddenComparison = {
   id: string;
   title: string;
@@ -88,6 +96,7 @@ type PublishedComparison = {
 
 type Overview = {
   models: AdminModel[];
+  categories: AdminCategory[];
   publishedComparisons: PublishedComparison[];
   hiddenComparisons: HiddenComparison[];
   reports: Report[];
@@ -113,6 +122,8 @@ const ACTION_LABELS: Record<AdminActionKind, string> = {
   'user.reinstated': 'Reinstated member',
   'report.resolved': 'Resolved report',
   'report.dismissed': 'Dismissed report',
+  'category.renamed': 'Renamed category',
+  'category.deleted': 'Deleted category',
 };
 
 const REPORT_TABS: Array<{ value: ReportStatus; label: string }> = [
@@ -151,6 +162,10 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<{ id: string; title: string } | null>(null);
   const [reason, setReason] = useState('');
+  const [categoryEdit, setCategoryEdit] = useState<{ id: string; name: string } | null>(
+    null,
+  );
+  const [categoryConfirm, setCategoryConfirm] = useState<string | null>(null);
   const [reportTab, setReportTab] = useState<ReportStatus>('open');
   const [reportAction, setReportAction] = useState<{
     id: string;
@@ -192,6 +207,26 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
         body: JSON.stringify({ enabled: !model.enabled }),
       }),
     );
+
+  const renameCategory = (category: AdminCategory) => {
+    if (!categoryEdit || categoryEdit.id !== category.id) return;
+    void run(`category-rename:${category.id}`, () =>
+      fetch(`/api/admin/categories/${category.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ displayName: categoryEdit.name }),
+      }),
+    ).then((ok) => {
+      if (ok) setCategoryEdit(null);
+    });
+  };
+
+  const removeCategory = (category: AdminCategory) =>
+    void run(`category-delete:${category.id}`, () =>
+      fetch(`/api/admin/categories/${category.id}`, { method: 'DELETE' }),
+    ).then((ok) => {
+      if (ok) setCategoryConfirm(null);
+    });
 
   const takedown = (comparison: { id: string; title: string }) => {
     if (!reason.trim()) {
@@ -694,6 +729,166 @@ export function AdminClient({ handle, overview: initialOverview }: Props) {
                     </td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-3" aria-labelledby="admin-categories">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="admin-categories" className="m-0 font-heading text-[20px] font-medium leading-[1.25] tracking-[-0.01em]">
+              Categories
+            </h2>
+            <p className="m-0 max-w-[560px] text-[12.5px] leading-[1.5] text-neutral-500">
+              Presets are curated in code and immune to edits. Renaming a community
+              Category relabels it everywhere; deleting it removes it from every
+              Comparison that carried it.
+            </p>
+          </div>
+          <div
+            role="region"
+            aria-label="Category table"
+            tabIndex={0}
+            className="overflow-x-auto rounded-lg border border-neutral-800"
+          >
+            <table className="w-full min-w-[720px] border-collapse text-left text-[13.5px]">
+              <thead className="bg-surface text-[10.5px] uppercase tracking-[0.08em] text-neutral-500">
+                <tr>
+                  <th className="px-3 py-2 font-medium">Category</th>
+                  <th className="px-3 py-2 font-medium">Kind</th>
+                  <th className="px-3 py-2 font-medium">Comparisons</th>
+                  <th className="px-3 py-2 text-right font-medium">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {overview.categories.map((category) => {
+                  const editing =
+                    categoryEdit?.id === category.id ? categoryEdit : null;
+                  const confirmingDelete = categoryConfirm === category.id;
+                  return (
+                    <tr
+                      key={category.id}
+                      data-category={category.slug}
+                      className="border-t border-neutral-800"
+                    >
+                      <td className="px-3 py-2">
+                        <span className="flex flex-wrap items-center gap-2">
+                          {editing ? (
+                            <input
+                              autoFocus
+                              value={editing.name}
+                              maxLength={24}
+                              onChange={(event) =>
+                                setCategoryEdit({ id: category.id, name: event.target.value })
+                              }
+                              onKeyDown={(event) => {
+                                if (event.key === 'Escape') setCategoryEdit(null);
+                                if (event.key === 'Enter') {
+                                  event.preventDefault();
+                                  renameCategory(category);
+                                }
+                              }}
+                              aria-label={`Rename ${category.displayName}`}
+                              className="h-7 w-[180px] rounded-sm border border-neutral-700 bg-bg px-2 text-[13px] text-text focus:border-accent"
+                            />
+                          ) : (
+                            <span className="text-neutral-100">{category.displayName}</span>
+                          )}
+                          <span className="text-[12.5px] text-neutral-500">
+                            {category.slug}
+                          </span>
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] font-medium ${
+                            category.featured
+                              ? 'bg-accent-900 text-accent-200'
+                              : 'bg-neutral-800 text-neutral-400'
+                          }`}
+                        >
+                          {category.featured ? 'Preset' : 'Community'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-neutral-400">
+                        {category.comparisonCount}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {category.featured ? (
+                          <span className="text-[12.5px] text-neutral-500">Protected</span>
+                        ) : editing ? (
+                          <span className="flex flex-wrap items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              data-category-save
+                              onClick={() => renameCategory(category)}
+                              disabled={busy !== null}
+                              className="btn-primary h-7"
+                            >
+                              {busy === `category-rename:${category.id}` ? (
+                                <CircleNotch size={12} className="anim-spin" aria-hidden />
+                              ) : null}
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCategoryEdit(null)}
+                              className="btn-ghost h-7"
+                            >
+                              Cancel
+                            </button>
+                          </span>
+                        ) : confirmingDelete ? (
+                          <span className="flex flex-wrap items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              data-category-confirm
+                              onClick={() => removeCategory(category)}
+                              disabled={busy !== null}
+                              className="btn-secondary h-7 border-danger text-danger"
+                            >
+                              {busy === `category-delete:${category.id}` ? (
+                                <CircleNotch size={12} className="anim-spin" aria-hidden />
+                              ) : null}
+                              Confirm delete
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCategoryConfirm(null)}
+                              className="btn-ghost h-7"
+                            >
+                              Cancel
+                            </button>
+                          </span>
+                        ) : (
+                          <span className="flex flex-wrap items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              data-category-rename
+                              onClick={() =>
+                                setCategoryEdit({
+                                  id: category.id,
+                                  name: category.displayName,
+                                })
+                              }
+                              className="btn-secondary h-7"
+                            >
+                              Rename
+                            </button>
+                            <button
+                              type="button"
+                              data-category-delete
+                              onClick={() => setCategoryConfirm(category.id)}
+                              className="btn-ghost h-7 text-danger"
+                            >
+                              Delete
+                            </button>
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
