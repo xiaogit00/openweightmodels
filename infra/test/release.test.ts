@@ -169,7 +169,8 @@ describe('CI delivery', () => {
 
   it('deploys with a GitHub OIDC token, not stored AWS keys', () => {
     expect(ci).toContain('id-token: write');
-    expect(ci).toContain('aws-actions/configure-aws-credentials@v4');
+    // Don't pin the major version here; the workflow owns that bump.
+    expect(ci).toMatch(/aws-actions\/configure-aws-credentials@v\d+/);
     expect(ci).toContain('role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}');
     expect(ci).not.toContain('aws-access-key-id');
     expect(ci).not.toContain('AWS_SECRET_ACCESS_KEY');
