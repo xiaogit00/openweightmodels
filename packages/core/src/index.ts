@@ -3,6 +3,8 @@ export * from './load-env';
 export * from './domain/types';
 export * from './domain/categories';
 export * from './domain/filters';
+export * from './domain/board-models';
+export * from './domain/matchup';
 export * from './domain/cursor';
 export * from './domain/upload';
 export * from './domain/conversation-import';

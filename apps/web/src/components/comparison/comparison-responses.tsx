@@ -9,6 +9,7 @@ import { InitialsBadge } from '../ui/initials-badge';
 import { MicroLabel } from '../ui/micro-label';
 import { ModelPicker, type ModelPickerProps } from './model-picker';
 import { GeneratingState, TurnStateLine } from './turn-state';
+import { ComparisonWeightClassChip } from './weight-class-chip';
 import type {
   ComparisonPageData,
   ComparisonResponseView,
@@ -283,6 +284,10 @@ export function ComparisonResponses({
             BASE
           </span>
           <span className="min-w-0 truncate text-[14.5px] font-medium">{baseName}</span>
+          <ComparisonWeightClassChip
+            weightClass={baseModel.weightClass}
+            runSizeGb={baseModel.runSizeGb}
+          />
           <div className="flex-1" />
           {baseMeta && (
             <span className="whitespace-nowrap text-[12px] text-neutral-400">

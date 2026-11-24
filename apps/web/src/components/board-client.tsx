@@ -15,6 +15,7 @@ import {
   Highlighter,
   Lightning,
   MagnifyingGlass,
+  Minus,
   X,
 } from '@phosphor-icons/react';
 import type {
@@ -30,8 +31,13 @@ import {
   arrivalPlacement,
   boardFiltersKey,
   boardFiltersToSearchParams,
+  buildModelChips,
+  groupBoardModels,
+  groupSelection,
+  isGroupOpen,
   matchesFilters,
   parseBoardFilters,
+  toggleVisibleSelection,
   type BoardFilters,
   type Sort,
 } from '@owm/core/client';
@@ -39,6 +45,7 @@ import { SiteHeader } from './site-header';
 import { ComparisonCardView } from './comparison-card';
 import { MicroLabel } from './ui/micro-label';
 import { SegmentedControl } from './ui/segmented-control';
+import { WeightClassMark } from './ui/weight-class-mark';
 import { cn } from '@/lib/utils';
 
 type BoardModel = {
@@ -165,6 +172,10 @@ export function BoardClient({
   // Community Categories follow the same rule: used ones by default, every one
   // behind a ghost toggle.
   const [showAllCategories, setShowAllCategories] = useState(false);
+  // Weight-class groups start open at `lg` and above and collapsed below it.
+  // A per-group override lives for the session only.
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [wide, setWide] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [reducedMotion, setReducedMotion] = useState(false);
 
@@ -238,6 +249,15 @@ export function BoardClient({
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
     const update = () => setReducedMotion(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+
+  // `wide` is read in an effect so the server and the first client render agree.
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 1024px)');
+    const update = () => setWide(media.matches);
     update();
     media.addEventListener('change', update);
     return () => media.removeEventListener('change', update);
@@ -620,15 +640,18 @@ export function BoardClient({
       remove: () => patchFilters({ category: null }),
     });
   }
-  for (const model of filters.models) {
-    const name = models.find((item) => item.slug === model)?.displayName ?? model;
+  for (const chip of buildModelChips({
+    selected: filters.models,
+    models,
+    counts: facets.models,
+  })) {
     chips.push({
-      key: `model:${model}`,
-      label: name,
+      key: chip.key,
+      label: chip.label,
       remove: () =>
         setFilters((current) => ({
           ...current,
-          models: current.models.filter((value) => value !== model),
+          models: current.models.filter((value) => !chip.slugs.includes(value)),
         })),
     });
   }
@@ -720,6 +743,8 @@ export function BoardClient({
   );
   const visibleModels = showAllModels ? models : modelsWithComparisons;
   const canToggleModels = showAllModels || modelsWithComparisons.length < models.length;
+  // Grouping is presentation only: the selection and the URL stay slug lists.
+  const modelGroups = groupBoardModels(visibleModels);
 
   // Presets keep their curated order; community Categories follow, by use.
   const presets = categories.filter((category) => category.featured);
@@ -905,47 +930,154 @@ export function BoardClient({
                 </button>
               )}
             </div>
-            {visibleModels.map((model) => {
-              const checked = filters.models.includes(model.slug);
-              const count = facets.models[model.slug] ?? 0;
-              return (
-                <button
-                  key={model.slug}
-                  type="button"
-                  data-model-option
-                  aria-pressed={checked}
-                  onClick={() =>
-                    setFilters((current) => ({
-                      ...current,
-                      models: checked
-                        ? current.models.filter((value) => value !== model.slug)
-                        : [...current.models, model.slug],
-                    }))
-                  }
-                  className={cn(
-                    'flex min-h-8 min-w-0 items-center gap-[10px] rounded-[var(--r)] px-[10px] py-1 text-left text-[13.5px] transition-colors hover:bg-surface hover:text-text',
-                    checked
-                      ? 'text-text'
-                      : count > 0
-                        ? 'text-neutral-300'
-                        : 'text-neutral-500',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'grid h-[15px] w-[15px] flex-none place-items-center rounded-[var(--r)] border',
-                      checked
-                        ? 'border-accent bg-accent text-on-accent'
-                        : 'border-neutral-600 bg-transparent',
-                    )}
+            <div className="col-span-2 flex flex-col gap-2 lg:col-span-1">
+              {modelGroups.map((group) => {
+                const slugs = group.models.map((model) => model.slug);
+                const selection = groupSelection(filters.models, slugs);
+                const open = isGroupOpen(collapsedGroups, group.key, wide);
+                // groupSelection names its states `checked`/`unchecked`; ARIA
+                // wants `true`/`false` for the same two.
+                const ariaChecked =
+                  selection.state === 'checked'
+                    ? 'true'
+                    : selection.state === 'mixed'
+                      ? 'mixed'
+                      : 'false';
+                return (
+                  <div
+                    key={group.key}
+                    role="group"
+                    aria-label={group.ariaLabel}
+                    data-model-group={group.key}
+                    className="flex flex-col gap-[2px]"
                   >
-                    {checked && <Check size={11} weight="bold" aria-hidden />}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">{model.displayName}</span>
-                  <span className="flex-none text-[12px] text-neutral-400">{count}</span>
-                </button>
-              );
-            })}
+                    <div className="flex items-center gap-[2px]">
+                      <button
+                        type="button"
+                        role="checkbox"
+                        aria-checked={ariaChecked}
+                        aria-label={`Select all ${group.ariaLabel} models`}
+                        title={group.title}
+                        data-model-select-all
+                        onClick={() =>
+                          setFilters((current) => ({
+                            ...current,
+                            models: toggleVisibleSelection(current.models, slugs),
+                          }))
+                        }
+                        className="flex h-[30px] min-w-0 flex-1 items-center gap-[10px] rounded-[var(--r)] px-[10px] text-left transition-colors hover:bg-surface"
+                      >
+                        <span
+                          className={cn(
+                            'grid h-[15px] w-[15px] flex-none place-items-center rounded-[var(--r)] border',
+                            selection.state === 'unchecked'
+                              ? 'border-neutral-600 bg-transparent'
+                              : 'border-accent bg-accent text-on-accent',
+                          )}
+                        >
+                          {selection.state === 'checked' && (
+                            <Check size={11} weight="bold" aria-hidden />
+                          )}
+                          {selection.state === 'mixed' && (
+                            <Minus size={11} weight="bold" aria-hidden />
+                          )}
+                        </span>
+                        <span aria-hidden="true" className="flex-none">
+                          <WeightClassMark
+                            weightClass={
+                              group.key === 'frontier' ? null : group.key
+                            }
+                          />
+                        </span>
+                        <span className="whitespace-nowrap text-[10.5px] font-medium uppercase tracking-[0.08em] text-neutral-300">
+                          {group.label}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-[11.5px] text-neutral-500">
+                          {group.range}
+                        </span>
+                        {selection.state === 'mixed' && (
+                          <span className="flex-none text-[11.5px] text-accent-300">
+                            {selection.selected}/{selection.visible}
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        data-model-collapse
+                        aria-expanded={open}
+                        aria-label={`Toggle ${group.ariaLabel}`}
+                        onClick={() =>
+                          setCollapsedGroups((current) => ({
+                            ...current,
+                            [group.key]: open,
+                          }))
+                        }
+                        className="flex h-[30px] w-[26px] flex-none items-center justify-center rounded-[var(--r)] text-neutral-400 transition-colors hover:bg-surface hover:text-text"
+                      >
+                        {open ? (
+                          <CaretUp size={12} aria-hidden />
+                        ) : (
+                          <CaretDown size={12} aria-hidden />
+                        )}
+                      </button>
+                    </div>
+                    {open && (
+                      <div className="ml-[17px] flex flex-col gap-[2px] border-l border-neutral-800">
+                        {group.models.map((model) => {
+                          const checked = filters.models.includes(model.slug);
+                          const count = facets.models[model.slug] ?? 0;
+                          return (
+                            <button
+                              key={model.slug}
+                              type="button"
+                              data-model-option
+                              aria-pressed={checked}
+                              onClick={() =>
+                                setFilters((current) => ({
+                                  ...current,
+                                  models: checked
+                                    ? current.models.filter(
+                                        (value) => value !== model.slug,
+                                      )
+                                    : [...current.models, model.slug],
+                                }))
+                              }
+                              className={cn(
+                                'flex min-h-8 min-w-0 items-center gap-[10px] rounded-[var(--r)] py-1 pl-3 pr-[10px] text-left text-[13.5px] transition-colors hover:bg-surface hover:text-text',
+                                checked
+                                  ? 'text-text'
+                                  : count > 0
+                                    ? 'text-neutral-300'
+                                    : 'text-neutral-500',
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  'grid h-[15px] w-[15px] flex-none place-items-center rounded-[var(--r)] border',
+                                  checked
+                                    ? 'border-accent bg-accent text-on-accent'
+                                    : 'border-neutral-600 bg-transparent',
+                                )}
+                              >
+                                {checked && (
+                                  <Check size={11} weight="bold" aria-hidden />
+                                )}
+                              </span>
+                              <span className="min-w-0 flex-1 truncate">
+                                {model.displayName}
+                              </span>
+                              <span className="flex-none text-[12px] text-neutral-400">
+                                {count}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
             {canToggleModels && (
               <button
                 type="button"
@@ -1054,7 +1186,7 @@ export function BoardClient({
                   key={chip.key}
                   type="button"
                   onClick={chip.remove}
-                  className="flex h-[26px] items-center gap-[6px] rounded-[var(--r)] border border-neutral-700 pl-[10px] pr-2 text-[12.5px] text-neutral-200 transition-colors hover:border-accent-700 hover:bg-accent-900"
+                  className="flex h-[26px] flex-shrink-0 items-center gap-[6px] whitespace-nowrap rounded-[var(--r)] border border-neutral-700 pl-[10px] pr-2 text-[12.5px] text-neutral-200 transition-colors hover:border-accent-700 hover:bg-accent-900"
                 >
                   {chip.label}
                   <X size={11} className="text-neutral-400" aria-hidden />

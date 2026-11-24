@@ -54,10 +54,12 @@ test('author adds a Challenger to a published Comparison', async ({ page, browse
   await page.locator('[data-add-button]').click();
   const menu = page.locator('[data-add-menu]');
   await expect(menu).toBeVisible();
-  await expect(menu.locator('[data-model-weight="open"]').first()).toContainText('Open');
-  await expect(menu.locator('[data-model-weight="frontier"]').first()).toContainText(
-    'Frontier',
-  );
+  await expect(menu.locator('[data-add-model-list] [data-weight-row-label]').first()).toBeVisible();
+  await expect(
+    menu
+      .locator('[data-add-model-list] [data-weight-row-label][data-weight-class="frontier"]')
+      .first(),
+  ).toContainText('Frontier API');
   const addList = menu.locator('[data-add-model-list]');
   await expect(addList.getByText('Llama 3.3 70B')).toHaveCount(0);
   await expect(addList.getByText('Qwen3.8 27B')).toHaveCount(0);
@@ -65,6 +67,12 @@ test('author adds a Challenger to a published Comparison', async ({ page, browse
   await expect(deepseek).toContainText(/~\d+s/);
   await deepseek.click();
   await expect(menu).toBeHidden();
+
+  // The header chip follows the newly active Challenger: Light -> Heavy.
+  const challengerChip = page.locator('[data-weight-chip]').nth(1);
+  await expect(challengerChip).toHaveAttribute('data-weight-class', 'heavy');
+  await expect(challengerChip).toContainText('Heavy');
+  await expect(challengerChip).toContainText('208 GB');
 
   // The author sees the new response immediately; the reader only after it is done.
   await page.locator('[data-model-picker]').click();

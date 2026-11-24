@@ -1,10 +1,16 @@
 import Link from 'next/link';
-import { ChatCircle, Highlighter } from '@phosphor-icons/react/dist/ssr';
-import type { ComparisonCard as CardData } from '@owm/core/client';
-import { formatHandle, relativeTime } from '@owm/core/client';
+import {
+  ChatCircle,
+  Equals,
+  Highlighter,
+  Lightning,
+} from '@phosphor-icons/react/dist/ssr';
+import type { ComparisonCard as CardData, WeightClassKey } from '@owm/core/client';
+import { comparisonMatchup, formatHandle, relativeTime } from '@owm/core/client';
 import { Avatar } from './avatar';
 import { EffortGlyph } from './ui/effort-glyph';
 import { InitialsBadge } from './ui/initials-badge';
+import { WeightClassMark } from './ui/weight-class-mark';
 import { cn } from '@/lib/utils';
 
 const clampTitle = {
@@ -16,36 +22,43 @@ const clampTitle = {
 
 const clampPreview = {
   display: '-webkit-box',
-  WebkitLineClamp: 2,
+  WebkitLineClamp: 3,
   WebkitBoxOrient: 'vertical' as const,
   overflow: 'hidden',
 };
 
-function ModelPreviewRow({
+/**
+ * One side of the Board card's side-by-side preview. `weightClass` is omitted
+ * for the quiet placeholder column shown when a card has no Challenger; `null`
+ * is a real class (Frontier) and renders the cloud.
+ */
+function PreviewColumn({
   name,
   monogram,
   tone,
   snippet,
-  tag,
-  extra,
   placeholder,
+  weightClass,
+  runSizeGb,
+  extra,
 }: {
   name: string;
   monogram: string;
   tone: 'base' | 'neutral';
   snippet: string;
-  tag?: string;
-  extra?: string;
   placeholder: string;
+  weightClass?: WeightClassKey | null;
+  runSizeGb?: number | null;
+  extra?: string;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-[6px]">
-      <div className="flex min-w-0 items-center gap-2 text-[13px] text-neutral-200">
-        <InitialsBadge initials={monogram} size={20} tone={tone} />
+    <div className="flex min-w-0 flex-col gap-2 rounded-[var(--r-lg)] bg-bg p-3">
+      <div className="flex min-w-0 items-center gap-[6px] text-[12px] text-neutral-200">
+        <InitialsBadge initials={monogram} size={18} tone={tone} />
         <span className="min-w-0 truncate">{name}</span>
-        {tag ? (
-          <span className="flex-none rounded-[var(--r)] border border-accent-700 px-[5px] text-[10.5px] font-semibold uppercase leading-4 tracking-[0.08em] text-accent-200">
-            {tag}
+        {weightClass !== undefined ? (
+          <span className="flex-none text-neutral-400">
+            <WeightClassMark weightClass={weightClass} runSizeGb={runSizeGb ?? null} />
           </span>
         ) : null}
         {extra ? (
@@ -56,7 +69,7 @@ function ModelPreviewRow({
       </div>
       <div
         className={cn(
-          'text-[13.5px] leading-[1.6]',
+          'text-[13px] leading-[1.6]',
           snippet ? 'text-neutral-300' : 'italic text-neutral-500',
         )}
         style={clampPreview}
@@ -72,7 +85,7 @@ function ModelPreviewRow({
  * comparison. `href` makes the whole card a link; omit it for the preview.
  *
  * Optional preview props:
- * - `preview` (default true) renders the Base/Challenger excerpt block.
+ * - `preview` (default true) renders the side-by-side Base/Challenger excerpt block.
  * - `draft` renders a "Draft" footer instead of the relative publish time.
  * - `now` is the shared clock for relative times.
  */
@@ -96,6 +109,7 @@ export function ComparisonCardView({
   draft?: boolean;
 }) {
   const [base, challenger, ...rest] = card.models;
+  const matchup = comparisonMatchup(card.models);
   const effortLabel = ['Low', 'Med', 'High'][Math.max(0, Math.min(2, card.effort - 1))];
 
   const content = (
@@ -123,24 +137,53 @@ export function ComparisonCardView({
         {card.headline}
       </div>
 
+      {matchup && (
+        <div className="-mt-[10px] flex min-w-0">
+          <span
+            data-matchup={matchup.kind}
+            title={matchup.title}
+            className={cn(
+              'inline-flex h-6 max-w-full items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-[var(--r)] text-[12.5px]',
+              matchup.kind === 'same'
+                ? 'border border-transparent bg-transparent font-normal text-accent-300'
+                : 'border border-accent-700 bg-accent-900 pl-2 pr-[9px] font-medium text-accent-200',
+            )}
+          >
+            {matchup.kind === 'same' ? (
+              <Equals size={13} aria-hidden className="flex-none" />
+            ) : (
+              <Lightning size={13} weight="fill" aria-hidden className="flex-none" />
+            )}
+            <span className="min-w-0 overflow-hidden text-ellipsis pr-px">
+              {matchup.label}
+            </span>
+          </span>
+        </div>
+      )}
+
       {preview && (
-        <div className="flex flex-1 flex-col gap-[14px]">
-          <ModelPreviewRow
-            name={base?.name ?? 'Base model'}
-            monogram={base?.monogram ?? '–'}
-            tone="base"
-            snippet={card.baseSnippet}
-            tag="BASE"
-            placeholder="Base output preview"
-          />
-          <ModelPreviewRow
-            name={challenger?.name ?? 'Compare to…'}
-            monogram={challenger?.monogram ?? '–'}
-            tone="neutral"
-            snippet={card.challengerSnippet}
-            extra={rest.length > 0 ? `+${rest.length} more` : undefined}
-            placeholder="Generated after scheduling"
-          />
+        <div className="flex flex-1 flex-col gap-[10px]">
+          <div className="grid grid-cols-2 gap-3">
+            <PreviewColumn
+              name={base?.name ?? 'Base model'}
+              monogram={base?.monogram ?? '–'}
+              tone="base"
+              snippet={card.baseSnippet}
+              placeholder="Base output preview"
+              weightClass={base?.weightClass}
+              runSizeGb={base?.runSizeGb}
+            />
+            <PreviewColumn
+              name={challenger?.name ?? 'Compare to…'}
+              monogram={challenger?.monogram ?? '–'}
+              tone="neutral"
+              snippet={card.challengerSnippet}
+              placeholder="Generated after scheduling"
+              weightClass={challenger?.weightClass}
+              runSizeGb={challenger?.runSizeGb}
+              extra={rest.length > 0 ? `+${rest.length} more` : undefined}
+            />
+          </div>
         </div>
       )}
 

@@ -16,7 +16,6 @@ import {
   groupModelsByClass,
   isPendingResponse,
   modelMatchesQuery,
-  modelWeightShortLabel,
   weightClassLabel,
 } from '@owm/core/client';
 import { cn } from '@/lib/utils';
@@ -24,6 +23,10 @@ import { InitialsBadge } from '../ui/initials-badge';
 import { MicroLabel } from '../ui/micro-label';
 import { POPOVER_SURFACE } from '../ui/popover-surface';
 import type { AddableModel, ComparisonResponseView } from './types';
+import {
+  ComparisonWeightClassChip,
+  WeightClassRowLabel,
+} from './weight-class-chip';
 
 export type ModelPickerProps = {
   active: ComparisonResponseView | null;
@@ -162,7 +165,7 @@ export function ModelPicker({
             }}
             className={cn(
               POPOVER_SURFACE,
-              'z-40 max-h-[calc(100vh-120px)] w-[min(290px,calc(100vw-32px))] gap-0.5 overflow-y-auto p-1.5',
+              'z-40 max-h-[calc(100vh-120px)] w-[min(340px,calc(100vw-32px))] gap-0.5 overflow-y-auto p-1.5',
             )}
           >
             {confirming ? (
@@ -239,6 +242,10 @@ export function ModelPicker({
                         <span className="min-w-0 flex-1 truncate">
                           {response.model.name}
                         </span>
+                        <WeightClassRowLabel
+                          weightClass={response.model.weightClass}
+                          runSizeGb={response.model.runSizeGb}
+                        />
                         {rowPending || inProgress ? (
                           <CircleNotch
                             size={12}
@@ -322,19 +329,10 @@ export function ModelPicker({
                               <span className="min-w-0 flex-1 truncate">
                                 {model.displayName}
                               </span>
-                              <span
-                                data-model-weight={
-                                  model.openWeights ? 'open' : 'frontier'
-                                }
-                                className={cn(
-                                  'flex-none rounded-[var(--r)] border px-1 py-px text-[10.5px] font-medium leading-none',
-                                  model.openWeights
-                                    ? 'border-neutral-600 text-neutral-400'
-                                    : 'border-accent-700 text-accent-200',
-                                )}
-                              >
-                                {modelWeightShortLabel(model.openWeights)}
-                              </span>
+                              <WeightClassRowLabel
+                                weightClass={model.weightClass}
+                                runSizeGb={model.runSizeGb}
+                              />
                               <span className="flex-none text-[12px] font-normal text-neutral-400">
                                 {addingModelId === model.id
                                   ? 'Adding…'
@@ -367,6 +365,14 @@ export function ModelPicker({
         </Popover.Portal>
       </Popover.Root>
 
+      {active && (
+        <span className="hidden min-[560px]:inline-flex">
+          <ComparisonWeightClassChip
+            weightClass={active.model.weightClass}
+            runSizeGb={active.model.runSizeGb}
+          />
+        </span>
+      )}
       <span className="hidden shrink-0 whitespace-nowrap text-[12px] text-neutral-400 min-[560px]:inline">
         {challengers.length} {challengers.length === 1 ? 'response' : 'responses'}
       </span>
