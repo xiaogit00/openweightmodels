@@ -43,6 +43,13 @@
   --color-danger: #f87171;
   --color-danger-surface: #2b1412;
 
+  /* The Board card's weight-matchup tag. Light mode keeps a fainter fill and
+     muted text; its text is #8d5f5c because the specified #a57471 measured
+     3.62:1 on that fill, below the 4.5:1 the contrast and a11y tests require. */
+  --color-matchup-fill: #17240b;
+  --color-matchup-border: #3f6212;
+  --color-matchup-text: #d9f99d;
+
   --code-bg: #141715;
   --code-fg: #d4d6d4;
   --on-accent: #0a0c0b;
@@ -90,6 +97,10 @@
     --color-danger: #b42318;
     --color-danger-surface: #fdecea;
 
+    --color-matchup-fill: #fdeeec2b;
+    --color-matchup-border: #f6bdb8;
+    --color-matchup-text: #8d5f5c;
+
     --code-bg: #091a23;
     --code-fg: #e6ebee;
     --on-accent: #ffffff;
@@ -132,6 +143,10 @@
 
   --color-danger: #b42318;
   --color-danger-surface: #fdecea;
+
+  --color-matchup-fill: #fdeeec2b;
+  --color-matchup-border: #f6bdb8;
+  --color-matchup-text: #8d5f5c;
 
   --code-bg: #091a23;
   --code-fg: #e6ebee;
@@ -177,6 +192,10 @@
 
   --color-danger: var(--color-danger);
   --color-danger-surface: var(--color-danger-surface);
+
+  --color-matchup-fill: var(--color-matchup-fill);
+  --color-matchup-border: var(--color-matchup-border);
+  --color-matchup-text: var(--color-matchup-text);
   --color-code-bg: var(--code-bg);
   --color-code-fg: var(--code-fg);
   --color-on-accent: var(--on-accent);

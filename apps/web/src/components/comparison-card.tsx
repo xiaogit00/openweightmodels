@@ -149,12 +149,7 @@ export function ComparisonCardView({
           <span
             data-matchup={matchup.kind}
             title={matchup.title}
-            className={cn(
-              'inline-flex h-6 max-w-full items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-[var(--r)] text-[11.5px]',
-              matchup.kind === 'same'
-                ? 'border border-transparent bg-transparent font-normal text-accent-300'
-                : 'border border-accent-700 bg-accent-900 pl-2 pr-[9px] font-medium text-accent-200',
-            )}
+            className="inline-flex h-6 max-w-full items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-[var(--r)] border border-matchup-border bg-matchup-fill pl-2 pr-[9px] text-[11.5px] font-medium text-matchup-text"
           >
             {matchup.kind === 'same' ? (
               <Equals size={13} aria-hidden className="flex-none" />
