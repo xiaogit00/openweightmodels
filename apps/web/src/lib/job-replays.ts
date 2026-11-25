@@ -4,6 +4,7 @@ export type ReplayState = {
   key: string;
   modelName: string;
   monogram: string;
+  avatarUrl: string | null;
   runs: JobRunState[];
   turnNumber: number;
   turnCount: number;
@@ -56,6 +57,7 @@ export function groupReplays(runs: JobRunState[]): ReplayState[] {
       key: modelId,
       modelName: first.modelName,
       monogram: first.monogram,
+      avatarUrl: first.avatarUrl,
       runs: ordered,
       turnNumber: current.turnNumber,
       turnCount: first.turnCount,

@@ -34,6 +34,13 @@ for (const theme of THEMES) {
       await expect(
         card.locator('[title="Light weight · 32 GB to run at 4-bit"]'),
       ).toBeVisible();
+      // The class glyph is named in text beside it, not only in the tooltip.
+      await expect(
+        card.locator('[title="Middle weight · 64 GB to run at 4-bit"]'),
+      ).toContainText('Middle');
+      await expect(
+        card.locator('[title="Light weight · 32 GB to run at 4-bit"]'),
+      ).toContainText('Light');
 
       // Base + two extra Challengers cross from Middle to Light.
       const matchup = card.locator('[data-matchup="across"]');
@@ -60,6 +67,7 @@ for (const theme of THEMES) {
         'Same weight class: both models are Fly weight',
       );
       await expect(sameCard.locator('[data-size-glyph]')).toHaveCount(2);
+      await expect(sameCard.getByTitle(/^Fly weight/).first()).toContainText('Fly');
     });
   });
 }

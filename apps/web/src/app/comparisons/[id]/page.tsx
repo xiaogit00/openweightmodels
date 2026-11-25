@@ -64,6 +64,7 @@ export default async function ComparisonPage({
         slug: model.slug,
         displayName: model.displayName,
         monogram: model.monogram,
+        avatarUrl: model.avatarUrl,
         etaSeconds: model.etaSeconds,
         publisher: model.publisher,
         openWeights: model.openWeights,

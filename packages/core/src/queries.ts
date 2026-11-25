@@ -65,6 +65,8 @@ export type ModelRow = typeof models.$inferSelect;
 export type ModelRowWithMetadata = ModelRow & {
   family: string;
   publisher: string;
+  /** Locally stored provider/family mark; `null` for pre-registry rows. */
+  avatarUrl: string | null;
   weightClass: WeightClassKey | null;
   runSizeGb: number | null;
   totalParams: string | null;
@@ -193,6 +195,7 @@ export function cardModelFromRow(row: ModelRow): CardModel {
     slug: model.slug,
     name: model.displayName,
     monogram: model.monogram,
+    avatarUrl: model.avatarUrl,
     weightClass: model.weightClass,
     runSizeGb: model.runSizeGb,
   };
@@ -761,7 +764,7 @@ export type JobBundle = {
   comparison: ComparisonRow;
   author: PublicUser;
   /** Identity only; the Job page does not show class or Run size. */
-  baseModel: Pick<CardModel, 'id' | 'slug' | 'name' | 'monogram'> | null;
+  baseModel: Pick<CardModel, 'id' | 'slug' | 'name' | 'monogram' | 'avatarUrl'> | null;
   categories: CategoryRef[];
   baseSnippet: string;
   challengerSnippet: string;
@@ -848,6 +851,7 @@ export async function getJobForAuthor(
           slug: baseModelRow.slug,
           name: baseModelRow.displayName,
           monogram: baseModelRow.monogram,
+          avatarUrl: attachModelMetadata(baseModelRow).avatarUrl,
         }
       : null,
     categories,
@@ -859,11 +863,13 @@ export async function getJobForAuthor(
     runs: orderedRuns.map((response) => {
       const model = modelMap.get(response.modelId);
       const turn = turnMap.get(response.turnId);
+      const withMetadata = model ? attachModelMetadata(model) : null;
       return {
         id: response.id,
         modelId: response.modelId,
         modelName: model?.displayName ?? 'Unknown model',
         monogram: model?.monogram ?? '??',
+        avatarUrl: withMetadata?.avatarUrl ?? null,
         status: response.status,
         tokens: response.tokens,
         latencyMs: response.latencyMs,
@@ -930,6 +936,7 @@ export function attachModelMetadata(row: ModelRow): ModelRowWithMetadata {
     ...row,
     family: entry?.family ?? row.slug,
     publisher: entry?.publisher ?? 'Unknown',
+    avatarUrl: entry?.avatarUrl ?? null,
     weightClass: entry?.weightClass ?? null,
     runSizeGb: entry?.runSizeGb ?? null,
     totalParams: entry?.totalParams ?? null,

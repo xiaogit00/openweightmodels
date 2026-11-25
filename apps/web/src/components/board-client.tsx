@@ -53,6 +53,7 @@ type BoardModel = {
   slug: string;
   displayName: string;
   monogram: string;
+  avatarUrl: string | null;
   etaSeconds: number;
 } & WeightClassMetadata;
 

@@ -116,6 +116,7 @@ export type CardModel = {
   slug: string;
   name: string;
   monogram: string;
+  avatarUrl: string | null;
 } & WeightClassMetadata;
 
 export type ComparisonCard = {
@@ -171,6 +172,7 @@ export type JobRunState = {
   modelId: string;
   modelName: string;
   monogram: string;
+  avatarUrl: string | null;
   status: ResponseStatus;
   tokens: number;
   latencyMs: number | null;

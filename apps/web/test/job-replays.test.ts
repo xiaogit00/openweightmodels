@@ -13,6 +13,7 @@ function run(
     modelId,
     modelName: `Model ${modelId}`,
     monogram: 'MM',
+    avatarUrl: null,
     status,
     tokens: 10 * turnNumber,
     latencyMs: status === 'done' ? 1000 : null,

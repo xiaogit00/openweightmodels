@@ -62,6 +62,7 @@ export default async function BoardPage({
         slug: model.slug,
         displayName: model.displayName,
         monogram: model.monogram,
+        avatarUrl: model.avatarUrl,
         etaSeconds: model.etaSeconds,
         weightClass: model.weightClass,
         runSizeGb: model.runSizeGb,

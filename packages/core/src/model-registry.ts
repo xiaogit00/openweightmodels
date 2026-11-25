@@ -5,6 +5,11 @@ export type ModelRegistryEntry = {
   slug: string;
   displayName: string;
   monogram: string;
+  /**
+   * Public path to the Model's provider/family mark. Icons are stored locally
+   * under `apps/web/public/model-icons` so cards never hotlink a third party.
+   */
+  avatarUrl: string;
   /** The lab or vendor that published the Model, shown on a card. */
   publisher: string;
   provider: string;
@@ -29,6 +34,7 @@ export type ModelRegistryProblem =
   | { code: 'duplicate_slug'; slug: string }
   | { code: 'duplicate_api_model_id'; apiModelId: string }
   | { code: 'missing_monogram'; slug: string }
+  | { code: 'missing_avatar'; slug: string }
   | { code: 'missing_publisher'; slug: string }
   | { code: 'invalid_eta'; slug: string }
   | { code: 'missing_weight_class'; slug: string }
@@ -53,6 +59,45 @@ type EntryIdentity = Pick<
 
 const OPENROUTER = 'https://openrouter.ai/api/v1';
 
+/**
+ * The most specific local mark for each Model family. Several families share a
+ * publisher mark (`llama` and `muse` use Meta, `gpt` and `gpt-oss` use OpenAI)
+ * because no separate family logo is available. Files live in
+ * `apps/web/public/model-icons`; the source of each is recorded in that
+ * directory's README.
+ */
+export const MODEL_FAMILY_AVATARS: Readonly<Record<string, string>> = {
+  llama: '/model-icons/meta.svg',
+  muse: '/model-icons/meta.svg',
+  ministral: '/model-icons/mistral.svg',
+  mistral: '/model-icons/mistral.svg',
+  qwen: '/model-icons/qwen.svg',
+  'gpt-oss': '/model-icons/openai.svg',
+  gpt: '/model-icons/openai.svg',
+  phi: '/model-icons/microsoft.svg',
+  gemma: '/model-icons/gemma.svg',
+  nemotron: '/model-icons/nvidia.svg',
+  glm: '/model-icons/zhipu.svg',
+  minimax: '/model-icons/minimax.svg',
+  inkling: '/model-icons/thinking-machines.svg',
+  deepseek: '/model-icons/deepseek.svg',
+  hy: '/model-icons/hunyuan.svg',
+  mimo: '/model-icons/xiaomimimo.svg',
+  kimi: '/model-icons/kimi.svg',
+  claude: '/model-icons/claude.svg',
+  gemini: '/model-icons/gemini.svg',
+  grok: '/model-icons/grok.svg',
+  command: '/model-icons/cohere.svg',
+};
+
+function avatarForFamily(family: string): string {
+  const avatarUrl = MODEL_FAMILY_AVATARS[family];
+  if (!avatarUrl) {
+    throw new Error(`No Model icon is mapped for family "${family}"`);
+  }
+  return avatarUrl;
+}
+
 function openWeight(
   entry: EntryIdentity & {
     weightClass: WeightClassKey;
@@ -63,6 +108,7 @@ function openWeight(
 ): ModelRegistryEntry {
   return {
     ...entry,
+    avatarUrl: avatarForFamily(entry.family),
     openWeights: true,
     activeParams: entry.activeParams ?? null,
   };
@@ -71,6 +117,7 @@ function openWeight(
 function frontier(entry: EntryIdentity): ModelRegistryEntry {
   return {
     ...entry,
+    avatarUrl: avatarForFamily(entry.family),
     openWeights: false,
     weightClass: null,
     runSizeGb: null,
@@ -827,6 +874,9 @@ export function validateModelRegistry(
     if (!entry.monogram.trim()) {
       problems.push({ code: 'missing_monogram', slug: entry.slug });
     }
+    if (!entry.avatarUrl.trim()) {
+      problems.push({ code: 'missing_avatar', slug: entry.slug });
+    }
     if (!entry.publisher.trim()) {
       problems.push({ code: 'missing_publisher', slug: entry.slug });
     }
@@ -884,12 +934,14 @@ assertModelRegistryValid();
 
 /**
  * Database rows carry only callable identity. Weight class, Run size, parameter
- * counts, publisher and family stay in the registry and are re-attached by
- * slug at read time, so a reclassification relabels history without a migration.
+ * counts, publisher, family and the Model's icon stay in the registry and are
+ * re-attached by slug at read time, so a reclassification or a new logo
+ * relabels history without a migration.
  */
 export function modelRegistryRows() {
   return MODEL_REGISTRY.map(
     ({
+      avatarUrl: _avatarUrl,
       family: _family,
       publisher: _publisher,
       weightClass: _weightClass,

@@ -5,8 +5,8 @@ import { isPendingResponse } from '@owm/core/client';
 import type { AnnotationView, Block } from '@owm/core/client';
 import { cn } from '@/lib/utils';
 import { MarkdownView } from '../markdown-view';
-import { InitialsBadge } from '../ui/initials-badge';
 import { MicroLabel } from '../ui/micro-label';
+import { ModelIcon } from '../ui/model-icon';
 import { ModelPicker, type ModelPickerProps } from './model-picker';
 import { GeneratingState, TurnStateLine } from './turn-state';
 import { ComparisonWeightClassChip } from './weight-class-chip';
@@ -75,7 +75,7 @@ type CellProps = {
   index: number;
   multiTurn: boolean;
   response: ComparisonResponseView | null | undefined;
-  fallback: { name: string; monogram: string };
+  fallback: { name: string; monogram: string; avatarUrl: string | null };
   annOn: boolean;
   kind: string;
   annotations: AnnotationView[];
@@ -117,6 +117,7 @@ function ResponseCell({
   const failed = response?.status === 'failed';
   const name = response?.model.name ?? fallback.name;
   const monogram = response?.model.monogram ?? fallback.monogram;
+  const avatarUrl = response?.model.avatarUrl ?? fallback.avatarUrl;
   const meta = turnMeta(response);
 
   return (
@@ -147,8 +148,9 @@ function ResponseCell({
 
       <div className="flex flex-col gap-3.5">
         <div className="flex items-center gap-2">
-          <InitialsBadge
-            initials={monogram}
+          <ModelIcon
+            avatarUrl={avatarUrl}
+            monogram={monogram}
             size={24}
             tone={side === 'base' ? 'base' : 'neutral'}
           />
@@ -325,7 +327,11 @@ export function ComparisonResponses({
                 index={index}
                 multiTurn={multiTurn}
                 response={turnBase}
-                fallback={{ name: baseName, monogram: baseModel.monogram }}
+                fallback={{
+                  name: baseName,
+                  monogram: baseModel.monogram,
+                  avatarUrl: baseModel.avatarUrl,
+                }}
                 annOn={annOn}
                 kind={kind}
                 annotations={annotations}
@@ -349,6 +355,7 @@ export function ComparisonResponses({
                 fallback={{
                   name: picker.active?.model.name ?? 'Challenger',
                   monogram: picker.active?.model.monogram ?? '--',
+                  avatarUrl: picker.active?.model.avatarUrl ?? null,
                 }}
                 annOn={annOn}
                 kind={kind}

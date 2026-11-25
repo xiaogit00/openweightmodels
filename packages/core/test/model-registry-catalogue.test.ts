@@ -16,6 +16,7 @@ const entry = (
   slug: 'test-model',
   displayName: 'Test Model',
   monogram: 'TM',
+  avatarUrl: '/model-icons/test.svg',
   publisher: 'Test Lab',
   provider: 'openrouter',
   apiModelId: 'test/model',
@@ -166,6 +167,7 @@ describe('curated Model registry catalogue', () => {
       expect(row).not.toHaveProperty('weightClass');
       expect(row).not.toHaveProperty('runSizeGb');
       expect(row).not.toHaveProperty('publisher');
+      expect(row).not.toHaveProperty('avatarUrl');
     }
   });
 
@@ -207,6 +209,14 @@ describe('curated Model registry catalogue', () => {
 
     expect(problems).toContainEqual({ code: 'missing_monogram', slug: 'no-monogram' });
     expect(problems).toContainEqual({ code: 'missing_publisher', slug: 'no-publisher' });
+  });
+
+  it('rejects a missing Model icon', () => {
+    const problems = validateModelRegistry([
+      entry({ slug: 'no-avatar', avatarUrl: '   ', apiModelId: 'a/one' }),
+    ]);
+
+    expect(problems).toContainEqual({ code: 'missing_avatar', slug: 'no-avatar' });
   });
 
   it('rejects an unparseable ETA', () => {

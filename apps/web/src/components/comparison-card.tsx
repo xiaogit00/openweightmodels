@@ -9,7 +9,7 @@ import type { ComparisonCard as CardData, WeightClassKey } from '@owm/core/clien
 import { comparisonMatchup, formatHandle, relativeTime } from '@owm/core/client';
 import { Avatar } from './avatar';
 import { EffortGlyph } from './ui/effort-glyph';
-import { InitialsBadge } from './ui/initials-badge';
+import { ModelIcon } from './ui/model-icon';
 import { WeightClassMark } from './ui/weight-class-mark';
 import { cn } from '@/lib/utils';
 
@@ -35,6 +35,7 @@ const clampPreview = {
 function PreviewColumn({
   name,
   monogram,
+  avatarUrl,
   tone,
   snippet,
   placeholder,
@@ -44,6 +45,7 @@ function PreviewColumn({
 }: {
   name: string;
   monogram: string;
+  avatarUrl: string | null;
   tone: 'base' | 'neutral';
   snippet: string;
   placeholder: string;
@@ -55,7 +57,7 @@ function PreviewColumn({
     <div className="flex min-w-0 flex-col gap-2 rounded-[var(--r-lg)] bg-bg p-3">
       <div className="flex min-w-0 flex-col gap-1">
         <div className="flex min-w-0 items-center gap-[6px] text-[12px] text-neutral-200">
-          <InitialsBadge initials={monogram} size={18} tone={tone} />
+          <ModelIcon avatarUrl={avatarUrl} monogram={monogram} size={18} tone={tone} />
           {/* Two lines rather than one: at the Board's 320px minimum the
               name gets barely a word per line once the badge is placed. */}
           <span data-model-name className="line-clamp-2 min-w-0 break-words">
@@ -67,7 +69,11 @@ function PreviewColumn({
             when empty so the two columns keep their names and snippets aligned. */}
         <div className="flex min-h-4 min-w-0 items-center gap-[6px] text-[11px] leading-none text-neutral-400">
           {weightClass !== undefined ? (
-            <WeightClassMark weightClass={weightClass} runSizeGb={runSizeGb ?? null} />
+            <WeightClassMark
+              weightClass={weightClass}
+              runSizeGb={runSizeGb ?? null}
+              showLabel
+            />
           ) : null}
           {extra ? (
             <span className="min-w-0 truncate whitespace-nowrap">{extra}</span>
@@ -169,6 +175,7 @@ export function ComparisonCardView({
             <PreviewColumn
               name={base?.name ?? 'Base model'}
               monogram={base?.monogram ?? '–'}
+              avatarUrl={base?.avatarUrl ?? null}
               tone="base"
               snippet={card.baseSnippet}
               placeholder="Base output preview"
@@ -178,6 +185,7 @@ export function ComparisonCardView({
             <PreviewColumn
               name={challenger?.name ?? 'Compare to…'}
               monogram={challenger?.monogram ?? '–'}
+              avatarUrl={challenger?.avatarUrl ?? null}
               tone="neutral"
               snippet={card.challengerSnippet}
               placeholder="Generated after scheduling"

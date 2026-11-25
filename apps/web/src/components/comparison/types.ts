@@ -22,7 +22,12 @@ export type ComparisonPageData = {
     authorId: string;
   };
   author: PublicUser;
-  baseModel: { slug: string; name: string; monogram: string } & WeightClassMetadata;
+  baseModel: {
+    slug: string;
+    name: string;
+    monogram: string;
+    avatarUrl: string | null;
+  } & WeightClassMetadata;
   responses: ComparisonResponseView[];
   annotations: AnnotationView[];
   comments: CommentView[];
@@ -32,6 +37,7 @@ export type ComparisonPageData = {
       slug: string;
       displayName: string;
       monogram: string;
+      avatarUrl: string | null;
       etaSeconds: number;
       publisher: string;
       openWeights: boolean;

@@ -11,6 +11,7 @@ export async function GET() {
       slug: model.slug,
       name: model.displayName,
       monogram: model.monogram,
+      avatarUrl: model.avatarUrl,
       etaSeconds: model.etaSeconds,
       provider: model.provider,
       publisher: model.publisher,

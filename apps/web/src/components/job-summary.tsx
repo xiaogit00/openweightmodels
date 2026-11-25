@@ -25,7 +25,7 @@ import {
 import { SiteHeader } from './site-header';
 import { ComparisonPreview } from './comparison-preview';
 import { Chip } from './ui/chip';
-import { InitialsBadge } from './ui/initials-badge';
+import { ModelIcon } from './ui/model-icon';
 import { groupReplays, type ReplayState } from '@/lib/job-replays';
 import { isResponseStatus, responseErrorMessage, type JobStreamEvent } from '@/lib/run-events';
 import { cn } from '@/lib/utils';
@@ -55,7 +55,7 @@ export type JobView = {
     status: ComparisonStatus;
   };
   authorHandle: string;
-  baseModel: { name: string; monogram: string } | null;
+  baseModel: { name: string; monogram: string; avatarUrl: string | null } | null;
   baseSnippet: string;
   challengerSnippet: string;
   runs: JobRunState[];
@@ -409,7 +409,11 @@ export function JobSummary({ view }: { view: JobView }) {
                   className="flex flex-col gap-2.5 border-b border-neutral-800 px-5 py-4 last:border-b-0"
                 >
                   <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
-                    <InitialsBadge initials={replay.monogram} size={22} />
+                    <ModelIcon
+                      avatarUrl={replay.avatarUrl}
+                      monogram={replay.monogram}
+                      size={22}
+                    />
                     <span className="min-w-0 max-w-full truncate text-[13.5px] font-medium text-text">
                       {replay.modelName}
                     </span>
@@ -547,6 +551,7 @@ export function JobSummary({ view }: { view: JobView }) {
           challengers={replays.map((replay) => ({
             name: replay.modelName,
             monogram: replay.monogram,
+            avatarUrl: replay.avatarUrl,
           }))}
           title={view.comparison.title}
           categories={view.comparison.categories}

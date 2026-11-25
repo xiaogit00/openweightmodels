@@ -19,8 +19,8 @@ import {
   weightClassLabel,
 } from '@owm/core/client';
 import { cn } from '@/lib/utils';
-import { InitialsBadge } from '../ui/initials-badge';
 import { MicroLabel } from '../ui/micro-label';
+import { ModelIcon } from '../ui/model-icon';
 import { POPOVER_SURFACE } from '../ui/popover-surface';
 import type { AddableModel, ComparisonResponseView } from './types';
 import {
@@ -172,7 +172,11 @@ export function ModelPicker({
               <>
                 <MicroLabel className="px-2 pb-1 pt-1.5">Compare every turn</MicroLabel>
                 <span className="flex items-center gap-2 px-2 pb-1 text-[13px] font-medium text-text">
-                  <InitialsBadge initials={confirming.monogram} size={20} />
+                  <ModelIcon
+                    avatarUrl={confirming.avatarUrl}
+                    monogram={confirming.monogram}
+                    size={20}
+                  />
                   {confirming.displayName}
                 </span>
                 <span
@@ -238,7 +242,11 @@ export function ModelPicker({
                           isActive ? 'bg-neutral-800' : 'hover:bg-neutral-800',
                         )}
                       >
-                        <InitialsBadge initials={response.model.monogram} size={20} />
+                        <ModelIcon
+                          avatarUrl={response.model.avatarUrl}
+                          monogram={response.model.monogram}
+                          size={20}
+                        />
                         <span className="min-w-0 flex-1 truncate">
                           {response.model.name}
                         </span>

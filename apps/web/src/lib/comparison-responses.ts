@@ -20,7 +20,12 @@ export type ComparisonResponseView = {
   latencyMs: number | null;
   status: ResponseStatus;
   error: string | null;
-  model: { slug: string; name: string; monogram: string } & WeightClassMetadata;
+  model: {
+    slug: string;
+    name: string;
+    monogram: string;
+    avatarUrl: string | null;
+  } & WeightClassMetadata;
   turn: { id: string; position: number; prompt: string };
   blocks: Block[];
 };
@@ -64,12 +69,14 @@ export function toResponseViewModel(
     slug: string;
     displayName: string;
     monogram: string;
+    avatarUrl: string | null;
   } & WeightClassMetadata,
 ): ComparisonResponseView['model'] {
   return {
     slug: model.slug,
     name: model.displayName,
     monogram: model.monogram,
+    avatarUrl: model.avatarUrl,
     weightClass: model.weightClass,
     runSizeGb: model.runSizeGb,
   };

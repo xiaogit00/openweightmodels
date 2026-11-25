@@ -56,9 +56,9 @@ import { CategoryPicker, categorySelection } from './category-picker';
 import { ComparisonPreview } from './comparison-preview';
 import { HowToGetThisFile } from './how-to-get-this-file';
 import { EffortGlyph } from './ui/effort-glyph';
-import { InitialsBadge } from './ui/initials-badge';
 import { MemoryBar } from './ui/memory-bar';
 import { MicroLabel } from './ui/micro-label';
+import { ModelIcon } from './ui/model-icon';
 import { SegmentedControl } from './ui/segmented-control';
 import { SizeGlyph } from './ui/size-glyph';
 import { EXPORT_GUIDE_PATH, LIMITS_LABEL } from '@/lib/export-guidance';
@@ -66,6 +66,7 @@ import { cn, plural } from '@/lib/utils';
 
 export type FormModel = SelectableModel & {
   monogram: string;
+  avatarUrl: string | null;
   provider: string;
   publisher: string;
   openWeights: boolean;
@@ -336,7 +337,12 @@ function BaseModelSelect({
           )}
         >
           {selected ? (
-            <InitialsBadge initials={selected.monogram} size={20} tone="base" />
+            <ModelIcon
+              avatarUrl={selected.avatarUrl}
+              monogram={selected.monogram}
+              size={20}
+              tone="base"
+            />
           ) : null}
           <span className="min-w-0 flex-1 truncate">
             {selected ? selected.displayName : 'Select model…'}
@@ -579,8 +585,9 @@ function ChallengerPicker({
               )}
             >
               <span className="flex w-full items-center gap-3">
-                <InitialsBadge
-                  initials={model.monogram}
+                <ModelIcon
+                  avatarUrl={model.avatarUrl}
+                  monogram={model.monogram}
                   size={28}
                   tone={selected ? 'base' : 'neutral'}
                   className={
@@ -710,7 +717,12 @@ function ChallengerPicker({
                 data-weight-class={model.weightClass ?? 'frontier'}
                 className="flex h-8 items-center gap-2 rounded-xs border border-accent-700 bg-accent-900 py-0 pl-1.5 pr-2 text-[13px] font-medium text-text transition-colors hover:border-accent-500"
               >
-                <InitialsBadge initials={model.monogram} size={20} tone="base" />
+                <ModelIcon
+                  avatarUrl={model.avatarUrl}
+                  monogram={model.monogram}
+                  size={20}
+                  tone="base"
+                />
                 <span className="max-w-[180px] truncate">{model.displayName}</span>
                 {model.weightClass && (
                   <>
@@ -1392,12 +1404,17 @@ export function NewComparisonClient({
           className="shrink grow basis-[280px] max-w-[360px] lg:top-[93px]"
           base={
             baseModel
-              ? { name: baseModel.displayName, monogram: baseModel.monogram }
+              ? {
+                  name: baseModel.displayName,
+                  monogram: baseModel.monogram,
+                  avatarUrl: baseModel.avatarUrl,
+                }
               : null
           }
           challengers={pickedModels.map((model) => ({
             name: model.displayName,
             monogram: model.monogram,
+            avatarUrl: model.avatarUrl,
           }))}
           title={title}
           categories={selectedCategories}

@@ -35,7 +35,11 @@ export default async function ComparisonJobPage({
     },
     authorHandle: bundle.author.handle,
     baseModel: bundle.baseModel
-      ? { name: bundle.baseModel.name, monogram: bundle.baseModel.monogram }
+      ? {
+          name: bundle.baseModel.name,
+          monogram: bundle.baseModel.monogram,
+          avatarUrl: bundle.baseModel.avatarUrl,
+        }
       : null,
     baseSnippet: bundle.baseSnippet,
     challengerSnippet: bundle.challengerSnippet,

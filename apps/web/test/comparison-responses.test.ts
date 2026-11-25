@@ -13,7 +13,14 @@ function response(
   return {
     isBase,
     status,
-    model: { slug, name: slug, monogram: 'MM', weightClass: null, runSizeGb: null },
+    model: {
+      slug,
+      name: slug,
+      monogram: 'MM',
+      avatarUrl: null,
+      weightClass: null,
+      runSizeGb: null,
+    },
   };
 }
 

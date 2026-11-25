@@ -3,11 +3,13 @@ import { Chip } from './ui/chip';
 import { EffortGlyph } from './ui/effort-glyph';
 import { InitialsBadge } from './ui/initials-badge';
 import { MicroLabel } from './ui/micro-label';
+import { ModelIcon } from './ui/model-icon';
 import { cn, initials } from '@/lib/utils';
 
 export type PreviewModel = {
   name: string;
   monogram: string;
+  avatarUrl: string | null;
 };
 
 /**
@@ -90,8 +92,9 @@ export function ComparisonPreview({
         <div className="flex flex-col gap-3.5">
           <div className="flex flex-col gap-1.5">
             <div className="flex min-w-0 items-center gap-2 text-[13px] text-neutral-200">
-              <InitialsBadge
-                initials={base?.monogram ?? '–'}
+              <ModelIcon
+                avatarUrl={base?.avatarUrl}
+                monogram={base?.monogram ?? '–'}
                 size={20}
                 tone="base"
               />
@@ -107,7 +110,11 @@ export function ComparisonPreview({
 
           <div className="flex flex-col gap-1.5">
             <div className="flex min-w-0 items-center gap-2 text-[13px] text-neutral-200">
-              <InitialsBadge initials={first?.monogram ?? '–'} size={20} />
+              <ModelIcon
+                avatarUrl={first?.avatarUrl}
+                monogram={first?.monogram ?? '–'}
+                size={20}
+              />
               <span className="truncate">{first?.name ?? 'Compare to…'}</span>
               {rest.length > 0 && (
                 <span className="flex-none whitespace-nowrap text-[12px] font-normal text-neutral-400">
