@@ -21,3 +21,4 @@
 ## Comments
 
 - 2026-11-24 — Designed via `/grill-with-docs` against `design_handoff_weight_class_board/`. Decisions: adopt side-by-side as the default and drop the stacked layout (reverses `design_handoff_redesign`; ADR 0014); the matchup compares every Model on the card rather than the handoff's Base + first Challenger, so a hidden mismatch cannot read as "Same weight"; Frontier pairs show the quiet tag with `API`. Glyph is decorative and the tag carries text, so neither relies on colour alone.
+- 2026-11-25 — Post-redesign fix: the class mark and the Challenger's `+N more` moved to a second, 16px meta line below the name, and the name clamps to two lines instead of one. Sharing one row had left the Challenger's name 0px wide at 320 and 34px on the Board's three-column 1440 layout, so it read `Qwe…`. Names now take the column's full width beside the monogram; `data-model-name` plus a 320px e2e assertion guard that width.

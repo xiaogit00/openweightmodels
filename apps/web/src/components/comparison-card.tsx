@@ -53,19 +53,26 @@ function PreviewColumn({
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-2 rounded-[var(--r-lg)] bg-bg p-3">
-      <div className="flex min-w-0 items-center gap-[6px] text-[12px] text-neutral-200">
-        <InitialsBadge initials={monogram} size={18} tone={tone} />
-        <span className="min-w-0 truncate">{name}</span>
-        {weightClass !== undefined ? (
-          <span className="flex-none text-neutral-400">
+      <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex min-w-0 items-center gap-[6px] text-[12px] text-neutral-200">
+          <InitialsBadge initials={monogram} size={18} tone={tone} />
+          {/* Two lines rather than one: at the Board's 320px minimum the
+              name gets barely a word per line once the badge is placed. */}
+          <span data-model-name className="line-clamp-2 min-w-0 break-words">
+            {name}
+          </span>
+        </div>
+        {/* The class mark and the Challenger count sit on their own line so
+            neither competes with the name for width. The row is rendered even
+            when empty so the two columns keep their names and snippets aligned. */}
+        <div className="flex min-h-4 min-w-0 items-center gap-[6px] text-[11px] leading-none text-neutral-400">
+          {weightClass !== undefined ? (
             <WeightClassMark weightClass={weightClass} runSizeGb={runSizeGb ?? null} />
-          </span>
-        ) : null}
-        {extra ? (
-          <span className="flex-none whitespace-nowrap text-[12px] text-neutral-400">
-            {extra}
-          </span>
-        ) : null}
+          ) : null}
+          {extra ? (
+            <span className="min-w-0 truncate whitespace-nowrap">{extra}</span>
+          ) : null}
+        </div>
       </div>
       <div
         className={cn(
@@ -143,7 +150,7 @@ export function ComparisonCardView({
             data-matchup={matchup.kind}
             title={matchup.title}
             className={cn(
-              'inline-flex h-6 max-w-full items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-[var(--r)] text-[12.5px]',
+              'inline-flex h-6 max-w-full items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-[var(--r)] text-[11.5px]',
               matchup.kind === 'same'
                 ? 'border border-transparent bg-transparent font-normal text-accent-300'
                 : 'border border-accent-700 bg-accent-900 pl-2 pr-[9px] font-medium text-accent-200',

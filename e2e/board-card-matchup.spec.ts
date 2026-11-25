@@ -63,3 +63,25 @@ for (const theme of THEMES) {
     });
   });
 }
+
+test('model names keep room at the 320px card minimum', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto('/?q=Rate+limiter+in+Go');
+
+  const card = page.locator(CARD).first();
+  await expect(card).toBeVisible();
+
+  const names = card.locator('[data-model-name]');
+  await expect(names).toHaveCount(2);
+  await expect(names.nth(0)).toHaveText('Llama 3.3 70B');
+  await expect(names.nth(1)).toHaveText('Qwen3.8 27B');
+
+  // The class mark and the `+N more` count used to share the name row, which
+  // squeezed the Challenger's name to zero width. Each name now gets the
+  // column's width beside the monogram instead of competing for it.
+  for (const name of await names.all()) {
+    const box = await name.boundingBox();
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(48);
+  }
+  await expect(card.getByText('+2 more', { exact: true })).toBeVisible();
+});
