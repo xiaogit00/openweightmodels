@@ -175,6 +175,7 @@ Status: decisions accepted unless marked **OPEN** or **DEFERRED**.
 | 79 | "Ago" times refresh every minute | Handoff behaviour; the Board shares one minute tick across cards. |
 | 80 | Sidebar counts come from `GET /comparisons/facets`, loaded once and patched from publish events | Global counts must not shrink to the loaded page; a separate aggregate keeps page fetches cheap. |
 | 81 | A filter change refetches page one; `Load more` stays keyset-paginated | Filter/sort changes need the server's ordering, while scrolling must not re-read earlier pages. |
+| 82 | The Board's page heading is **"Latest Community Comparisons"**; the nav link stays "Board" | The heading says what the feed contains, while the shorter nav label stays a route name. |
 
 **Rejected**: local-only filter state; always inserting at the top; live Top reordering; no pagination; autoplaying ticker with no pause; non-shareable tab state; OR-across-groups filtering; body/Prompt search in v1; ranking by raw votes.
 

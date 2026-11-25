@@ -57,7 +57,7 @@ The Low/Med/High classification of how demanding a Prompt is.
 _Avoid_: difficulty, complexity
 
 **Board**:
-The public feed of published Comparisons.
+The public feed of published Comparisons. Its page heading reads "Latest Community Comparisons".
 _Avoid_: feed, home, index
 
 **Publish**:

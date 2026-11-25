@@ -1131,7 +1131,7 @@ export function BoardClient({
           <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
             <div className="flex flex-col gap-[6px]">
               <h1 className="font-heading text-[30px] font-medium leading-[1.15] tracking-[-0.02em]">
-                Board
+                Latest Community Comparisons
               </h1>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span aria-live="polite" className="text-[13px] text-neutral-300">

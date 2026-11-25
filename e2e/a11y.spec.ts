@@ -40,7 +40,9 @@ for (const colorScheme of ['dark', 'light'] as const) {
     test('Board', async ({ page }) => {
       await signInAs(page, 'mira');
       await page.goto('/');
-      await expect(page.getByRole('heading', { name: 'Board' })).toBeAttached();
+      await expect(
+        page.getByRole('heading', { name: 'Latest Community Comparisons' }),
+      ).toBeAttached();
       await expect(page.locator('main a.card').first()).toBeVisible();
       await expectNoSeriousViolations(page, `Board (${colorScheme})`);
     });
