@@ -126,6 +126,8 @@ variables:
 | `OWM_ALARM_EMAIL` | yes | — | Named owner for CloudWatch and budget alarms; the SNS email subscription |
 | `OWM_MONTHLY_BUDGET_USD` | no | `200` | AWS infrastructure budget (not model spend) |
 | `OWM_MONTHLY_SPEND_CAP_USD` | no | `100` | Absolute provider-spend ceiling per UTC month; `0` is rejected in staging |
+| `OWM_WEB_SEARCH` | no | `false` | Set `true` to run OpenRouter's web plugin before each challenger call; billed per search result |
+| `OWM_WEB_SEARCH_MAX_RESULTS` | no | `5` | Search results per call when `OWM_WEB_SEARCH` is on |
 | `OWM_SENTRY_DSN` | no | unset | Sentry-compatible error tracker; unset writes structured errors to logs only |
 | `OWM_GITHUB_REPO` | for `deploy:ci` | — | `owner/repository` allowed to assume the deploy role |
 | `OWM_GITHUB_BRANCH` | no | `main` | Branch allowed to deploy through OIDC |
@@ -423,6 +425,7 @@ In GitHub, create an Environment named `staging` and set:
 | variable | `OWM_HOSTED_ZONE_ID` / `OWM_HOSTED_ZONE_NAME` | Route 53 zone |
 | variable | `OWM_ALARM_EMAIL` | alarm owner |
 | variable | `OWM_MONTHLY_BUDGET_USD` / `OWM_MONTHLY_SPEND_CAP_USD` | ceilings |
+| variable | `OWM_WEB_SEARCH` / `OWM_WEB_SEARCH_MAX_RESULTS` | optional web search opt-in |
 | variable | `OWM_SES_IDENTITY`, `OWM_EMAIL_FROM`, `OWM_SIGNIN_ALLOWED_EMAILS` | mail and access |
 | secret | `OWM_SENTRY_DSN` | error tracker |
 
