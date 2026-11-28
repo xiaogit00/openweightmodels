@@ -34,7 +34,10 @@ Frontier Models have no Weight class and no Run size.
   copied from another registry. The open-weight catalogue was verified on
   **2026-11-23**: 29 of the 42 rows in the design's curated CSV resolved to a
   replayable Model and were added; the remaining thirteen were not. The eleven
-  open-weight Models the CSV omits are hand-curated entries.
+  open-weight Models the CSV omits are hand-curated entries. On **2026-11-28**,
+  Bonsai 2 27B, Inkling 2 Mini and Qwen3.8 Flash Next were added after the same
+  check; Qwen3.8 Flash Next had been unavailable on 2026-11-23 and is now served
+  as `qwen/qwen3.8-flash`.
 - **Repeating monograms are fine.** The initials tile is decoration beside the
   display name; identity is the slug. Only duplicate slugs and duplicate
   provider IDs are rejected.

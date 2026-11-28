@@ -80,6 +80,7 @@ export const MODEL_FAMILY_AVATARS: Readonly<Record<string, string>> = {
   glm: '/model-icons/zhipu.svg',
   minimax: '/model-icons/minimax.svg',
   inkling: '/model-icons/thinking-machines.svg',
+  bonsai: '/model-icons/prismml.svg',
   deepseek: '/model-icons/deepseek.svg',
   hy: '/model-icons/hunyuan.svg',
   mimo: '/model-icons/xiaomimimo.svg',
@@ -171,6 +172,20 @@ export const MODEL_REGISTRY: readonly ModelRegistryEntry[] = [
     weightClass: 'fly',
     runSizeGb: 6,
     totalParams: '3B',
+  }),
+  openWeight({
+    slug: 'bonsai-2-27b',
+    displayName: 'Bonsai 2 27B',
+    monogram: 'B2',
+    publisher: 'PrismML',
+    provider: 'openrouter',
+    apiModelId: 'prism-ml/ternary-bonsai-2-27b',
+    apiBase: OPENROUTER,
+    etaSeconds: 6,
+    family: 'bonsai',
+    weightClass: 'feather',
+    runSizeGb: 16,
+    totalParams: '27B',
   }),
 
   // Feather weight
@@ -347,6 +362,21 @@ export const MODEL_REGISTRY: readonly ModelRegistryEntry[] = [
     runSizeGb: 32,
     totalParams: '29.6B',
   }),
+  openWeight({
+    slug: 'inkling-2-mini',
+    displayName: 'Inkling 2 Mini',
+    monogram: 'I2',
+    publisher: 'Thinking Machines',
+    provider: 'openrouter',
+    apiModelId: 'thinkingmachines/inkling-2-mini',
+    apiBase: OPENROUTER,
+    etaSeconds: 8,
+    family: 'inkling',
+    weightClass: 'light',
+    runSizeGb: 32,
+    totalParams: '26.4B',
+    activeParams: '3.4B',
+  }),
 
   // Middle weight
   openWeight({
@@ -466,6 +496,21 @@ export const MODEL_REGISTRY: readonly ModelRegistryEntry[] = [
     weightClass: 'middle',
     runSizeGb: 104,
     totalParams: '128B',
+  }),
+  openWeight({
+    slug: 'qwen-3-8-flash-next',
+    displayName: 'Qwen3.8 Flash Next',
+    monogram: 'QF',
+    publisher: 'Alibaba',
+    provider: 'openrouter',
+    apiModelId: 'qwen/qwen3.8-flash',
+    apiBase: OPENROUTER,
+    etaSeconds: 7,
+    family: 'qwen',
+    weightClass: 'middle',
+    runSizeGb: 96,
+    totalParams: '125B',
+    activeParams: '6B',
   }),
 
   // Heavy weight

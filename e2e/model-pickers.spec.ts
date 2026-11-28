@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { createComparison, publishConversation, signInAs } from './support';
 
-const ENABLED_MODELS = 50;
+const ENABLED_MODELS = 53;
 
 test('the New Comparison pickers browse every Model by Weight class', async ({
   page,

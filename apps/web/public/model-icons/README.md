@@ -15,6 +15,7 @@ the tile inherits the current text color and works in both themes.
 | `zhipu.svg` | `glm` | LobeHub Icons |
 | `minimax.svg` | `minimax` | LobeHub Icons |
 | `thinking-machines.svg` | `inkling` | [models.dev](https://models.dev/logos/thinkingmachines.svg) |
+| `prismml.svg` | `bonsai` | [PrismML](https://prismml.com) Bonsai mark |
 | `deepseek.svg` | `deepseek` | LobeHub Icons |
 | `hunyuan.svg` | `hy` | LobeHub Icons |
 | `xiaomimimo.svg` | `mimo` | LobeHub Icons |

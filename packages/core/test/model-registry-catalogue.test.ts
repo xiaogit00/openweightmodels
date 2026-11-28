@@ -110,6 +110,44 @@ const VERIFIED_CSV: ReadonlyArray<{
   { slug: 'kimi-k3', weightClass: 'super-heavy', runSizeGb: 1548, totalParams: '2.8T' },
 ];
 
+/**
+ * Models verified against `https://openrouter.ai/api/v1/models` on 2026-11-28.
+ * Qwen3.8 Flash Next was listed in the design CSV as unavailable on
+ * 2026-11-23; it is served now under `qwen/qwen3.8-flash`.
+ */
+const VERIFIED_ADDITIONS: ReadonlyArray<{
+  slug: string;
+  apiModelId: string;
+  weightClass: WeightClassKey;
+  runSizeGb: number;
+  totalParams: string;
+  activeParams?: string;
+}> = [
+  {
+    slug: 'bonsai-2-27b',
+    apiModelId: 'prism-ml/ternary-bonsai-2-27b',
+    weightClass: 'feather',
+    runSizeGb: 16,
+    totalParams: '27B',
+  },
+  {
+    slug: 'inkling-2-mini',
+    apiModelId: 'thinkingmachines/inkling-2-mini',
+    weightClass: 'light',
+    runSizeGb: 32,
+    totalParams: '26.4B',
+    activeParams: '3.4B',
+  },
+  {
+    slug: 'qwen-3-8-flash-next',
+    apiModelId: 'qwen/qwen3.8-flash',
+    weightClass: 'middle',
+    runSizeGb: 96,
+    totalParams: '125B',
+    activeParams: '6B',
+  },
+];
+
 describe('curated Model registry catalogue', () => {
   it('is internally consistent', () => {
     expect(validateModelRegistry(MODEL_REGISTRY)).toEqual([]);
@@ -120,6 +158,20 @@ describe('curated Model registry catalogue', () => {
       const model = MODEL_REGISTRY.find((entry) => entry.slug === expected.slug);
       expect(model, expected.slug).toBeDefined();
       expect(model, expected.slug).toMatchObject({
+        weightClass: expected.weightClass,
+        runSizeGb: expected.runSizeGb,
+        totalParams: expected.totalParams,
+        activeParams: expected.activeParams ?? null,
+      });
+    }
+  });
+
+  it('adds the later verified Models with their curated class and Run size', () => {
+    for (const expected of VERIFIED_ADDITIONS) {
+      const model = MODEL_REGISTRY.find((entry) => entry.slug === expected.slug);
+      expect(model, expected.slug).toBeDefined();
+      expect(model, expected.slug).toMatchObject({
+        apiModelId: expected.apiModelId,
         weightClass: expected.weightClass,
         runSizeGb: expected.runSizeGb,
         totalParams: expected.totalParams,
