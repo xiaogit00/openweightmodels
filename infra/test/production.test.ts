@@ -62,6 +62,8 @@ function productionConfig(overrides: Partial<DeploymentConfig> = {}): Deployment
     alarmEmail: 'owner@example.com',
     monthlyBudgetUsd: 400,
     monthlySpendCapUsd: 100,
+    webSearch: false,
+    webSearchMaxResults: 5,
     githubRepo: 'owner/repo',
     githubBranch: 'main',
     ...overrides,

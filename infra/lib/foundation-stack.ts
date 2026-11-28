@@ -420,6 +420,14 @@ export class FoundationStack extends Stack {
         // Absolute monthly ceiling over provider-reported cost. The API checks
         // it before scheduling and processRun checks again before each call.
         MONTHLY_SPEND_CAP_USD: String(config.monthlySpendCapUsd),
+        // OpenRouter's web plugin is billed per result, so it stays off unless
+        // the deployment explicitly opts in. Every challenger gets the budget.
+        ...(config.webSearch
+          ? {
+              OPENROUTER_WEB_SEARCH: 'true',
+              OPENROUTER_WEB_SEARCH_MAX_RESULTS: String(config.webSearchMaxResults),
+            }
+          : {}),
         // One JSON line per minute; the Ops stack turns it into a metric.
         QUEUE_METRICS: 'true',
         SENTRY_RELEASE: config.imageTag,

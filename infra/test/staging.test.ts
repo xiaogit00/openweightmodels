@@ -61,6 +61,8 @@ function testConfig(overrides: Partial<DeploymentConfig> = {}): DeploymentConfig
     alarmEmail: 'owner@example.com',
     monthlyBudgetUsd: 200,
     monthlySpendCapUsd: 100,
+    webSearch: false,
+    webSearchMaxResults: 5,
     githubBranch: 'main',
     ...overrides,
   };
@@ -162,6 +164,7 @@ describe('staging foundation', () => {
 
     expect(envValue(workerContainer, 'PROVIDER')).toBe('openrouter');
     expect(envValue(workerContainer, 'WORKER_HEALTH_PORT')).toBe('3001');
+    expect(envValue(workerContainer, 'OPENROUTER_WEB_SEARCH')).toBeUndefined();
     const workerSecrets = (workerContainer.Secrets as Array<{ Name: string }>).map((s) => s.Name);
     expect(workerSecrets).toEqual(expect.arrayContaining(['DB_PASSWORD', 'OPENROUTER_API_KEY']));
     expect(workerSecrets).not.toContain('BETTER_AUTH_SECRET');
@@ -171,6 +174,23 @@ describe('staging foundation', () => {
       'packages/core/src/db/bootstrap.ts',
     ]);
     expect(envValue(migrateContainer, 'DATABASE_URL')).toBeUndefined();
+  });
+
+  it('enables OpenRouter web search on the worker only when the deployment opts in', () => {
+    const { foundation: enabled } = synth(
+      testConfig({ webSearch: true, webSearchMaxResults: 3 }),
+    );
+    const tasks = enabled.findResources('AWS::ECS::TaskDefinition');
+    const taskList = Object.values(tasks) as Array<Record<string, any>>;
+    const web = taskList.find((task) => task.Properties.Family === 'test-staging-web')!;
+    const worker = taskList.find((task) => task.Properties.Family === 'test-staging-worker')!;
+
+    expect(envValue(container(worker.Properties, 'worker'), 'OPENROUTER_WEB_SEARCH')).toBe('true');
+    expect(
+      envValue(container(worker.Properties, 'worker'), 'OPENROUTER_WEB_SEARCH_MAX_RESULTS'),
+    ).toBe('3');
+    // Only the worker calls a provider, so the web task never sees the flags.
+    expect(envValue(container(web.Properties, 'web'), 'OPENROUTER_WEB_SEARCH')).toBeUndefined();
   });
 
   it('forwards the sign-in allowlist to the web task only when configured', () => {
@@ -698,6 +718,8 @@ describe('deployment config', () => {
       alarmEmail: 'owner@example.com',
       monthlyBudgetUsd: 200,
       monthlySpendCapUsd: 100,
+      webSearch: false,
+      webSearchMaxResults: 5,
       githubBranch: 'main',
     });
 

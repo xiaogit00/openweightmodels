@@ -41,6 +41,33 @@ export const MAX_OUTPUT_TOKENS = 16_384;
 /** One provider call may stream for this long before it fails as a timeout. */
 export const PROVIDER_TIMEOUT_MS = 300_000;
 
+/**
+ * OpenRouter's `web` plugin runs a search before the model answers and folds
+ * the results into the prompt. It is opt-in because it is billed per search
+ * result, and every Challenger must receive the same search budget or the
+ * Comparison stops being fair.
+ */
+export const WEB_SEARCH_MAX_RESULTS = 5;
+
+/** True when the operator has opted into OpenRouter's server-side web search. */
+export function webSearchEnabled() {
+  return process.env.OPENROUTER_WEB_SEARCH === 'true';
+}
+
+/**
+ * The `plugins` array for OpenRouter's web search, or `null` when search is
+ * off or the Model is routed through another OpenAI-compatible provider.
+ */
+function webSearchPlugins(model: ModelRow) {
+  if (model.provider !== 'openrouter' || !webSearchEnabled()) return null;
+  const configured = Number(
+    process.env.OPENROUTER_WEB_SEARCH_MAX_RESULTS ?? WEB_SEARCH_MAX_RESULTS,
+  );
+  const maxResults =
+    Number.isInteger(configured) && configured > 0 ? configured : WEB_SEARCH_MAX_RESULTS;
+  return [{ id: 'web', max_results: maxResults }];
+}
+
 /** Remove a provider key from anything that may be logged or stored. */
 export function redactSecrets(value: string, secret: string) {
   return secret ? value.split(secret).join('[redacted]') : value;
@@ -253,6 +280,7 @@ export class OpenAICompatibleProvider implements Provider {
 
   async generate({ model, messages, onToken }: GenerateInput): Promise<GenerateResult> {
     const url = this.endpoint(model);
+    const plugins = webSearchPlugins(model);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
 
@@ -279,6 +307,7 @@ export class OpenAICompatibleProvider implements Provider {
           // OpenAI-compatible providers only include the usage block (tokens
           // and, on aggregators such as OpenRouter, cost) when asked.
           stream_options: { include_usage: true },
+          ...(plugins ? { plugins } : {}),
         }),
       });
 

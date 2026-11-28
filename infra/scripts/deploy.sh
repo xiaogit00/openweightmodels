@@ -24,6 +24,9 @@
 #   OWM_ALARM_EMAIL   required; the named owner of CloudWatch and budget alarms
 #   OWM_MONTHLY_BUDGET_USD     AWS infrastructure budget (defaults to 200)
 #   OWM_MONTHLY_SPEND_CAP_USD  provider-spend ceiling (defaults to 100)
+#   OWM_WEB_SEARCH    true to run OpenRouter web search before each reply
+#                     (default false; billed per result, every challenger gets it)
+#   OWM_WEB_SEARCH_MAX_RESULTS  search results per call (defaults to 5)
 #   OWM_SENTRY_DSN    error tracker DSN; unset logs structured errors only
 #   OWM_ALLOW_SEARCH_INDEXING  true to allow crawlers in a public build (default false)
 #   OWM_SES_PRODUCTION_ACCESS  true to narrow the SES send grant (default false)
@@ -81,6 +84,8 @@ SIGNIN_ALLOWED_EMAILS="${OWM_SIGNIN_ALLOWED_EMAILS:-}"
 ALARM_EMAIL="${OWM_ALARM_EMAIL:-}"
 MONTHLY_BUDGET_USD="${OWM_MONTHLY_BUDGET_USD:-200}"
 MONTHLY_SPEND_CAP_USD="${OWM_MONTHLY_SPEND_CAP_USD:-100}"
+WEB_SEARCH="${OWM_WEB_SEARCH:-false}"
+WEB_SEARCH_MAX_RESULTS="${OWM_WEB_SEARCH_MAX_RESULTS:-5}"
 SENTRY_DSN="${OWM_SENTRY_DSN:-}"
 SES_PRODUCTION_ACCESS="${OWM_SES_PRODUCTION_ACCESS:-false}"
 TAG="${IMAGE_TAG:-$(git rev-parse --short=12 HEAD)}"
@@ -167,6 +172,8 @@ CONTEXT=(
   -c "alarmEmail=$ALARM_EMAIL"
   -c "monthlyBudgetUsd=$MONTHLY_BUDGET_USD"
   -c "monthlySpendCapUsd=$MONTHLY_SPEND_CAP_USD"
+  -c "webSearch=$WEB_SEARCH"
+  -c "webSearchMaxResults=$WEB_SEARCH_MAX_RESULTS"
   -c "sesProductionAccess=$SES_PRODUCTION_ACCESS"
 )
 

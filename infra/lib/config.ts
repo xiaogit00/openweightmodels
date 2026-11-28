@@ -74,6 +74,10 @@ export type DeploymentConfig = {
   monthlyBudgetUsd: number;
   /** Runtime ceiling on provider-reported model spend in USD. `0` disables. */
   monthlySpendCapUsd: number;
+  /** Opt-in OpenRouter server-side web search for every challenger call. */
+  webSearch: boolean;
+  /** Search results per call when web search is on. */
+  webSearchMaxResults: number;
   /** Sentry DSN for application errors. Unset logs structured errors only. */
   sentryDsn?: string;
   /** `owner/repo` for the GitHub OIDC deploy role; unset skips the CI stack. */
@@ -580,6 +584,13 @@ export function loadDeploymentConfig(app: App): DeploymentConfig {
       'monthlySpendCapUsd',
       100,
       'OWM_MONTHLY_SPEND_CAP_USD',
+    ),
+    webSearch: booleanContext(context, 'webSearch', false, 'OWM_WEB_SEARCH'),
+    webSearchMaxResults: positiveIntContext(
+      context,
+      'webSearchMaxResults',
+      5,
+      'OWM_WEB_SEARCH_MAX_RESULTS',
     ),
     sentryDsn: resolved(context, 'sentryDsn', 'OWM_SENTRY_DSN', undefined),
     githubRepo,

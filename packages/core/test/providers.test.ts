@@ -30,7 +30,13 @@ const originalEnv = { ...process.env };
 
 afterEach(async () => {
   await Promise.all(cleanups.splice(0).map((cleanup) => cleanup()));
-  for (const key of ['PROVIDER', 'OPENROUTER_API_KEY', 'TOGETHER_API_KEY'] as const) {
+  for (const key of [
+    'PROVIDER',
+    'OPENROUTER_API_KEY',
+    'TOGETHER_API_KEY',
+    'OPENROUTER_WEB_SEARCH',
+    'OPENROUTER_WEB_SEARCH_MAX_RESULTS',
+  ] as const) {
     const value = originalEnv[key];
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
@@ -152,6 +158,73 @@ describe('OpenAI-compatible provider', () => {
     expect(firstModel).toBe('vendor/first');
     expect(secondModel).toBe('vendor/second');
     expect(secondParams).toEqual(firstParams);
+  });
+
+  it('leaves web search off unless the operator opts in', async () => {
+    const providerServer = await fakeOpenAi(() => ({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: sse('[DONE]'),
+    }));
+    cleanups.push(providerServer.close);
+
+    const provider = new OpenAICompatibleProvider('test-key');
+    await provider.generate({
+      model: model({ apiBase: providerServer.baseUrl }),
+      messages: [{ role: 'user', content: 'Find cheap flights to Bali' }],
+      attempt: 0,
+      onToken: () => {},
+    });
+
+    expect(providerServer.requests[0]?.body).not.toHaveProperty('plugins');
+  });
+
+  it('asks OpenRouter for web search, with the same budget for every Challenger', async () => {
+    process.env.OPENROUTER_WEB_SEARCH = 'true';
+    process.env.OPENROUTER_WEB_SEARCH_MAX_RESULTS = '3';
+    const providerServer = await fakeOpenAi(() => ({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: sse('[DONE]'),
+    }));
+    cleanups.push(providerServer.close);
+
+    const provider = new OpenAICompatibleProvider('test-key');
+    const messages = [{ role: 'user' as const, content: 'Find cheap flights to Bali' }];
+    for (const slug of ['bonsai', 'qwen']) {
+      await provider.generate({
+        model: model({ slug, apiModelId: `vendor/${slug}`, apiBase: providerServer.baseUrl }),
+        messages,
+        attempt: 0,
+        onToken: () => {},
+      });
+    }
+
+    const expected = [{ id: 'web', max_results: 3 }];
+    expect(providerServer.requests.map((request) => request.body.plugins)).toEqual([
+      expected,
+      expected,
+    ]);
+  });
+
+  it('never sends OpenRouter plugins to another provider', async () => {
+    process.env.OPENROUTER_WEB_SEARCH = 'true';
+    const providerServer = await fakeOpenAi(() => ({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: sse('[DONE]'),
+    }));
+    cleanups.push(providerServer.close);
+
+    const provider = new OpenAICompatibleProvider('test-key');
+    await provider.generate({
+      model: model({ provider: 'together', apiBase: providerServer.baseUrl }),
+      messages: [{ role: 'user', content: 'Find cheap flights to Bali' }],
+      attempt: 0,
+      onToken: () => {},
+    });
+
+    expect(providerServer.requests[0]?.body).not.toHaveProperty('plugins');
   });
 
   it('reports an HTTP failure without leaking the API key', async () => {
